@@ -656,7 +656,14 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
         itemContent={itemContent}
         initialTopMostItemIndex={messages.length - 1}
         components={{ Footer }}
-        followOutput="auto"
+        followOutput={(isAtBottom) => {
+          // 타이핑 중이거나 응답 대기 중일 때는 항상 스크롤
+          if (typingCharacterId || isWaitingForResponse) {
+            return 'smooth';
+          }
+          // 사용자가 맨 아래에 있을 때만 스크롤
+          return isAtBottom ? 'smooth' : false;
+        }}
         alignToBottom
         overscan={window.innerHeight * 2}
       />

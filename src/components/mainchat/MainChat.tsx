@@ -390,6 +390,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
             }
             handleRequestProactiveChat={handleRequestProactiveChat}
             onToggleProactive={(enabled) => dispatch(roomsActions.toggleProactive({ roomId: room.id, enabled }))}
+            virtuosoRef={messagesContainerRef}
           />
         </div>
       </div>
@@ -637,6 +638,7 @@ interface InputAreaProps {
   isWaitingForResponse: boolean;
   fileToSend?: FileToSend | null;
   stickerToSend?: Sticker | null;
+  virtuosoRef?: React.RefObject<VirtuosoHandle | null>;
 
   // 이벤트 핸들러들
   onOpenFileUpload?: () => void;
@@ -658,6 +660,7 @@ function InputArea({
   isWaitingForResponse,
   fileToSend,
   stickerToSend,
+  virtuosoRef,
   onOpenFileUpload,
   onCancelFilePreview,
   onToggleUserStickerPanel,
@@ -676,8 +679,9 @@ function InputArea({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!isWaitingForResponse && inputRef.current) {
+    if (!isWaitingForResponse && inputRef.current && virtuosoRef?.current) {
       inputRef.current.focus();
+      virtuosoRef.current.scrollToIndex({ index: "LAST" });
     }
   }, [isWaitingForResponse]);
 
