@@ -681,7 +681,10 @@ function InputArea({
   useEffect(() => {
     if (!isWaitingForResponse && inputRef.current && virtuosoRef?.current) {
       inputRef.current.focus();
-      virtuosoRef.current.scrollToIndex({ index: "LAST" });
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        behavior: "smooth"
+      });
     }
   }, [isWaitingForResponse]);
 
@@ -695,8 +698,12 @@ function InputArea({
     onSendMessage(text.trim());
     setText("");
     // 전송 후 입력 필드에 포커스를 유지하여 키보드가 내려가지 않도록 함
-    if (inputRef.current) {
+    if (inputRef.current && virtuosoRef?.current) {
       inputRef.current.focus();
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        behavior: "smooth"
+      });
     }
   };
 
