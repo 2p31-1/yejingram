@@ -585,6 +585,24 @@ const en = {
         defaultValue: "Default:",
     },
 
+    realmImport: {
+        title: "Download Character",
+        confirmMessage: "Download this character?",
+        confirmDescription: "Download character data from YejinRealm and add to your contacts.",
+        download: "Download",
+        loading: "Downloading character...",
+        success: "Character added successfully!",
+        error: "Download failed",
+        retry: "Retry",
+        errors: {
+            downloadFailed: "Failed to download the image.",
+            invalidFormat: "Invalid character card format.",
+            noCharacterData: "This image contains no character data.",
+            importFailed: "Failed to import character.",
+            unknown: "An unknown error occurred.",
+        },
+    },
+
     errorPage: {
         title: "An error has occurred",
         subtitle: "Please choose recovery options",

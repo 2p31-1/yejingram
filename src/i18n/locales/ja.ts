@@ -584,6 +584,24 @@ const ja = {
         defaultValue: "デフォルト:",
     },
 
+    realmImport: {
+        title: "キャラクターをダウンロード",
+        confirmMessage: "キャラクターをダウンロードしますか？",
+        confirmDescription: "YejinRealmからキャラクターデータをダウンロードして連絡先に追加します。",
+        download: "ダウンロード",
+        loading: "キャラクターをダウンロード中...",
+        success: "キャラクターが正常に追加されました！",
+        error: "ダウンロードに失敗しました",
+        retry: "再試行",
+        errors: {
+            downloadFailed: "画像のダウンロードに失敗しました。",
+            invalidFormat: "無効なキャラクターカード形式です。",
+            noCharacterData: "この画像にはキャラクターデータが含まれていません。",
+            importFailed: "キャラクターのインポートに失敗しました。",
+            unknown: "不明なエラーが発生しました。",
+        },
+    },
+
     errorPage: {
         title: "エラーが発生しました",
         subtitle: "復旧オプションを選択してください",

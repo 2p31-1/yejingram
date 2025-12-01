@@ -584,6 +584,24 @@ const ko = {
         defaultValue: "기본값:",
     },
 
+    realmImport: {
+        title: "캐릭터 다운로드",
+        confirmMessage: "캐릭터를 다운로드하시겠습니까?",
+        confirmDescription: "YejinRealm에서 캐릭터 데이터를 다운로드하여 연락처에 추가합니다.",
+        download: "다운로드",
+        loading: "캐릭터를 다운로드하는 중...",
+        success: "캐릭터가 성공적으로 추가되었습니다!",
+        error: "다운로드에 실패했습니다",
+        retry: "다시 시도",
+        errors: {
+            downloadFailed: "이미지 다운로드에 실패했습니다.",
+            invalidFormat: "유효하지 않은 캐릭터 카드 형식입니다.",
+            noCharacterData: "이 이미지에는 캐릭터 데이터가 없습니다.",
+            importFailed: "캐릭터 가져오기에 실패했습니다.",
+            unknown: "알 수 없는 오류가 발생했습니다.",
+        },
+    },
+
     errorPage: {
         title: "오류가 발생했습니다",
         subtitle: "복구 옵션을 선택해주세요",

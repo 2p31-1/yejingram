@@ -8,29 +8,9 @@ import type { RootState } from '../../app/store';
 import { newCharacterDefault, type Character, type PersonaChatAppCharacterCard } from '../../entities/character/types';
 import { AttributeSliders } from './AttributeSliders';
 import { StickerManager } from './StickerManager';
-import { decodeText, encodeText } from '../../utils/imageStego';
+import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
-import { extractBasicCharacterInfo } from '../../utils/risuai/risuCharacterCard';
-
-const personaCardToCharacter = (card: PersonaChatAppCharacterCard, imageUrl: string | null): Character => {
-    const { name, prompt, responseTime, thinkingTime, reactivity, tone, proactiveEnabled } = card;
-
-    return {
-        id: Date.now(),
-        name,
-        prompt,
-        responseTime: parseInt(responseTime, 10),
-        thinkingTime: parseInt(thinkingTime, 10),
-        reactivity: parseInt(reactivity, 10),
-        tone: parseInt(tone, 10),
-        proactiveEnabled,
-        // Fields not in PersonaChatAppCharacterCard are set to default values
-        avatar: imageUrl || null,
-        messageCountSinceLastSummary: 0,
-        media: [],
-        stickers: [],
-    };
-};
+import { importCharacterFromFile } from '../../utils/importCharacter';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
     return {
@@ -106,73 +86,16 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             const file = target.files?.[0];
             if (!file) return;
 
-            // 1) 우선 extractBasicCharacterInfo로 시도 (PNG/JSON/CHARX/JPEG 지원)
-            try {
-                const info = await extractBasicCharacterInfo({ name: file.name, data: file });
-                if (info) {
-                    const promptParts: string[] = [];
-                    if (info.description) promptParts.push(info.description);
-                    if (info.personality) promptParts.push(`personality: ${info.personality}`);
-                    if (info.scenario) promptParts.push(`scenario: ${info.scenario}`);
-
-                    const characterFromCard: Character = {
-                        ...newCharacterDefault,
-                        id: Date.now(),
-                        name: info.name || '',
-                        prompt: promptParts.join('\n\n'),
-                        avatar: info.avatarDataUrl ?? null,
-                        lorebook: info.lorebook ?? [],
-                    } as Character;
-                    setChar(characterFromCard);
-                    return;
-                }
-            } catch (err) {
-                // 무시하고 기존 PNG 스테가노 경로로 폴백
-                console.warn('extractBasicCharacterInfo 실패, decodeText로 폴백:', err);
-            }
-
-            // 2) 폴백: 기존 PNG 스테가노 방식 (PersonaChatAppCharacterCard/예진그램 png-trailer)
-            if (file.type === 'image/png' || /\.png$/i.test(file.name)) {
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const src = String(ev.target?.result || "");
-                    try {
-                        const decodeResult = await decodeText(src);
-                        if (decodeResult.text) {
-                            try {
-                                let characterFromCard: Character;
-                                if (decodeResult.method === "png-trailer") {
-                                    characterFromCard = JSON.parse(decodeResult.text) as Character;
-                                } else {
-                                    const jsonData = JSON.parse(decodeResult.text) as PersonaChatAppCharacterCard;
-                                    if (jsonData.source !== 'PersonaChatAppCharacterCard') {
-                                        throw new Error("Invalid character card format.");
-                                    }
-                                    const imageUrl = await new Promise<string>((resolve, reject) => {
-                                        const reader = new FileReader();
-                                        reader.onload = () => resolve(reader.result as string);
-                                        reader.onerror = reject;
-                                        reader.readAsDataURL(file);
-                                    });
-                                    characterFromCard = personaCardToCharacter(jsonData, imageUrl);
-                                }
-                                console.log("불러온 연락처 데이터:", characterFromCard);
-                                setChar(characterFromCard);
-                            } catch (e) {
-                                console.error("Failed to parse character card:", e);
-                                alert(t('characterPanel.alerts.invalidCardFormat'));
-                            }
-                        } else {
-                            alert(t('characterPanel.alerts.noContactDataInImage'));
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        alert(t('characterPanel.alerts.importFailed'));
-                    }
-                };
-                reader.readAsDataURL(file);
+            const result = await importCharacterFromFile(file);
+            if (result.success) {
+                setChar(result.character);
             } else {
-                alert(t('characterPanel.alerts.unsupportedFileType'));
+                const errorMessages: Record<typeof result.error, string> = {
+                    invalidFormat: t('characterPanel.alerts.invalidCardFormat'),
+                    noCharacterData: t('characterPanel.alerts.noContactDataInImage'),
+                    importFailed: t('characterPanel.alerts.importFailed'),
+                };
+                alert(errorMessages[result.error]);
             }
         };
 
