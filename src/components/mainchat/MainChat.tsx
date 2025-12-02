@@ -283,6 +283,62 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     };
   }, [room?.id]);
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Pass CSS :root variables to iframe
+  useEffect(() => {
+    const sendCssVariables = () => {
+      if (!iframeRef.current?.contentWindow) return;
+
+      const rootStyles = getComputedStyle(document.documentElement);
+      const cssVariables: Record<string, string> = {};
+
+      // Extract all CSS variables from :root
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) {
+            if (rule instanceof CSSStyleRule && rule.selectorText === ':root') {
+              for (const prop of rule.style) {
+                if (prop.startsWith('--')) {
+                  cssVariables[prop] = rootStyles.getPropertyValue(prop).trim();
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      iframeRef.current.contentWindow.postMessage(
+        { type: 'CSS_VARIABLES', variables: cssVariables },
+        '*'
+      );
+    };
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', sendCssVariables);
+    }
+
+    // Detect theme changes
+    const observer = new MutationObserver(() => {
+      sendCssVariables();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'data-theme']
+    });
+
+    return () => {
+      if (iframe) {
+        iframe.removeEventListener('load', sendCssVariables);
+      }
+      observer.disconnect();
+    };
+  }, []);
+
   if (!room || (!character && room?.type !== 'Group')) {
     return (
       <div className="flex-1 flex items-center justify-center bg-[var(--color-bg-secondary)]">
@@ -293,17 +349,11 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         >
           <Menu className="h-5 w-5 text-[var(--color-icon-primary)]" />
         </button>
-        <div className="text-center">
-          <div className="w-24 h-24 bg-[var(--color-button-secondary-accent)] rounded-full flex items-center justify-center mx-auto mb-6">
-            <MessageCircle className="w-12 h-12 text-[var(--color-icon-secondary)]" />
-          </div>
-          <h3 className="text-xl md:text-2xl font-semibold text-[var(--color-text-primary)] mb-3">
-            {t('main.empty.title')}
-          </h3>
-          <p className="text-sm md:text-base text-[var(--color-text-secondary)] leading-relaxed">
-            {t('main.empty.description')}
-          </p>
-        </div>
+        <iframe
+          ref={iframeRef}
+          src="http://localhost:5174"
+          className="w-full h-full"
+        ></iframe>
       </div>
     );
   }
