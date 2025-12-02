@@ -95,15 +95,50 @@ export async function importCharacterFromFile(file: File): Promise<ImportCharact
 
 /**
  * URL에서 이미지를 다운로드하여 캐릭터를 import합니다.
+ * @param url 다운로드할 URL
+ * @param defaultFileName 기본 파일명
+ * @param onProgress 진행률 콜백 (0-100)
  */
-export async function importCharacterFromUrl(url: string, defaultFileName: string = 'character.png'): Promise<ImportCharacterResult> {
+export async function importCharacterFromUrl(
+    url: string,
+    defaultFileName: string = 'character.png',
+    onProgress?: (progress: number) => void
+): Promise<ImportCharacterResult> {
     try {
         const response = await fetch(url);
         if (!response.ok) {
             return { success: false, error: 'importFailed' };
         }
 
-        const blob = await response.blob();
+        // Content-Length로 전체 크기 확인
+        const contentLength = response.headers.get('Content-Length');
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+        let blob: Blob;
+
+        if (total > 0 && response.body && onProgress) {
+            // 스트리밍으로 진행률 추적
+            const reader = response.body.getReader();
+            const chunks: BlobPart[] = [];
+            let received = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                chunks.push(value);
+                received += value.length;
+
+                const progress = Math.round((received / total) * 100);
+                onProgress(progress);
+            }
+
+            blob = new Blob(chunks);
+        } else {
+            // 진행률 추적 불가능한 경우 기존 방식 사용
+            blob = await response.blob();
+            if (onProgress) onProgress(100);
+        }
 
         // 파일 이름 추출 (Content-Disposition 헤더에서 또는 기본값 사용)
         const contentDisposition = response.headers.get('Content-Disposition');

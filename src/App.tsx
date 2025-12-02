@@ -10,7 +10,7 @@ import CreateGroupChatModal from './components/modals/CreateGroupChatModal'
 import EditGroupChatModal from './components/modals/EditGroupChatModal'
 import SyncModal from './components/modals/SyncModal'
 import SyncCornerIndicator from './components/modals/SyncCornerIndicator'
-import RealmImportModal from './components/modals/RealmImportModal'
+import RealmImportModal, { type RealmImportParams } from './components/modals/RealmImportModal'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectRoomById } from './entities/room/selectors'
 import { selectEditingCharacterId } from './entities/character/selectors'
@@ -44,16 +44,15 @@ function App() {
   const isSyncing = (ui.syncProgress ?? 0) > 0;
   const forceShowSyncModal = useSelector(selectForceShowSyncModal);
   const uiLanguage = useSelector(selectUILanguage);
-
   const editingCharacterId = useSelector(selectEditingCharacterId);
 
-  // URL 파라미터에서 realmId 처리
-  const [realmId, setRealmId] = useState<string | null>(() => {
+  const [realmImport, setRealmImport] = useState<RealmImportParams | null>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const realmIdParam = params.get('realmId');
-      if (realmIdParam && realmIdParam.trim().length > 0) {
-        return realmIdParam.trim();
+      const realmId = params.get('realmId')?.trim();
+      if (realmId) {
+        const charname = params.get('charname')?.trim() || undefined;
+        return { realmId, charname };
       }
     }
     return null;
@@ -61,11 +60,12 @@ function App() {
 
   // realmId 처리 후 URL에서 파라미터 제거
   const handleRealmImportClose = () => {
-    setRealmId(null);
-    // URL에서 realmId 파라미터 제거
+    setRealmImport(null);
+    // URL에서 realmId, charname 파라미터 제거
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.delete('realmId');
+      url.searchParams.delete('charname');
       window.history.replaceState({}, '', url.toString());
     }
   };
@@ -265,8 +265,8 @@ function App() {
         {shouldShowGlobalSyncModal ? <SyncModal /> : <SyncCornerIndicator />}
 
         {/* Realm Import Modal */}
-        {realmId !== null && (
-          <RealmImportModal realmId={realmId} onClose={handleRealmImportClose} />
+        {realmImport && (
+          <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={handleRealmImportClose} />
         )}
 
         {/* Mobile Sidebar Backdrop */}
