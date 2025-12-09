@@ -7,8 +7,10 @@ import { messagesActions } from '../entities/message/slice';
 import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
-import { selectLastSaved } from '../entities/lastSaved/selectors';
 import { uiActions } from '../entities/ui/slice';
+import type { Patch } from '../entities/sync/types';
+import { syncActions } from '../entities/sync/slice';
+import { applyPatch } from './diff';
 
 export function entityStateToArray<T>(
   // Id extends PropertyKey 대신 Id extends EntityId를 사용합니다.
@@ -91,9 +93,12 @@ export async function restoreStateFromPayload(payload: BackupFile, autoSync = tr
 
   if (autoSync) store.dispatch({ type: 'sync/applyDeltaStart' });
 
+  await restoreState(payload.data, persistConfig.version, autoSync);
+}
+
+async function restoreState(state: BackupFile['data'], lastVersion = persistConfig.version, autoSync = true) {
   await wipeAllState();
-  let state = payload.data;
-  for (let v = payload.version + 1; v <= persistConfig.version; v++) {
+  for (let v = lastVersion + 1; v <= persistConfig.version; v++) {
     if (migrations[v] == null) continue;
     state = migrations[v](state as unknown as any) as unknown as typeof state;
   }
@@ -110,19 +115,28 @@ export async function restoreStateFromPayload(payload: BackupFile, autoSync = tr
 }
 
 // ---------- 서버 동기화 ----------
-export async function backupStateToServer(clientId: string, baseURL: string) {
+export async function backupStateToServer(clientId: string, baseURL: string, diff?: Patch) {
   // 업로드 인디케이터 시작
   store.dispatch(uiActions.setUploadProgress(0));
-  try {
-    const data = JSON.stringify({
-      lastSaved: selectLastSaved(store.getState()),
-      backup: buildBackupPayload(),
-    });
 
+  let url = `${baseURL}/api/sync/${clientId}`;
+  if (!diff) {
+    url += '?type=snapshot';
+    const payload = buildBackupPayload();
+
+    diff = {
+      id: `backup-${Date.now()}`,
+      baseSeq: 0,
+      diff: payload.data,
+      timestamp: Date.now()
+    };
+  }
+
+  try {
     if (isBrowser) {
-      await new Promise<void>((resolve, reject) => {
+      let newSeq = await new Promise<number>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('PUT', `${baseURL}/api/sync/${clientId}`);
+        xhr.open('POST', url);
         xhr.setRequestHeader('Content-Type', 'application/json');
 
         xhr.upload.onprogress = (event) => {
@@ -132,20 +146,25 @@ export async function backupStateToServer(clientId: string, baseURL: string) {
           }
         };
 
-        xhr.onload = () => {
+        xhr.onload = async () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else if (xhr.status === 409) {
-            reject(new Error('Already backed up to the latest version.', { cause: 'conflict' }));
+            resolve(Number(JSON.parse(xhr.responseText).seq));
+          } else if (xhr.status === 404) {
+            await backupStateToServer(clientId, baseURL);
+            resolve(0);
+          }
+          else if (xhr.status === 409) {
+            reject(new Error('Conflict: Server state has changed. Please try again.', { cause: 'conflict' }));
           } else {
             reject(new Error(`Upload failed: ${xhr.statusText}`));
           }
         };
 
         xhr.onerror = () => reject(new Error('Upload failed'));
-
-        xhr.send(data);
+        xhr.send(JSON.stringify(diff));
       });
+
+      store.dispatch(syncActions.setServerSeq(newSeq));
     }
   } finally {
     // 업로드 인디케이터 종료
@@ -157,45 +176,47 @@ export async function restoreStateFromServer(clientId: string, baseURL: string) 
   // 다운로드 진행률을 바이트 기준으로 표시
   store.dispatch(uiActions.setSyncProgress(0));
   try {
-    const res = await fetch(`${baseURL}/api/sync/${clientId}`);
-    if (!res.ok) return;
-
-    const totalStr = res.headers.get('content-length');
-    const total = totalStr ? parseInt(totalStr, 10) : 0;
-    const body = res.body as ReadableStream<Uint8Array> | null;
-
     let jsonText: string | null = null;
 
-    if (body && typeof (body as any).getReader === 'function' && total > 0) {
-      const reader = body.getReader();
-      const decoder = new TextDecoder();
-      let received = 0;
-      let text = '';
+    if (isBrowser) {
+      jsonText = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', `${baseURL}/api/sync/${clientId}`);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          received += value.byteLength;
-          text += decoder.decode(value, { stream: true });
-          const percent = Math.max(0, Math.min(100, Math.floor((received / total) * 100)));
-          store.dispatch(uiActions.setSyncProgress(percent));
-        }
-      }
-      // flush
-      text += new TextDecoder().decode();
-      jsonText = text;
+        xhr.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.max(0, Math.min(100, Math.floor((event.loaded / event.total) * 100)));
+            store.dispatch(uiActions.setSyncProgress(percent));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(xhr.responseText);
+          } else {
+            reject(new Error(`Download failed: ${xhr.statusText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Download failed'));
+        xhr.send();
+      });
     } else {
-      // 총 길이를 알 수 없음
-      store.dispatch(uiActions.clearSyncProgress());
-      const data = await res.json();
-      await restoreStateFromPayload(data);
-      return;
+      const res = await fetch(`${baseURL}/api/sync/${clientId}`);
+      if (!res.ok) return;
+      jsonText = await res.text();
     }
 
     if (jsonText) {
-      const data = JSON.parse(jsonText);
-      await restoreStateFromPayload(data);
+      const serverState = JSON.parse(jsonText);
+      applyPatch(store.getState(), serverState.patches);
+      await restoreState(applyPatch(store.getState(), serverState.patches), persistConfig.version, true);
+
+      store.dispatch(syncActions.updateFromSnapshot({
+        seq: serverState.snapshot ? serverState.snapshot.seq + (serverState.patches ? serverState.patches.length : 0) : 0
+      }));
+      store.dispatch(syncActions.clearPatchQueue());
+      store.dispatch(syncActions.resolveConflict());
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());

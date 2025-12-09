@@ -2,15 +2,9 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
-
-// ---- Types ----
-interface PutBody {
-    lastSaved: number;
-    backup: unknown;
-}
-interface GetBody {
-    backup: unknown;
-}
+import type { Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
+import { applyPatch } from '../../src/utils/diff';
+import type { BackupFile } from '../../src/utils/backup';
 
 interface ApiError extends Error {
     status?: number;
@@ -26,7 +20,6 @@ const DATA_DIR = path.resolve(process.cwd(), 'data');
 
 // ---- Utils ----
 
-// 파일명 검증 (영문/숫자/언더스코어/하이픈만 허용)
 function sanitizeClientId(input: string): string {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(input)) {
         const err: ApiError = new Error('Invalid clientId format');
@@ -44,27 +37,32 @@ async function ensureDataDir(): Promise<void> {
     await fsp.mkdir(DATA_DIR, { recursive: true });
 }
 
-async function readSavedData(clientId: string): Promise<PutBody | null> {
+async function readServerState(clientId: string): Promise<ServerState | null> {
     try {
         const json = await fsp.readFile(filePath(clientId), 'utf-8');
-        const parsed = JSON.parse(json) as PutBody;
-        if (
-            typeof parsed === 'object' &&
-            parsed !== null &&
-            typeof parsed.lastSaved === 'number' &&
-            'backup' in parsed
-        ) {
-            return parsed;
+        const parsed = JSON.parse(json);
+
+        if (parsed && parsed.snapshot && Array.isArray(parsed.patches)) {
+            return parsed as ServerState;
         }
-        return null;
+        // Migration from old format
+        if (parsed && parsed.backup) {
+            return {
+                snapshot: { seq: 0, data: parsed.backup },
+                patches: []
+            };
+        }
+        return null
     } catch (err: any) {
-        if (err?.code === 'ENOENT') return null; // 파일 없음
-        throw err; // 그 외 I/O 에러는 상위에서 처리
+        if (err?.code === 'ENOENT') {
+            return null;
+        }
+        throw err;
     }
 }
 
-async function writeSavedData(clientId: string, payload: PutBody): Promise<void> {
-    await fsp.writeFile(filePath(clientId), JSON.stringify(payload));
+async function writeServerState(clientId: string, state: ServerState): Promise<void> {
+    await fsp.writeFile(filePath(clientId), JSON.stringify(state, null, 2));
 }
 
 // ---- Routes ----
@@ -74,47 +72,92 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 app.get(
     '/api/sync/:clientId',
-    async (req: Request<{ clientId: string }, any, GetBody>, res: Response, next: NextFunction) => {
+    async (req: Request<{ clientId: string }, any, any, { sinceSeq?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);
-            const data = await readSavedData(clientId);
+            const state = await readServerState(clientId);
+            if (!state) {
+                return res.status(404).json({ error: 'State not found' });
+            }
+            const sinceSeq = Number(req.query.sinceSeq) || 0;
 
-            if (!data) {
-                return res.status(404).json({ error: 'No data found for this clientId' });
+            if (sinceSeq < state.snapshot.seq) {
+                return res.json({
+                    snapshot: state.snapshot,
+                    patches: state.patches
+                });
             }
 
-            // 기존 동작 유지: backup만 반환
-            return res.json(data.backup);
+            const newPatches = state.patches.filter(p => p.baseSeq >= sinceSeq);
+            return res.json({
+                snapshot: null,
+                patches: newPatches,
+                latestSeq: state.snapshot.seq + state.patches.length
+            });
         } catch (err) {
             next(err);
         }
     }
 );
 
-app.put(
+app.post(
     '/api/sync/:clientId',
-    async (req: Request<{ clientId: string }, any, PutBody>, res: Response, next: NextFunction) => {
+    async (req: Request<{ clientId: string }, any, any, { type?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);
-            const { lastSaved, backup } = req.body ?? {};
 
-            if (typeof lastSaved !== 'number' || !Number.isFinite(lastSaved) || backup === undefined) {
-                return res.status(400).json({ error: 'Invalid body: require { lastSaved:number, backup:any }' });
+            // Handle snapshot submission (initialization or reset)
+            if (req.query.type === 'snapshot') {
+                const snapshotData = req.body as BackupFile['data'];
+                const newState: ServerState = {
+                    snapshot: {
+                        seq: 1,
+                        data: snapshotData
+                    },
+                    patches: []
+                };
+                await writeServerState(clientId, newState);
+                return res.json({ seq: 1 });
             }
 
-            const saved = await readSavedData(clientId);
-
-            // 최초 저장이거나 최신이면 덮어쓰기
-            if (!saved || lastSaved > saved.lastSaved) {
-                await writeSavedData(clientId, { lastSaved, backup });
-                return res.json({ ok: true });
+            const state = await readServerState(clientId);
+            console.log(req.body);
+            if (!state && !req.body.diff) {
+                return res.status(404).json({ error: 'State not found' });
             }
 
-            // 더 오래된 데이터인 경우 충돌
-            return res.status(409).json({
-                error: 'Conflict: incoming data is older than saved data',
-                currentlastSaved: saved.lastSaved,
-            });
+            if (!state) {
+                return;
+            }
+
+            const patch = req.body as Patch;
+            const currentSeq = state.snapshot.seq + state.patches.length;
+
+            if (patch.baseSeq !== currentSeq) {
+                console.error('Conflict detected', { expected: currentSeq, received: patch.baseSeq });
+                return res.status(409).json({
+                    error: 'Conflict',
+                    seq: currentSeq,
+                    snapshot: state.snapshot,
+                    patches: state.patches
+                });
+            }
+
+            state.patches.push(patch);
+
+            // Snapshot every 100 patches
+            if (state.patches.length >= 100) {
+                state.snapshot = {
+                    seq: currentSeq + 1,
+                    data: applyPatch(state.snapshot.data, patch.diff)
+                };
+                state.patches = [];
+            }
+
+            await writeServerState(clientId, state);
+
+            return res.json({ seq: currentSeq + 1 });
+
         } catch (err) {
             next(err);
         }

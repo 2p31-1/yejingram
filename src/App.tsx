@@ -9,6 +9,7 @@ import CharacterPanel from './components/character/CharacterPanel'
 import CreateGroupChatModal from './components/modals/CreateGroupChatModal'
 import EditGroupChatModal from './components/modals/EditGroupChatModal'
 import SyncModal from './components/modals/SyncModal'
+import SyncConflictModal from './components/modals/SyncConflictModal'
 import SyncCornerIndicator from './components/modals/SyncCornerIndicator'
 import RealmImportModal, { type RealmImportParams } from './components/modals/RealmImportModal'
 import { useDispatch, useSelector } from 'react-redux'
@@ -17,7 +18,6 @@ import { selectEditingCharacterId } from './entities/character/selectors'
 import { selectAllSettings, selectColorTheme, selectUILanguage } from './entities/setting/selectors'
 import { type RootState } from './app/store'
 import { setActiveRoomId } from './utils/activeRoomTracker'
-import { restoreStateFromServer } from './utils/backup'
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'react-hot-toast';
@@ -25,6 +25,7 @@ import { selectForceShowSyncModal, selectUI } from './entities/ui/selectors';
 import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
+import { syncService } from './services/syncService'
 
 function App() {
   const dispatch = useDispatch();
@@ -39,7 +40,7 @@ function App() {
   const [isEditGroupChatModalOpen, setIsEditGroupChatModalOpen] = useState(false);
   const colorTheme = useSelector(selectColorTheme);
   const settings = useSelector(selectAllSettings);
-  const { syncEnabled, syncClientId, syncBaseUrl } = settings.syncSettings;
+  const { syncEnabled } = settings.syncSettings;
   const ui = useSelector(selectUI);
   const isSyncing = (ui.syncProgress ?? 0) > 0;
   const forceShowSyncModal = useSelector(selectForceShowSyncModal);
@@ -100,6 +101,12 @@ function App() {
   }, [uiLanguage, dispatch]);
 
   useEffect(() => {
+    if (syncEnabled) {
+      syncService.sync();
+    }
+  }, [syncEnabled]);
+
+  useEffect(() => {
     document.documentElement.classList.remove('light', 'dark', 'custom-theme');
     if (colorTheme === 'dark' || (colorTheme === 'system' && prefersDark)) {
       document.documentElement.classList.add('dark');
@@ -143,16 +150,6 @@ function App() {
   useEffect(() => {
     setActiveRoomId(roomId);
   }, [roomId]);
-
-  const hasRequestedInitialRestoreRef = useRef(false);
-  useEffect(() => {
-    if (syncEnabled && syncClientId && syncBaseUrl && !hasRequestedInitialRestoreRef.current) {
-      hasRequestedInitialRestoreRef.current = true;
-      restoreStateFromServer(syncClientId, syncBaseUrl);
-    } else if (!syncEnabled) {
-      hasRequestedInitialRestoreRef.current = false;
-    }
-  }, []);
 
   // 패널 자동 닫힘: "편집 중이었다가" editingCharacterId가 null이 될 때만 닫기
   const prevEditingIdRef = useRef<number | null>(editingCharacterId);
@@ -263,6 +260,7 @@ function App() {
 
         {/* Sync indicators: show modal only for pristine initial state, else corner indicator */}
         {shouldShowGlobalSyncModal ? <SyncModal /> : <SyncCornerIndicator />}
+        <SyncConflictModal />
 
         {/* Realm Import Modal */}
         {realmImport && (

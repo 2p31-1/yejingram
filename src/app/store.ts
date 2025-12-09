@@ -22,6 +22,7 @@ import { initialState as imageSettingsInitialState } from '../entities/setting/i
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
 import lastSavedReducer from '../entities/lastSaved/slice';
+import syncReducer from '../entities/sync/slice';
 
 // Enable localforage only in browser environments
 export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -267,6 +268,7 @@ const appReducer = combineReducers({
     messages: messageReducer,
     ui: uiReducer,
     lastSaved: lastSavedReducer,
+    sync: syncReducer
 });
 
 export const RESET_ALL = 'app/resetAll' as const;
