@@ -351,7 +351,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         </button>
         <iframe
           ref={iframeRef}
-          src="http://localhost:5174"
+          src={`${import.meta.env.DEV ? `http://localhost:5174` : import.meta.env.VITE_REALM_URL}`}
           className="w-full h-full"
         ></iframe>
       </div>
