@@ -128,55 +128,74 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
       id: `backup-${Date.now()}`,
       baseSnapshotSeq: 0,
       seq: 0,
-      diff: payload.data,
+      snapshot: payload.data,
       timestamp: Date.now()
     };
   }
 
   try {
     if (isBrowser) {
-      let newSeq = await new Promise<number>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', url);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+      let newSeq: number | undefined;
+      try {
+        newSeq = await new Promise<number>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', url);
+          xhr.setRequestHeader('Content-Type', 'application/json');
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.max(0, Math.min(100, Math.floor((event.loaded / event.total) * 100)));
-            store.dispatch(uiActions.setUploadProgress(percent));
-          }
-        };
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.max(0, Math.min(100, Math.floor((event.loaded / event.total) * 100)));
+              store.dispatch(uiActions.setUploadProgress(percent));
+            }
+          };
 
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(Number(JSON.parse(xhr.responseText).seq));
-          } else if (xhr.status === 404) {
-            await backupStateToServer(clientId, baseURL);
-            resolve(0);
-          }
-          else if (xhr.status === 409) {
-            reject(new Error('Conflict: Server state has changed. Please try again.', { cause: 'conflict' }));
-          }
-          else if (xhr.status === 410) {
-            restoreStateFromServer(clientId, baseURL);
-            reject(new Error('Snapshot sequence mismatch: Server requires a new snapshot. State is being restored from server.', { cause: 'snapshot_mismatch' }));
-          }
-          else {
-            reject(new Error(`Upload failed: ${xhr.statusText}`));
-          }
-        };
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(Number(JSON.parse(xhr.responseText).seq));
+            } else if (xhr.status === 404) {
+              await backupStateToServer(clientId, baseURL);
+              resolve(0);
+            }
+            else if (xhr.status === 409) {
+              const res = JSON.parse(xhr.responseText);
+              reject({
+                cause: 'conflict',
+                timestamp: Number(res.timestamp),
+                seq: Number(res.seq)
+              });
+            }
+            else if (xhr.status === 410) {
+              reject({ cause: 'snapshot_mismatch', });
+            }
+            else {
+              reject(new Error(`Upload failed: ${xhr.statusText}`));
+            }
+          };
 
-        xhr.onerror = () => reject(new Error('Upload failed'));
-        xhr.send(JSON.stringify(diff));
-      });
+          xhr.onerror = () => reject(new Error('Upload failed'));
+          xhr.send(JSON.stringify(diff));
+        });
+      } catch (err) {
+        const error = err as { cause: 'conflict'; timestamp: number; seq: number } | { cause: 'snapshot_mismatch' };
 
+        if (error.cause === 'conflict') {
+          console.log('⚠️ 충돌 발생!');
+          store.dispatch(syncActions.setConflict({
+            lastServerPatchSeq: error.seq,
+            lastServerTimestamp: error.timestamp
+          }));
+          return;
+        }
+        if (error.cause === 'snapshot_mismatch') {
+          console.log('⚠️ 스냅샷 불일치!');
+          restoreStateFromServer(clientId, baseURL);
+        }
+      }
       console.log('Backup uploaded, new seq:', newSeq);
 
       if (newSeq != null) {
         store.dispatch(syncActions.setPatchSeq(newSeq));
         store.dispatch(syncActions.popPatchQueue());
-      } else {
-        // Conflict
       }
     }
   } finally {

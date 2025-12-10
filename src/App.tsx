@@ -26,6 +26,7 @@ import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
 import { syncService } from './services/syncService'
+import { selectIsSyncConflict } from './entities/sync/selectors'
 
 function App() {
   const dispatch = useDispatch();
@@ -46,6 +47,7 @@ function App() {
   const forceShowSyncModal = useSelector(selectForceShowSyncModal);
   const uiLanguage = useSelector(selectUILanguage);
   const editingCharacterId = useSelector(selectEditingCharacterId);
+  const isConflict = useSelector(selectIsSyncConflict);
 
   const [realmImport, setRealmImport] = useState<RealmImportParams | null>(() => {
     if (typeof window !== 'undefined') {
@@ -260,8 +262,8 @@ function App() {
 
         {/* Sync indicators: show modal only for pristine initial state, else corner indicator */}
         {shouldShowGlobalSyncModal ? <SyncModal /> : <SyncCornerIndicator />}
-        <SyncConflictModal />
 
+        {isConflict && <SyncConflictModal />}
         {/* Realm Import Modal */}
         {realmImport && (
           <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={handleRealmImportClose} />

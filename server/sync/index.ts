@@ -136,15 +136,13 @@ app.post(
                 console.error('Snapshot seq mismatch', { expected: state.snapshot.seq, received: patch.baseSnapshotSeq });
                 return res.status(410).json({
                     error: 'Snapshot sequence mismatch',
-                    seq: state.snapshot.seq,
-                    snapshot: state.snapshot,
-                    patches: state.patches
                 });
             } else if (patch.seq !== state.patches.length) {
                 console.error('Patch seq out of order', { expected: state.patches.length, received: patch.seq });
                 return res.status(409).json({
                     error: 'Patch sequence out of order',
-                    seq: state.patches.length
+                    seq: state.patches.length,
+                    timestamp: state.patches.length > 0 ? state.patches[state.patches.length - 1].timestamp : new Date().getTime()
                 });
             }
 
@@ -152,11 +150,13 @@ app.post(
 
             // Snapshot every 100 patches
             if (state.patches.length >= 100) {
-                state.snapshot = {
-                    seq: state.snapshot.seq + 1,
-                    data: applyPatch(state.snapshot.data, patch.diff)
-                };
-                state.patches = [];
+                if (patch.diff) {
+                    state.snapshot = {
+                        seq: state.snapshot.seq + 1,
+                        data: applyPatch(state.snapshot.data, state.patches)
+                    };
+                    state.patches = [];
+                }
             }
 
             await writeServerState(clientId, state);
