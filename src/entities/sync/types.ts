@@ -1,8 +1,10 @@
+import type { Operation } from 'fast-json-patch';
+
 export interface Patch {
     id: string;
     seq: number;
     baseSnapshotSeq: number;
-    diff: any;
+    diff: Operation[];
     timestamp: number;
 }
 
