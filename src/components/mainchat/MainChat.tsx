@@ -292,6 +292,8 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
 
       const rootStyles = getComputedStyle(document.documentElement);
       const cssVariables: Record<string, string> = {};
+      const isDark = document.documentElement.classList.contains('dark');
+      const theme = isDark ? 'dark' : 'light';
 
       // Extract all CSS variables from :root
       for (const sheet of document.styleSheets) {
@@ -311,7 +313,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       }
 
       iframeRef.current.contentWindow.postMessage(
-        { type: 'CSS_VARIABLES', variables: cssVariables },
+        { type: 'CSS_VARIABLES', variables: cssVariables, theme },
         '*'
       );
     };
