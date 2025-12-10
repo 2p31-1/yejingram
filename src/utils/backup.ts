@@ -8,7 +8,7 @@ import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
-import type { Patch } from '../entities/sync/types';
+import type { ClientSyncResponse, Patch } from '../entities/sync/types';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
@@ -126,7 +126,8 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
 
     diff = {
       id: `backup-${Date.now()}`,
-      baseSeq: 0,
+      baseSnapshotSeq: 0,
+      seq: 0,
       diff: payload.data,
       timestamp: Date.now()
     };
@@ -155,7 +156,12 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
           }
           else if (xhr.status === 409) {
             reject(new Error('Conflict: Server state has changed. Please try again.', { cause: 'conflict' }));
-          } else {
+          }
+          else if (xhr.status === 410) {
+            restoreStateFromServer(clientId, baseURL);
+            reject(new Error('Snapshot sequence mismatch: Server requires a new snapshot. State is being restored from server.', { cause: 'snapshot_mismatch' }));
+          }
+          else {
             reject(new Error(`Upload failed: ${xhr.statusText}`));
           }
         };
@@ -164,7 +170,14 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
         xhr.send(JSON.stringify(diff));
       });
 
-      store.dispatch(syncActions.setServerSeq(newSeq));
+      console.log('Backup uploaded, new seq:', newSeq);
+
+      if (newSeq != null) {
+        store.dispatch(syncActions.setPatchSeq(newSeq));
+        store.dispatch(syncActions.popPatchQueue());
+      } else {
+        // Conflict
+      }
     }
   } finally {
     // 업로드 인디케이터 종료
@@ -208,15 +221,18 @@ export async function restoreStateFromServer(clientId: string, baseURL: string) 
     }
 
     if (jsonText) {
-      const serverState = JSON.parse(jsonText);
-      applyPatch(store.getState(), serverState.patches);
-      await restoreState(applyPatch(store.getState(), serverState.patches), persistConfig.version, true);
+      const serverState: ClientSyncResponse = JSON.parse(jsonText);
+      const patchedState = applyPatch(store.getState(), serverState.patches);
+      store.dispatch({ type: 'sync/applyDeltaStart' });
+      await restoreState(patchedState, persistConfig.version, false);
 
       store.dispatch(syncActions.updateFromSnapshot({
-        seq: serverState.snapshot ? serverState.snapshot.seq + (serverState.patches ? serverState.patches.length : 0) : 0
+        snapshotSeq: serverState.snapshotSeq,
+        patchSeq: serverState.patchSeq
       }));
       store.dispatch(syncActions.clearPatchQueue());
       store.dispatch(syncActions.resolveConflict());
+      store.dispatch({ type: 'sync/applyDeltaEnd' });
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());

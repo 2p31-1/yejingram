@@ -4,6 +4,7 @@ import { syncActions } from "../entities/sync/slice";
 import { getPatch } from "../utils/diff";
 import { syncService } from "./syncService";
 import { nanoid } from "@reduxjs/toolkit";
+import type { Patch } from "../entities/sync/types";
 
 let applying = true;
 let messagePrevState: RootState = {} as RootState;
@@ -11,10 +12,6 @@ let messagePrevState: RootState = {} as RootState;
 export const syncMiddleware: Middleware<{}, RootState> = store => next => (action: any) => {
     const blacklist = ['app/resetAll', 'rooms/resetUnread'];
     const blacklistPrefixes = ['persist/', 'ui/', 'lastSaved/', 'sync/'];
-
-    if (blacklist.includes(action.type) || blacklistPrefixes.some(prefix => action.type.startsWith(prefix))) {
-        return next(action);
-    }
 
     let prevState = store.getState();
     if (action.type === 'sync/applyDeltaStart' || action.type === 'messages/writingStart') {
@@ -24,6 +21,10 @@ export const syncMiddleware: Middleware<{}, RootState> = store => next => (actio
     else if (action.type === 'sync/applyDeltaEnd' || action.type === 'messages/writingEnd') {
         applying = true;
         prevState = messagePrevState;
+    }
+
+    if (blacklist.includes(action.type) || blacklistPrefixes.some(prefix => action.type.startsWith(prefix))) {
+        return next(action);
     }
 
     const result = next(action);
@@ -42,9 +43,10 @@ export const syncMiddleware: Middleware<{}, RootState> = store => next => (actio
         const diff = getPatch(prevRelevant, nextRelevant);
 
         if (diff) {
-            const patch = {
+            const patch: Patch = {
                 id: nanoid(),
-                baseSeq: prevState.sync.serverSeq,
+                baseSnapshotSeq: nextState.sync.snapshotSeq,
+                seq: nextState.sync.patchSeq,
                 diff: diff,
                 timestamp: Date.now()
             };

@@ -1,6 +1,7 @@
 export interface Patch {
     id: string;
-    baseSeq: number;
+    seq: number;
+    baseSnapshotSeq: number;
     diff: any;
     timestamp: number;
 }
@@ -15,9 +16,15 @@ export interface ServerState {
     patches: Patch[];
 }
 
+export interface ClientSyncResponse {
+    snapshotSeq: number;
+    patchSeq: number;
+    patches: Patch[];
+}
+
 export interface SyncState {
-    serverSeq: number;
-    appliedSeq: number;
+    snapshotSeq: number;
+    patchSeq: number;
     status: 'synced' | 'offline' | 'conflict' | 'syncing';
     patchQueue: Patch[];
     isSyncing: boolean;

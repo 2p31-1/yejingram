@@ -2,8 +2,8 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Patch, SyncState } from './types';
 
 const initialState: SyncState = {
-    serverSeq: 0,
-    appliedSeq: 0,
+    snapshotSeq: 0,
+    patchSeq: 0,
     status: 'synced',
     patchQueue: [],
     isSyncing: false,
@@ -17,24 +17,18 @@ export const syncSlice = createSlice({
             state.patchQueue.push(action.payload);
             state.status = 'syncing';
         },
-        confirmPatch: (state, action: PayloadAction<{ patchId: string, serverSeq: number }>) => {
-            const { patchId, serverSeq } = action.payload;
-            state.patchQueue = state.patchQueue.filter(p => p.id !== patchId);
-            state.serverSeq = serverSeq;
-            state.appliedSeq = serverSeq;
-            if (state.patchQueue.length === 0) {
-                state.status = 'synced';
-            }
+        setSnapshotSeq: (state, action: PayloadAction<number>) => {
+            state.snapshotSeq = action.payload;
         },
-        setServerSeq: (state, action: PayloadAction<number>) => {
-            state.serverSeq = action.payload;
+        setPatchSeq: (state, action: PayloadAction<number>) => {
+            state.patchSeq = action.payload;
         },
         setSyncStatus: (state, action: PayloadAction<SyncState['status']>) => {
             state.status = action.payload;
         },
-        updateFromSnapshot: (state, action: PayloadAction<{ seq: number }>) => {
-            state.serverSeq = action.payload.seq;
-            state.appliedSeq = action.payload.seq;
+        updateFromSnapshot: (state, action: PayloadAction<{ snapshotSeq: number, patchSeq: number }>) => {
+            state.snapshotSeq = action.payload.snapshotSeq;
+            state.patchSeq = action.payload.patchSeq;
             // In a real implementation, we might want to rebase patches here
             // But for now, following the simple flow: "Client updates local state based on server state"
             state.status = 'synced';
@@ -46,6 +40,9 @@ export const syncSlice = createSlice({
         resolveConflict: (state) => {
             state.status = 'synced';
             state.conflict = undefined;
+        },
+        popPatchQueue: (state) => {
+            state.patchQueue.shift();
         },
         clearPatchQueue: (state) => {
             state.patchQueue = [];

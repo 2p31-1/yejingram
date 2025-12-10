@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
-import type { Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
+import type { ClientSyncResponse, Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
 import { applyPatch } from '../../src/utils/diff';
 import type { BackupFile } from '../../src/utils/backup';
 
@@ -88,12 +88,12 @@ app.get(
                 });
             }
 
-            const newPatches = state.patches.filter(p => p.baseSeq >= sinceSeq);
+            const newPatches = state.patches.filter(p => p.baseSnapshotSeq >= sinceSeq);
             return res.json({
-                snapshot: null,
+                snapshotSeq: state.snapshot.seq,
+                patchSeq: state.patches.length,
                 patches: newPatches,
-                latestSeq: state.snapshot.seq + state.patches.length
-            });
+            } as ClientSyncResponse);
         } catch (err) {
             next(err);
         }
@@ -111,13 +111,13 @@ app.post(
                 const snapshotData = req.body as BackupFile['data'];
                 const newState: ServerState = {
                     snapshot: {
-                        seq: 1,
+                        seq: 0,
                         data: snapshotData
                     },
                     patches: []
                 };
                 await writeServerState(clientId, newState);
-                return res.json({ seq: 1 });
+                return res.json({ seq: 0 });
             }
 
             const state = await readServerState(clientId);
@@ -131,15 +131,20 @@ app.post(
             }
 
             const patch = req.body as Patch;
-            const currentSeq = state.snapshot.seq + state.patches.length;
 
-            if (patch.baseSeq !== currentSeq) {
-                console.error('Conflict detected', { expected: currentSeq, received: patch.baseSeq });
-                return res.status(409).json({
-                    error: 'Conflict',
-                    seq: currentSeq,
+            if (patch.baseSnapshotSeq !== state.snapshot.seq) {
+                console.error('Snapshot seq mismatch', { expected: state.snapshot.seq, received: patch.baseSnapshotSeq });
+                return res.status(410).json({
+                    error: 'Snapshot sequence mismatch',
+                    seq: state.snapshot.seq,
                     snapshot: state.snapshot,
                     patches: state.patches
+                });
+            } else if (patch.seq !== state.patches.length) {
+                console.error('Patch seq out of order', { expected: state.patches.length, received: patch.seq });
+                return res.status(409).json({
+                    error: 'Patch sequence out of order',
+                    seq: state.patches.length
                 });
             }
 
@@ -148,7 +153,7 @@ app.post(
             // Snapshot every 100 patches
             if (state.patches.length >= 100) {
                 state.snapshot = {
-                    seq: currentSeq + 1,
+                    seq: state.snapshot.seq + 1,
                     data: applyPatch(state.snapshot.data, patch.diff)
                 };
                 state.patches = [];
@@ -156,7 +161,7 @@ app.post(
 
             await writeServerState(clientId, state);
 
-            return res.json({ seq: currentSeq + 1 });
+            return res.json({ seq: state.patches.length });
 
         } catch (err) {
             next(err);
