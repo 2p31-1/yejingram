@@ -65,9 +65,44 @@ async function writeServerState(clientId: string, state: ServerState): Promise<v
     await fsp.writeFile(filePath(clientId), JSON.stringify(state, null, 2));
 }
 
+function validatePatchSequence(patch: Patch, state: ServerState, res: Response): boolean {
+    if (patch.baseSnapshotSeq !== state.snapshot.seq) {
+        console.error('Snapshot seq mismatch', { expected: state.snapshot.seq, received: patch.baseSnapshotSeq });
+        res.status(410).json({
+            error: 'Snapshot sequence mismatch',
+        });
+        return false;
+    } else if (patch.seq !== state.patches.length) {
+        console.error('Patch seq out of order', { expected: state.patches.length, received: patch.seq });
+        res.status(409).json({
+            error: 'Patch sequence out of order',
+            seq: state.patches.length,
+            timestamp: state.patches.length > 0 ? state.patches[state.patches.length - 1].timestamp : new Date().getTime()
+        });
+        return false;
+    }
+    return true;
+}
+
+
 // ---- Routes ----
 app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ ok: true });
+});
+
+app.post('/api/sync/check/:clientId', async (req: Request<{ clientId: string }>, res: Response, next: NextFunction) => {
+    try {
+        const clientId = sanitizeClientId(req.params.clientId);
+        const state = await readServerState(clientId);
+        if (!state) {
+            return res.status(404).json({ error: 'State not found' });
+        }
+        const patch = req.body as Patch;
+        if (!validatePatchSequence(patch, state, res)) return;
+        res.json({ valid: true });
+    } catch (err) {
+        next(err);
+    }
 });
 
 app.get(
@@ -132,19 +167,7 @@ app.post(
 
             const patch = req.body as Patch;
 
-            if (patch.baseSnapshotSeq !== state.snapshot.seq) {
-                console.error('Snapshot seq mismatch', { expected: state.snapshot.seq, received: patch.baseSnapshotSeq });
-                return res.status(410).json({
-                    error: 'Snapshot sequence mismatch',
-                });
-            } else if (patch.seq !== state.patches.length) {
-                console.error('Patch seq out of order', { expected: state.patches.length, received: patch.seq });
-                return res.status(409).json({
-                    error: 'Patch sequence out of order',
-                    seq: state.patches.length,
-                    timestamp: state.patches.length > 0 ? state.patches[state.patches.length - 1].timestamp : new Date().getTime()
-                });
-            }
+            if (!validatePatchSequence(patch, state, res)) return;
 
             state.patches.push(patch);
 

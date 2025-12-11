@@ -29,7 +29,6 @@ export interface ClientSyncResponse {
 export interface SyncState {
     snapshotSeq: number;
     patchSeq: number;
-    status: 'synced' | 'offline' | 'conflict' | 'syncing';
     patchQueue: Patch[];
     isSyncing: boolean;
     conflict?: {

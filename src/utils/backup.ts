@@ -115,12 +115,47 @@ async function restoreState(state: BackupFile['data'], lastVersion = persistConf
 }
 
 // ---------- 서버 동기화 ----------
+export async function checkForConflict(clientId: string, baseURL: string) {
+  const state = store.getState();
+  try {
+    const response = await fetch(`${baseURL}/api/sync/check/${clientId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        seq: state.sync.patchSeq,
+        baseSnapshotSeq: state.sync.snapshotSeq
+      } as Patch),
+    });
+
+    if (response.ok) {
+      return;
+    } else if (response.status === 409) {
+      const res = await response.json();
+      handleBackupError({
+        cause: 'conflict',
+        timestamp: Number(res.timestamp),
+        seq: Number(res.seq)
+      }, clientId, baseURL);
+    } else if (response.status === 410) {
+      handleBackupError({ cause: 'snapshot_mismatch' }, clientId, baseURL);
+    } else {
+      throw new Error(`Check failed: ${response.statusText}`);
+    }
+  } catch (error) {
+    throw new Error('Check failed');
+  }
+}
+
 export async function backupStateToServer(clientId: string, baseURL: string, diff?: Patch) {
   // 업로드 인디케이터 시작
   store.dispatch(uiActions.setUploadProgress(0));
 
   let url = `${baseURL}/api/sync/${clientId}`;
-  if (!diff) {
+
+  let snapshotNeeded = !diff;
+  if (snapshotNeeded) {
     url += '?type=snapshot';
     const payload = buildBackupPayload();
 
@@ -178,24 +213,17 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
       } catch (err) {
         const error = err as { cause: 'conflict'; timestamp: number; seq: number } | { cause: 'snapshot_mismatch' };
 
-        if (error.cause === 'conflict') {
-          console.log('⚠️ 충돌 발생!');
-          store.dispatch(syncActions.setConflict({
-            lastServerPatchSeq: error.seq,
-            lastServerTimestamp: error.timestamp
-          }));
-          return;
-        }
-        if (error.cause === 'snapshot_mismatch') {
-          console.log('⚠️ 스냅샷 불일치!');
-          restoreStateFromServer(clientId, baseURL);
-        }
+        handleBackupError(error, clientId, baseURL);
       }
       console.log('Backup uploaded, new seq:', newSeq);
 
       if (newSeq != null) {
         store.dispatch(syncActions.setPatchSeq(newSeq));
         store.dispatch(syncActions.popPatchQueue());
+      }
+
+      if (snapshotNeeded) {
+        store.dispatch(syncActions.resolveConflict())
       }
     }
   } finally {
@@ -255,5 +283,24 @@ export async function restoreStateFromServer(clientId: string, baseURL: string) 
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());
+  }
+}
+
+export function handleBackupError(
+  error: { cause: 'conflict'; timestamp: number; seq: number } | { cause: 'snapshot_mismatch' },
+  clientId: string,
+  baseURL: string
+) {
+  if (error.cause === 'conflict') {
+    console.log('⚠️ 충돌 발생!');
+    store.dispatch(syncActions.setConflict({
+      lastServerPatchSeq: error.seq,
+      lastServerTimestamp: error.timestamp
+    }));
+    return;
+  }
+  if (error.cause === 'snapshot_mismatch') {
+    console.log('⚠️ 스냅샷 불일치!');
+    restoreStateFromServer(clientId, baseURL);
   }
 }

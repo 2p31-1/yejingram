@@ -257,7 +257,7 @@ export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
     version: 6,
-    whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved'],
+    whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved', 'sync'],
     migrate: createMigrate(migrations, { debug: true }),
 };
 

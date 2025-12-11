@@ -1,13 +1,13 @@
 import { store } from '../app/store';
-import { backupStateToServer } from '../utils/backup';
+import { backupStateToServer, checkForConflict as checkConflict } from '../utils/backup';
 
 export const syncService = {
     async sync() {
         const state = store.getState();
         const { syncSettings } = state.settings;
-        const { patchQueue, status } = state.sync;
+        const { patchQueue } = state.sync;
 
-        if (!syncSettings.syncEnabled || status === 'offline') return;
+        if (!syncSettings.syncEnabled) return;
         const patch = patchQueue.length > 0 ? patchQueue[0] : null;
 
         try {
@@ -23,4 +23,12 @@ export const syncService = {
         }
     },
 
+    async checkConflict() {
+        const state = store.getState();
+        const { syncSettings } = state.settings;
+        checkConflict(
+            syncSettings.syncClientId,
+            syncSettings.syncBaseUrl
+        );
+    }
 };

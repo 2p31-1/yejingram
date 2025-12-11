@@ -104,9 +104,10 @@ function App() {
 
   useEffect(() => {
     if (syncEnabled) {
-      syncService.sync();
+      syncService.checkConflict();
     }
-  }, [syncEnabled]);
+  }, []);
+
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark', 'custom-theme');

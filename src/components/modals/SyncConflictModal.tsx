@@ -1,23 +1,31 @@
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import { syncActions } from '../../entities/sync/slice';
 import { selectSyncConflict } from '../../entities/sync/selectors';
+import { restoreStateFromServer, backupStateToServer } from '../../utils/backup';
+import type { RootState } from '../../app/store';
 
 
 function SyncConflictModal() {
     const { t } = useTranslation();
-    const dispatch = useDispatch();
     const conflict = useSelector(selectSyncConflict);
+    const syncSettings = useSelector((state: RootState) => state.settings.syncSettings);
 
     if (!conflict) return null;
 
-    const handleKeepLocal = () => {
-        dispatch(syncActions.resolveConflict());
+    const handleKeepLocal = async () => {
+        try {
+            await backupStateToServer(syncSettings.syncClientId, syncSettings.syncBaseUrl);
+        } catch (error) {
+            console.error('Failed to resolve conflict (Keep Local):', error);
+        }
     };
 
-    const handleApplyServer = () => {
-        // Assuming we have server data, but for now just resolve
-        dispatch(syncActions.resolveConflict());
+    const handleApplyServer = async () => {
+        try {
+            await restoreStateFromServer(syncSettings.syncClientId, syncSettings.syncBaseUrl);
+        } catch (error) {
+            console.error('Failed to resolve conflict (Apply Server):', error);
+        }
     };
 
     return (
