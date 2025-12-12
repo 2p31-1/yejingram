@@ -1,4 +1,4 @@
-import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { SettingsState, ApiProvider, ApiConfig, Prompts, Persona, ThemeOverrides, Sync, Proactive } from './types';
 import type { ImageApiConfig, ImageApiProvider, ArtStyle } from './image/types';
@@ -76,10 +76,6 @@ export const initialState: SettingsState = {
     syncSettings: initialSyncSettings,
     proactiveSettings: initialProactiveSettings,
 };
-
-export const settingsAdapter = createEntityAdapter<SettingsState, string>({
-    selectId: () => 'settings', // There will only be one settings object
-})
 
 const settingsSlice = createSlice({
     name: 'settings',

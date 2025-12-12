@@ -67,7 +67,7 @@ export async function backupStateToFile() {
 }
 
 // ---------- 복원 ----------
-export async function restoreStateFromFile(file: File, autoSync?: boolean) {
+export async function restoreStateFromFile(file: File) {
   const text = await file.text();
 
   let parsed: BackupFile;
@@ -77,20 +77,20 @@ export async function restoreStateFromFile(file: File, autoSync?: boolean) {
     throw new Error('잘못된 JSON 파일입니다.');
   }
 
-  await restoreStateFromPayload(parsed, autoSync);
+  await restoreStateFromPayload(parsed);
 }
 
-export async function restoreStateFromPayload(payload: BackupFile, autoSync = true) {
+export async function restoreStateFromPayload(payload: BackupFile) {
   if (payload.app !== 'yejingram' || !payload.data) {
     throw new Error('이 앱의 백업 형식이 아닙니다.');
   }
 
-  if (autoSync) store.dispatch({ type: 'sync/applyDeltaStart' });
-
-  await restoreState(payload.data, persistConfig.version, autoSync);
+  await restoreState(payload.data, persistConfig.version);
 }
 
-async function restoreState(state: Partial<RootState>, lastVersion = persistConfig.version, autoSync = true) {
+async function restoreState(state: Partial<RootState>, lastVersion = persistConfig.version) {
+  store.dispatch({ type: 'sync/applyDeltaStart' });
+
   await wipeAllState();
   for (let v = lastVersion + 1; v <= persistConfig.version; v++) {
     if (migrations[v] == null) continue;
@@ -105,7 +105,7 @@ async function restoreState(state: Partial<RootState>, lastVersion = persistConf
   if (settings) store.dispatch(settingsActions.importSettings(settings));
   if (lastSaved) store.dispatch(lastSavedActions.importLastSaved(lastSaved));
 
-  if (autoSync) store.dispatch({ type: 'sync/applyDeltaEnd' });
+  store.dispatch({ type: 'sync/applyDeltaEnd' });
 }
 
 // ---------- 서버 동기화 ----------
@@ -124,14 +124,30 @@ export async function checkForConflict(clientId: string, baseURL: string) {
     });
 
     if (response.ok) {
+      store.dispatch(syncActions.resolveConflict());
       return;
     } else if (response.status === 409) {
       const res = await response.json();
-      handleBackupError({
-        cause: 'conflict',
-        timestamp: Number(res.timestamp),
-        seq: Number(res.seq)
-      }, clientId, baseURL);
+      const serverSnapshotSeq = Number(res.snapshotSeq);
+      const serverPatchSeq = Number(res.seq);
+      const clientSnapshotSeq = state.sync.snapshotSeq;
+      const clientPatchSeq = state.sync.patchSeq;
+
+      if (clientPatchSeq < serverPatchSeq) {
+        // 클라이언트 패치가 서버보다 뒤처져 있음
+        restoreStateFromServer(clientId, baseURL, false);
+      } else if (clientSnapshotSeq < serverSnapshotSeq) {
+        // 클라이언트 스냅샷이 서버보다 뒤처져 있음
+        restoreStateFromServer(clientId, baseURL, true);
+      } else {
+        // 클라이언트가 서버 보다 앞서 있음
+        console.log(`⚠️ 충돌 발생! 서버 패치 시퀀스: ${serverPatchSeq}, 클라이언트 패치 시퀀스: ${clientPatchSeq}`);
+        handleBackupError({
+          cause: 'conflict',
+          timestamp: res.timestamp ? Number(res.timestamp) : Date.now(),
+          seq: serverPatchSeq
+        }, clientId, baseURL);
+      }
     } else if (response.status === 410) {
       handleBackupError({ cause: 'snapshot_mismatch' }, clientId, baseURL);
     } else {
@@ -230,12 +246,18 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
   // 다운로드 진행률을 바이트 기준으로 표시
   store.dispatch(uiActions.setSyncProgress(0));
   try {
+    const currentState = store.getState();
+    const queryParams = new URLSearchParams({
+      sinceSnapshotSeq: currentState.sync.snapshotSeq.toString(),
+      sincePatchSeq: currentState.sync.patchSeq.toString(),
+      ...(full && { full: 'true' })
+    });
     let jsonText: string | null = null;
 
     if (isBrowser) {
       jsonText = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', `${baseURL}/api/sync/${clientId}${full ? '?full=true' : ''}`);
+        xhr.open('GET', `${baseURL}/api/sync/${clientId}?${queryParams.toString()}`);
 
         xhr.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -256,7 +278,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
         xhr.send();
       });
     } else {
-      const res = await fetch(`${baseURL}/api/sync/${clientId}`);
+      const res = await fetch(`${baseURL}/api/sync/${clientId}?${queryParams.toString()}`);
       if (!res.ok) return;
       jsonText = await res.text();
     }
@@ -265,8 +287,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
       const serverState: ClientSyncResponse = JSON.parse(jsonText);
       const state = serverState.type === 'full' ? serverState.snapshot : store.getState();
       const patchedState = applyPatch(state, serverState.patches);
-      store.dispatch({ type: 'sync/applyDeltaStart' });
-      await restoreState(patchedState, persistConfig.version, false);
+      await restoreState(patchedState, persistConfig.version);
 
       store.dispatch(syncActions.updateFromSnapshot({
         snapshotSeq: serverState.snapshotSeq,

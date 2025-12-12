@@ -115,7 +115,7 @@ app.post('/api/sync/check/:clientId', async (req: Request<{ clientId: string }>,
 
 app.get(
     '/api/sync/:clientId',
-    async (req: Request<{ clientId: string }, any, any, { sinceSanpshotSeq: number, sincePatchSeq: number, full?: string }>, res: Response, next: NextFunction) => {
+    async (req: Request<{ clientId: string }, any, any, { sinceSnapshotSeq: number, sincePatchSeq: number, full?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);
             const state = await readServerState(clientId);
@@ -123,7 +123,17 @@ app.get(
                 return res.status(404).json({ error: 'State not found' });
             }
 
-            if (req.query.sinceSanpshotSeq < state.metadata.snapshotSeq) {
+            if (req.query.full === 'true') {
+                return res.json({
+                    type: 'full',
+                    snapshotSeq: state.metadata.snapshotSeq,
+                    patchSeq: state.metadata.patchSeq,
+                    snapshot: state.snapshot,
+                    patches: state.patches
+                } as ClientSyncResponse);
+            }
+
+            if (req.query.sinceSnapshotSeq < state.metadata.snapshotSeq) {
                 return res.json({
                     type: 'full',
                     snapshotSeq: state.metadata.snapshotSeq,
@@ -135,23 +145,12 @@ app.get(
 
             const newPatches = state.patches.filter(p => p.seq >= req.query.sincePatchSeq);
 
-            if (req.query.full === 'true') {
-                return res.json({
-                    type: 'full',
-                    snapshotSeq: state.metadata.snapshotSeq,
-                    patchSeq: state.metadata.patchSeq,
-                    snapshot: state.snapshot,
-                    patches: newPatches
-                } as ClientSyncResponse);
-            }
-            else {
-                return res.json({
-                    type: 'patch',
-                    snapshotSeq: state.metadata.snapshotSeq,
-                    patchSeq: state.metadata.patchSeq,
-                    patches: newPatches,
-                } as ClientSyncResponse);
-            }
+            return res.json({
+                type: 'patch',
+                snapshotSeq: state.metadata.snapshotSeq,
+                patchSeq: state.metadata.patchSeq,
+                patches: newPatches,
+            } as ClientSyncResponse);
         } catch (err) {
             next(err);
         }
