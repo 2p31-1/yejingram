@@ -8,7 +8,7 @@ import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
-import type { ClientSyncResponse, Patch } from '../entities/sync/types';
+import type { ClientSyncResponse, Patch, BackupFile, BackupData } from '../entities/sync/types';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
@@ -30,12 +30,6 @@ export async function wipeAllState() {
 }
 
 // 백업 파일 스키마
-export type BackupFile = {
-  app: 'yejingram';
-  version: number;         // 우리 스키마 버전 (persist 버전과 별개)
-  createdAt: string;       // ISO 문자열
-  data: Pick<RootState, 'characters' | 'rooms' | 'messages' | 'settings' | 'lastSaved'>;
-};
 
 // Build a compact payload from current state
 export function buildBackupPayload() {
@@ -46,7 +40,7 @@ export function buildBackupPayload() {
     messages: state.messages,
     settings: state.settings,
     lastSaved: state.lastSaved,
-  } satisfies BackupFile['data'];
+  } satisfies BackupData;
   const payload: BackupFile = {
     app: 'yejingram',
     version: persistConfig.version,
@@ -96,7 +90,7 @@ export async function restoreStateFromPayload(payload: BackupFile, autoSync = tr
   await restoreState(payload.data, persistConfig.version, autoSync);
 }
 
-async function restoreState(state: BackupFile['data'], lastVersion = persistConfig.version, autoSync = true) {
+async function restoreState(state: Partial<RootState>, lastVersion = persistConfig.version, autoSync = true) {
   await wipeAllState();
   for (let v = lastVersion + 1; v <= persistConfig.version; v++) {
     if (migrations[v] == null) continue;
@@ -232,7 +226,7 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
   }
 }
 
-export async function restoreStateFromServer(clientId: string, baseURL: string) {
+export async function restoreStateFromServer(clientId: string, baseURL: string, full = false) {
   // 다운로드 진행률을 바이트 기준으로 표시
   store.dispatch(uiActions.setSyncProgress(0));
   try {
@@ -241,7 +235,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string) 
     if (isBrowser) {
       jsonText = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', `${baseURL}/api/sync/${clientId}`);
+        xhr.open('GET', `${baseURL}/api/sync/${clientId}${full ? '?full=true' : ''}`);
 
         xhr.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -269,7 +263,8 @@ export async function restoreStateFromServer(clientId: string, baseURL: string) 
 
     if (jsonText) {
       const serverState: ClientSyncResponse = JSON.parse(jsonText);
-      const patchedState = applyPatch(store.getState(), serverState.patches);
+      const state = serverState.type === 'full' ? serverState.snapshot : store.getState();
+      const patchedState = applyPatch(state, serverState.patches);
       store.dispatch({ type: 'sync/applyDeltaStart' });
       await restoreState(patchedState, persistConfig.version, false);
 

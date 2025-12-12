@@ -396,7 +396,7 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                         </button>
                                         <button onClick={async () => {
                                             try {
-                                                await restoreStateFromServer(localSettings.syncSettings.syncClientId, localSettings.syncSettings.syncBaseUrl);
+                                                await restoreStateFromServer(localSettings.syncSettings.syncClientId, localSettings.syncSettings.syncBaseUrl, true);
                                             } catch (err) {
                                                 console.error(err);
                                                 alert(t('settings.others.sync.restoreFailed'));

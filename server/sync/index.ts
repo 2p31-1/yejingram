@@ -2,9 +2,9 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
-import type { ClientSyncResponse, Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
+import type { ClientSyncResponse, Patch, ServerState } from '../../src/entities/sync/types';
+import type { RootState } from '../../src/app/store';
 import { applyPatch } from '../../src/utils/diff';
-import type { BackupFile } from '../../src/utils/backup';
 
 interface ApiError extends Error {
     status?: number;
@@ -43,12 +43,20 @@ async function readServerState(clientId: string): Promise<ServerState | null> {
         const parsed = JSON.parse(json);
 
         if (parsed && parsed.snapshot && Array.isArray(parsed.patches)) {
+            if (!parsed.metadata) {
+                parsed.metadata = {
+                    snapshotSeq: parsed.snapshot.seq || 0,
+                    patchSeq: parsed.patches.length
+                };
+                delete (parsed.snapshot as any).seq;
+            }
             return parsed as ServerState;
         }
         // Migration from old format
         if (parsed && parsed.backup) {
             return {
-                snapshot: { seq: 0, data: parsed.backup },
+                metadata: { snapshotSeq: 0, patchSeq: 0 },
+                snapshot: parsed.backup as RootState,
                 patches: []
             };
         }
@@ -66,17 +74,17 @@ async function writeServerState(clientId: string, state: ServerState): Promise<v
 }
 
 function validatePatchSequence(patch: Patch, state: ServerState, res: Response): boolean {
-    if (patch.baseSnapshotSeq !== state.snapshot.seq) {
-        console.error('Snapshot seq mismatch', { expected: state.snapshot.seq, received: patch.baseSnapshotSeq });
+    if (patch.baseSnapshotSeq !== state.metadata.snapshotSeq) {
+        console.error('Snapshot seq mismatch', { expected: state.metadata.snapshotSeq, received: patch.baseSnapshotSeq });
         res.status(410).json({
             error: 'Snapshot sequence mismatch',
         });
         return false;
-    } else if (patch.seq !== state.patches.length) {
-        console.error('Patch seq out of order', { expected: state.patches.length, received: patch.seq });
+    } else if (patch.seq !== state.metadata.patchSeq) {
+        console.error('Patch seq out of order', { expected: state.metadata.patchSeq, received: patch.seq });
         res.status(409).json({
             error: 'Patch sequence out of order',
-            seq: state.patches.length,
+            seq: state.metadata.patchSeq,
             timestamp: state.patches.length > 0 ? state.patches[state.patches.length - 1].timestamp : new Date().getTime()
         });
         return false;
@@ -107,28 +115,43 @@ app.post('/api/sync/check/:clientId', async (req: Request<{ clientId: string }>,
 
 app.get(
     '/api/sync/:clientId',
-    async (req: Request<{ clientId: string }, any, any, { sinceSeq?: string }>, res: Response, next: NextFunction) => {
+    async (req: Request<{ clientId: string }, any, any, { sinceSanpshotSeq: number, sincePatchSeq: number, full?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);
             const state = await readServerState(clientId);
             if (!state) {
                 return res.status(404).json({ error: 'State not found' });
             }
-            const sinceSeq = Number(req.query.sinceSeq) || 0;
 
-            if (sinceSeq < state.snapshot.seq) {
+            if (req.query.sinceSanpshotSeq < state.metadata.snapshotSeq) {
                 return res.json({
+                    type: 'full',
+                    snapshotSeq: state.metadata.snapshotSeq,
+                    patchSeq: state.metadata.patchSeq,
                     snapshot: state.snapshot,
                     patches: state.patches
-                });
+                } as ClientSyncResponse);
             }
 
-            const newPatches = state.patches.filter(p => p.baseSnapshotSeq >= sinceSeq);
-            return res.json({
-                snapshotSeq: state.snapshot.seq,
-                patchSeq: state.patches.length,
-                patches: newPatches,
-            } as ClientSyncResponse);
+            const newPatches = state.patches.filter(p => p.seq >= req.query.sincePatchSeq);
+
+            if (req.query.full === 'true') {
+                return res.json({
+                    type: 'full',
+                    snapshotSeq: state.metadata.snapshotSeq,
+                    patchSeq: state.metadata.patchSeq,
+                    snapshot: state.snapshot,
+                    patches: newPatches
+                } as ClientSyncResponse);
+            }
+            else {
+                return res.json({
+                    type: 'patch',
+                    snapshotSeq: state.metadata.snapshotSeq,
+                    patchSeq: state.metadata.patchSeq,
+                    patches: newPatches,
+                } as ClientSyncResponse);
+            }
         } catch (err) {
             next(err);
         }
@@ -141,14 +164,11 @@ app.post(
         try {
             const clientId = sanitizeClientId(req.params.clientId);
 
-            // Handle snapshot submission (initialization or reset)
             if (req.query.type === 'snapshot') {
-                const snapshotData = req.body as BackupFile['data'];
+                const patch = req.body as Patch;
                 const newState: ServerState = {
-                    snapshot: {
-                        seq: 0,
-                        data: snapshotData
-                    },
+                    metadata: { snapshotSeq: 0, patchSeq: 0 },
+                    snapshot: patch.snapshot as RootState,
                     patches: []
                 };
                 await writeServerState(clientId, newState);
@@ -170,21 +190,20 @@ app.post(
             if (!validatePatchSequence(patch, state, res)) return;
 
             state.patches.push(patch);
+            state.metadata.patchSeq = state.patches.length;
 
             // Snapshot every 100 patches
             if (state.patches.length >= 100) {
-                if (patch.diff) {
-                    state.snapshot = {
-                        seq: state.snapshot.seq + 1,
-                        data: applyPatch(state.snapshot.data, state.patches)
-                    };
-                    state.patches = [];
-                }
+                state.metadata.snapshotSeq = state.metadata.snapshotSeq + 1;
+                state.metadata.patchSeq = 0;
+
+                state.snapshot = applyPatch(state.snapshot, state.patches);
+                state.patches = [];
             }
 
             await writeServerState(clientId, state);
 
-            return res.json({ seq: state.patches.length });
+            return res.json({ seq: state.metadata.patchSeq });
 
         } catch (err) {
             next(err);
