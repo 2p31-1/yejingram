@@ -102,7 +102,11 @@ function App() {
     }
   }, [uiLanguage, dispatch]);
 
+  const syncCheckedRef = useRef(false);
+
   useEffect(() => {
+    if (syncCheckedRef.current) return;
+    syncCheckedRef.current = true;
     if (syncEnabled) {
       syncService.checkConflict();
     }

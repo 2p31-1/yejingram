@@ -98,12 +98,12 @@ async function restoreState(state: Partial<RootState>, lastVersion = persistConf
   }
 
   const { characters, rooms, messages, settings, lastSaved } = state;
-  persistor.persist();
   if (characters) store.dispatch(charactersActions.importCharacters(entityStateToArray(characters)));
   if (rooms) store.dispatch(roomsActions.importRooms(entityStateToArray(rooms)));
   if (messages) store.dispatch(messagesActions.importMessages(entityStateToArray(messages)));
   if (settings) store.dispatch(settingsActions.importSettings(settings));
   if (lastSaved) store.dispatch(lastSavedActions.importLastSaved(lastSaved));
+  persistor.persist();
 
   store.dispatch({ type: 'sync/applyDeltaEnd' });
 }
@@ -249,7 +249,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
     const currentState = store.getState();
     const queryParams = new URLSearchParams({
       sinceSnapshotSeq: currentState.sync.snapshotSeq.toString(),
-      sincePatchSeq: currentState.sync.patchSeq.toString(),
+      sincePatchSeq: full ? '0' : currentState.sync.patchSeq.toString(),
       ...(full && { full: 'true' })
     });
     let jsonText: string | null = null;
@@ -295,7 +295,6 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
       }));
       store.dispatch(syncActions.clearPatchQueue());
       store.dispatch(syncActions.resolveConflict());
-      store.dispatch({ type: 'sync/applyDeltaEnd' });
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());
