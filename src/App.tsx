@@ -112,6 +112,30 @@ function App() {
     }
   }, []);
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (syncEnabled) {
+      // 초기 실행
+      syncService.checkConflict();
+      // 매분마다 실행 (60000ms = 1분)
+      intervalRef.current = setInterval(() => {
+        syncService.checkConflict();
+      }, 60000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [syncEnabled]);
+
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark', 'custom-theme');
