@@ -99,7 +99,7 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
             if (!file) return;
 
             try {
-                await restoreStateFromFile(file, false);
+                await restoreStateFromFile(file);
                 alert(t('settings.alerts.backupImported'));
             } catch (err) {
                 console.error(err);
