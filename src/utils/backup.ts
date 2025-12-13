@@ -8,7 +8,7 @@ import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
-import type { ClientSyncResponse, Patch, BackupFile, BackupData } from '../entities/sync/types';
+import type { ClientSyncResponse, Patch, BackupFile, BackupData, BackupError } from '../entities/sync/types';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
@@ -158,13 +158,16 @@ export async function checkForConflict(clientId: string, baseURL: string) {
   }
 }
 
-export async function backupStateToServer(clientId: string, baseURL: string, diff?: Patch) {
-  // 업로드 인디케이터 시작
+export async function backupStateToServer(
+  clientId: string,
+  baseURL: string,
+  diff?: Patch
+) {
   store.dispatch(uiActions.setUploadProgress(0));
 
   let url = `${baseURL}/api/sync/${clientId}`;
 
-  let snapshotNeeded = !diff;
+  const snapshotNeeded = !diff;
   if (snapshotNeeded) {
     url += '?type=snapshot';
     const payload = buildBackupPayload();
@@ -178,66 +181,100 @@ export async function backupStateToServer(clientId: string, baseURL: string, dif
     };
   }
 
+  let statusCode: number | null = null;
+  let responseText: string | null = null;
+
   try {
+    const state = store.getState();
+    console.log(`[backupStateToServer] Client patchSeq: ${state.sync.patchSeq}, snapshotSeq: ${state.sync.snapshotSeq}`);
+
     if (isBrowser) {
-      let newSeq: number | undefined;
-      try {
-        newSeq = await new Promise<number>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', url);
-          xhr.setRequestHeader('Content-Type', 'application/json');
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.setRequestHeader('Content-Type', 'application/json');
 
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const percent = Math.max(0, Math.min(100, Math.floor((event.loaded / event.total) * 100)));
-              store.dispatch(uiActions.setUploadProgress(percent));
-            }
-          };
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.floor((event.loaded / event.total) * 100);
+            store.dispatch(uiActions.setUploadProgress(percent));
+          }
+        };
 
-          xhr.onload = async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(Number(JSON.parse(xhr.responseText).seq));
-            } else if (xhr.status === 404) {
-              await backupStateToServer(clientId, baseURL);
-              resolve(0);
-            }
-            else if (xhr.status === 409) {
-              const res = JSON.parse(xhr.responseText);
-              reject({
-                cause: 'conflict',
-                timestamp: Number(res.timestamp),
-                seq: Number(res.seq)
-              });
-            }
-            else if (xhr.status === 410) {
-              reject({ cause: 'snapshot_mismatch', });
-            }
-            else {
-              reject(new Error(`Upload failed: ${xhr.statusText}`));
-            }
-          };
+        xhr.onload = () => {
+          statusCode = xhr.status;
+          responseText = xhr.responseText;
+          resolve();
+        };
 
-          xhr.onerror = () => reject(new Error('Upload failed'));
-          xhr.send(JSON.stringify(diff));
-        });
-      } catch (err) {
-        const error = err as { cause: 'conflict'; timestamp: number; seq: number } | { cause: 'snapshot_mismatch' };
+        xhr.onerror = () => reject(new Error('Upload failed'));
+        xhr.send(JSON.stringify(diff));
+      });
+    } else {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(diff)
+      });
 
-        handleBackupError(error, clientId, baseURL);
-      }
-      console.log('Backup uploaded, new seq:', newSeq);
+      statusCode = res.status;
+      responseText = await res.text();
 
-      if (newSeq != null) {
+      // fetch 환경에서는 progress 불가
+      store.dispatch(uiActions.setUploadProgress(100));
+    }
+
+    if (statusCode == null) {
+      throw new Error('No response status');
+    }
+
+    switch (statusCode) {
+      case 200: {
+        const res = JSON.parse(responseText ?? '{}');
+        const newSeq = Number(res.seq);
+
         store.dispatch(syncActions.setPatchSeq(newSeq));
         store.dispatch(syncActions.popPatchQueue());
+
+        if (snapshotNeeded) {
+          store.dispatch(syncActions.resolveConflict());
+        }
+        break;
       }
 
-      if (snapshotNeeded) {
-        store.dispatch(syncActions.resolveConflict())
+      case 404: {
+        await backupStateToServer(clientId, baseURL);
+        break;
       }
+
+      case 409: {
+        const res = JSON.parse(responseText ?? '{}');
+        console.log(`[backupStateToServer] Conflict: Server seq: ${res.seq}, timestamp: ${res.timestamp}, Client patchSeq: ${state.sync.patchSeq}`);
+        throw {
+          cause: 'conflict',
+          timestamp: Number(res.timestamp),
+          seq: Number(res.seq)
+        };
+      }
+
+      case 410: {
+        throw { cause: 'snapshot_mismatch' };
+      }
+
+      default:
+        throw new Error(`Upload failed: ${statusCode}`);
+    }
+  } catch (err) {
+    if (err && (err as BackupError).cause) {
+      handleBackupError(
+        err as BackupError,
+        clientId,
+        baseURL
+      );
+    } else {
+      console.error('백업 실패', err);
     }
   } finally {
-    // 업로드 인디케이터 종료
     store.dispatch(uiActions.clearUploadProgress());
   }
 }
@@ -302,7 +339,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
 }
 
 export function handleBackupError(
-  error: { cause: 'conflict'; timestamp: number; seq: number } | { cause: 'snapshot_mismatch' },
+  error: BackupError,
   clientId: string,
   baseURL: string
 ) {

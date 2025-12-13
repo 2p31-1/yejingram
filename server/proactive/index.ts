@@ -7,7 +7,7 @@ import { store } from '../../src/app/store';
 import { selectAllRooms } from '../../src/entities/room/selectors';
 import { selectMessagesByRoomId } from '../../src/entities/message/selectors';
 import type { Message } from '../../src/entities/message/types';
-import { buildBackupPayload, restoreStateFromPayload } from '../../src/utils/backup';
+import { restoreStateFromServer } from '../../src/utils/backup';
 import { SendMessage } from '../../src/services/llm/LLMcaller';
 import webpush, { type PushSubscription } from 'web-push';
 import 'dotenv/config';
@@ -16,7 +16,6 @@ import ko from '../../src/i18n/locales/ko.ts';
 import ja from '../../src/i18n/locales/ja.ts';
 import { selectCharacterById } from '../../src/entities/character/selectors.ts';
 import path from 'path';
-import { selectLastSaved } from '../../src/entities/lastSaved/selectors.ts';
 import type { ProactiveTimeRestriction, ProactivePeriodicSettings, ProactiveProbabilisticSettings } from '../../src/entities/setting/types.ts';
 
 const resources = {
@@ -304,19 +303,9 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
         for (const [clientId, push] of Object.entries(subscription)) {
             try {
                 console.log(`[${clientId}] ${i18next.t('proactiveServer.restoreStart')}`);
-
-                const backupResponse = await fetch(`${process.env.SYNC_BASE_URL}/api/sync/${clientId}`, {
-                    method: 'GET',
-                });
-
-                if (!backupResponse.ok) {
-                    console.error(`[${clientId}] ${i18next.t('proactiveServer.restoreFailed')}`, backupResponse.statusText);
-                    continue;
-                }
-
-                const backupPayload = await backupResponse.json();
-                await restoreStateFromPayload(backupPayload);
+                await restoreStateFromServer(clientId, process.env.SYNC_BASE_URL!, true);
                 console.log(i18next.t('proactiveServer.restoreComplete'));
+
                 const state = store.getState();
                 const proactiveSettings = state.settings.proactiveSettings;
 
@@ -404,6 +393,7 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                 });
 
                 try {
+                    store.dispatch({ type: 'messages/writingStart' });
                     await SendMessage(
                         randomRoom,
                         (id) => {
@@ -421,28 +411,6 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                 } finally {
                     unsubscribe();
                 }
-
-                console.log(i18next.t('proactiveServer.syncing'));
-                const updatedState = store.getState();
-
-                fetch(`${updatedState.settings.syncSettings.syncBaseUrl}/api/sync/${updatedState.settings.syncSettings.syncClientId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        lastSaved: selectLastSaved(updatedState),
-                        backup: buildBackupPayload(),
-                    })
-                }).then((res) => {
-                    if (res.ok) {
-                        console.log(`[${clientId}] ${i18next.t('proactiveServer.syncComplete')}`);
-                    } else {
-                        console.error(`[${clientId}] ${i18next.t('proactiveServer.syncFailed')}`, res.statusText);
-                    }
-                }).catch((err) => {
-                    console.error(`[${clientId}] ${i18next.t('proactiveServer.syncFailed')}`, err);
-                });
             } catch (err) {
                 console.error(`[${clientId}] Unhandled error during proactive processing:`, err);
             }

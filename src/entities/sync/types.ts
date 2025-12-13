@@ -57,3 +57,7 @@ export interface SyncState {
         lastServerPatchSeq: number;
     };
 }
+
+export type BackupError =
+    | { cause: 'conflict'; timestamp: number; seq: number }
+    | { cause: 'snapshot_mismatch' };
