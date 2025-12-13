@@ -1,3 +1,4 @@
+import { isBrowser } from "../../app/store";
 import type { Character } from "../../entities/character/types";
 import type { NAIConfig } from "../../entities/setting/image/types";
 import { loadImage } from "../../utils/imageStego";
@@ -145,29 +146,65 @@ export async function resizeToNAI(
     imageURL: string,
     background: string
 ): Promise<string> {
-    const img = await loadImage(imageURL);
+    const loaded = await loadImage(imageURL);
 
-    const fit = chooseBestFit(img.naturalWidth || img.width, img.naturalHeight || img.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = fit.targetW;
-    canvas.height = fit.targetH;
+    if (isBrowser) {
+        const img = loaded as HTMLImageElement;
 
-    const ctx = canvas.getContext("2d")!;
+        const fit = chooseBestFit(img.naturalWidth || img.width, img.naturalHeight || img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = fit.targetW;
+        canvas.height = fit.targetH;
 
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext("2d")!;
+
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 
-    // 이미지 그리기
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(
-        img,
-        fit.offsetX,
-        fit.offsetY,
-        fit.drawW,
-        fit.drawH
-    );
+        // 이미지 그리기
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(
+            img,
+            fit.offsetX,
+            fit.offsetY,
+            fit.drawW,
+            fit.drawH
+        );
 
-    return canvas.toDataURL('image/png');
+        return canvas.toDataURL('image/png');
+    } else {
+        const sharp = (await import("sharp")).default;
+        const { width, height, buffer } = loaded as { width: number; height: number; buffer: Uint8Array };
+
+        const fit = chooseBestFit(width, height);
+
+        // Create background
+        const backgroundBuffer = await sharp({
+            create: {
+                width: fit.targetW,
+                height: fit.targetH,
+                channels: 4,
+                background: background
+            }
+        }).png().toBuffer();
+
+        // Resize image
+        const resizedImageBuffer = await sharp(buffer)
+            .resize(fit.drawW, fit.drawH)
+            .toBuffer();
+
+        // Composite
+        const finalBuffer = await sharp(backgroundBuffer)
+            .composite([{
+                input: resizedImageBuffer,
+                top: fit.offsetY,
+                left: fit.offsetX
+            }])
+            .png()
+            .toBuffer();
+
+        return `data:image/png;base64,${finalBuffer.toString('base64')}`;
+    }
 }
