@@ -98,7 +98,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ ok: true });
 });
 
-app.post('/api/sync/check/:clientId', async (req: Request<{ clientId: string }>, res: Response, next: NextFunction) => {
+app.post('/api/:clientId/sync/check', async (req: Request<{ clientId: string }>, res: Response, next: NextFunction) => {
     try {
         const clientId = sanitizeClientId(req.params.clientId);
         const state = await readServerState(clientId);
@@ -114,7 +114,7 @@ app.post('/api/sync/check/:clientId', async (req: Request<{ clientId: string }>,
 });
 
 app.get(
-    '/api/sync/:clientId',
+    '/api/:clientId/sync',
     async (req: Request<{ clientId: string }, any, any, { sinceSnapshotSeq: number, sincePatchSeq: number, full?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);
@@ -158,7 +158,7 @@ app.get(
 );
 
 app.post(
-    '/api/sync/:clientId',
+    '/api/:clientId/sync',
     async (req: Request<{ clientId: string }, any, any, { type?: string }>, res: Response, next: NextFunction) => {
         try {
             const clientId = sanitizeClientId(req.params.clientId);

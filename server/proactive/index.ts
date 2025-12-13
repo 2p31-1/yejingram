@@ -109,9 +109,11 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
         next();
     });
 
-    app.post('/api/push/subscription', async (req, res) => {
+    app.post('/api/:clientId/push/subscription', async (req, res) => {
         try {
-            await saveSubscription(req.body as SubscriptionBody);
+            const clientId = sanitizeClientId(req.params.clientId);
+            const subscription = { ...req.body, clientId };
+            await saveSubscription(subscription as SubscriptionBody);
             res.json({ ok: true });
         } catch (err: any) {
             console.error('[Subscription API Error]', err);
@@ -119,14 +121,10 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
         }
     });
 
-    app.post('/api/push/unsubscribe', async (req, res) => {
+    app.post('/api/:clientId/push/unsubscribe', async (req, res) => {
         try {
-            const clientId = req.body?.clientId;
-            if (!clientId) {
-                return res.status(400).json({ error: 'clientId is required' });
-            }
-            const safeClientId = sanitizeClientId(clientId);
-            const filePath = path.join(SUBSCRIPTION_DIR, `${safeClientId}.json`);
+            const clientId = sanitizeClientId(req.params.clientId);
+            const filePath = path.join(SUBSCRIPTION_DIR, `${clientId}.json`);
             if (!(await fs.stat(filePath).catch(() => false))) {
                 return res.status(404).json({ error: 'Subscription not found' });
             } else {
@@ -139,7 +137,7 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
         }
     });
 
-    app.get('/api/push/icon/:authorId', async (req, res) => {
+    app.get('/api/:clientId/push/icon/:authorId', async (req, res) => {
         try {
             const authorId = Number(req.params.authorId);
             if (Number.isNaN(authorId)) {
@@ -384,7 +382,7 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                         await webpush.sendNotification(
                             push,
                             JSON.stringify({
-                                icon: `${proactiveSettings.proactiveServerBaseUrl}/api/push/icon/${newlyAdded.authorId}`,
+                                icon: `${proactiveSettings.proactiveServerBaseUrl}/api/${clientId}/push/icon/${newlyAdded.authorId}`,
                                 badge: '/yejingram.png',
                                 body: characterName + ": " + (newlyAdded.content ?? i18next.t('proactiveServer.stickerOrImage')),
                             })

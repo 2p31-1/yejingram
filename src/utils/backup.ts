@@ -112,7 +112,7 @@ async function restoreState(state: Partial<RootState>, lastVersion = persistConf
 export async function checkForConflict(clientId: string, baseURL: string) {
   const state = store.getState();
   try {
-    const response = await fetch(`${baseURL}/api/sync/check/${clientId}`, {
+    const response = await fetch(`${baseURL}/api/${clientId}/sync/check`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -165,7 +165,7 @@ export async function backupStateToServer(
 ) {
   store.dispatch(uiActions.setUploadProgress(0));
 
-  let url = `${baseURL}/api/sync/${clientId}`;
+  let url = `${baseURL}/api/${clientId}/sync`;
 
   const snapshotNeeded = !diff;
   if (snapshotNeeded) {
@@ -294,7 +294,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
     if (isBrowser) {
       jsonText = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', `${baseURL}/api/sync/${clientId}?${queryParams.toString()}`);
+        xhr.open('GET', `${baseURL}/api/${clientId}/sync?${queryParams.toString()}`);
 
         xhr.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -315,7 +315,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
         xhr.send();
       });
     } else {
-      const res = await fetch(`${baseURL}/api/sync/${clientId}?${queryParams.toString()}`);
+      const res = await fetch(`${baseURL}/api/${clientId}/sync?${queryParams.toString()}`);
       if (!res.ok) return;
       jsonText = await res.text();
     }

@@ -26,15 +26,12 @@ export async function registerProactivePush(clientId: string, serverBaseUrl: str
             applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
         });
 
-        await fetch(`${serverBaseUrl}/api/push/subscription`, {
+        await fetch(`${serverBaseUrl}/api/${clientId}/push/subscription`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                clientId,
-                ...subscription.toJSON(),
-            }),
+            body: JSON.stringify(subscription.toJSON()),
         });
     } catch (err) {
         alert('Failed to register service worker or subscribe to push');
@@ -56,14 +53,12 @@ export async function unsubscribeProactivePush(clientId: string, serverBaseUrl: 
 
         await existing.unsubscribe();
 
-        await fetch(`${serverBaseUrl}/api/push/unsubscribe`, {
+        await fetch(`${serverBaseUrl}/api/${clientId}/push/unsubscribe`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                clientId
-            }),
+            body: JSON.stringify({}),
         });
     } catch (err) {
         alert('Failed to unsubscribe from proactive push');
