@@ -103,21 +103,15 @@ function App() {
   }, [uiLanguage, dispatch]);
 
   const syncCheckedRef = useRef(false);
-
-  useEffect(() => {
-    if (syncCheckedRef.current) return;
-    syncCheckedRef.current = true;
-    if (syncEnabled) {
-      syncService.checkConflict();
-    }
-  }, []);
-
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (syncEnabled) {
-      // 초기 실행
+    if (syncEnabled && !syncCheckedRef.current) {
+      syncCheckedRef.current = true;
       syncService.checkConflict();
+    }
+
+    if (syncEnabled) {
       // 매분마다 실행 (60000ms = 1분)
       intervalRef.current = setInterval(() => {
         syncService.checkConflict();
