@@ -12,6 +12,44 @@ import type { ClientSyncResponse, Patch, BackupFile, BackupData, BackupError } f
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
+async function jsonStringify(value: any, replacer?: any, space?: string | number): Promise<string> {
+  if (!isBrowser) {
+    return JSON.stringify(value, replacer, space);
+  }
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./jsonWorker.ts', import.meta.url));
+    worker.postMessage({ action: 'stringify', data: { value, replacer, space } });
+    worker.onmessage = (e) => {
+      if (e.data.success) {
+        resolve(e.data.result);
+      } else {
+        reject(new Error(e.data.error));
+      }
+      worker.terminate();
+    };
+    worker.onerror = reject;
+  });
+}
+
+async function jsonParse(text: string): Promise<any> {
+  if (!isBrowser) {
+    return JSON.parse(text);
+  }
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./jsonWorker.ts', import.meta.url));
+    worker.postMessage({ action: 'parse', data: { text } });
+    worker.onmessage = (e) => {
+      if (e.data.success) {
+        resolve(e.data.result);
+      } else {
+        reject(new Error(e.data.error));
+      }
+      worker.terminate();
+    };
+    worker.onerror = reject;
+  });
+}
+
 export function entityStateToArray<T>(
   // Id extends PropertyKey 대신 Id extends EntityId를 사용합니다.
   state: Pick<EntityState<T, EntityId>, 'ids' | 'entities'>
@@ -54,7 +92,7 @@ export function buildBackupPayload() {
 export async function backupStateToFile() {
   const payload = buildBackupPayload();
 
-  const json = JSON.stringify(payload, null, 2);
+  const json = await jsonStringify(payload, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
 
@@ -72,7 +110,7 @@ export async function restoreStateFromFile(file: File) {
 
   let parsed: BackupFile;
   try {
-    parsed = JSON.parse(text);
+    parsed = await jsonParse(text);
   } catch (e) {
     throw new Error('잘못된 JSON 파일입니다.');
   }
@@ -117,7 +155,7 @@ export async function checkForConflict(clientId: string, baseURL: string) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
+      body: await jsonStringify({
         seq: state.sync.patchSeq,
         baseSnapshotSeq: state.sync.snapshotSeq
       } as Patch),
@@ -208,13 +246,13 @@ export async function backupStateToServer(
         };
 
         xhr.onerror = () => reject(new Error('Upload failed'));
-        xhr.send(JSON.stringify(diff));
+        jsonStringify(diff).then((json) => xhr.send(json)).catch(reject);
       });
     } else {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(diff)
+        body: await jsonStringify(diff)
       });
 
       statusCode = res.status;
@@ -230,7 +268,7 @@ export async function backupStateToServer(
 
     switch (statusCode) {
       case 200: {
-        const res = JSON.parse(responseText ?? '{}');
+        const res = await jsonParse(responseText ?? '{}');
         const newSeq = Number(res.seq);
 
         store.dispatch(syncActions.setPatchSeq(newSeq));
@@ -248,7 +286,7 @@ export async function backupStateToServer(
       }
 
       case 409: {
-        const res = JSON.parse(responseText ?? '{}');
+        const res = await jsonParse(responseText ?? '{}');
         console.log(`[backupStateToServer] Conflict: Server seq: ${res.seq}, timestamp: ${res.timestamp}, Client patchSeq: ${state.sync.patchSeq}`);
         throw {
           cause: 'conflict',
@@ -321,7 +359,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
     }
 
     if (jsonText) {
-      const serverState: ClientSyncResponse = JSON.parse(jsonText);
+      const serverState: ClientSyncResponse = await jsonParse(jsonText);
       const state = serverState.type === 'full' ? serverState.snapshot : store.getState();
       const patchedState = applyPatch(state, serverState.patches);
       await restoreState(patchedState, persistConfig.version);
