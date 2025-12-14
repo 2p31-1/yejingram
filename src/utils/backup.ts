@@ -201,7 +201,7 @@ export async function backupStateToServer(
   baseURL: string,
   diff?: Patch
 ) {
-  store.dispatch(uiActions.setUploadProgress(0));
+  store.dispatch(uiActions.setSyncProgress(0));
 
   let url = `${baseURL}/api/${clientId}/sync`;
 
@@ -235,7 +235,7 @@ export async function backupStateToServer(
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
             const percent = Math.floor((event.loaded / event.total) * 100);
-            store.dispatch(uiActions.setUploadProgress(percent));
+            store.dispatch(uiActions.setSyncProgress(percent));
           }
         };
 
@@ -259,7 +259,7 @@ export async function backupStateToServer(
       responseText = await res.text();
 
       // fetch 환경에서는 progress 불가
-      store.dispatch(uiActions.setUploadProgress(100));
+      store.dispatch(uiActions.setSyncProgress(100));
     }
 
     if (statusCode == null) {
@@ -313,7 +313,8 @@ export async function backupStateToServer(
       console.error('백업 실패', err);
     }
   } finally {
-    store.dispatch(uiActions.clearUploadProgress());
+    store.dispatch(uiActions.clearSyncProgress());
+    store.dispatch(uiActions.clearForceShowSyncModal());
   }
 }
 
@@ -373,6 +374,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());
+    store.dispatch(uiActions.clearForceShowSyncModal());
   }
 }
 

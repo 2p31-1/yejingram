@@ -21,7 +21,7 @@ import { setActiveRoomId } from './utils/activeRoomTracker'
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'react-hot-toast';
-import { selectForceShowSyncModal, selectUI } from './entities/ui/selectors';
+import { selectForceShowSyncModal } from './entities/ui/selectors';
 import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
@@ -42,8 +42,6 @@ function App() {
   const colorTheme = useSelector(selectColorTheme);
   const settings = useSelector(selectAllSettings);
   const { syncEnabled } = settings.syncSettings;
-  const ui = useSelector(selectUI);
-  const isSyncing = (ui.syncProgress ?? 0) > 0;
   const forceShowSyncModal = useSelector(selectForceShowSyncModal);
   const uiLanguage = useSelector(selectUILanguage);
   const editingCharacterId = useSelector(selectEditingCharacterId);
@@ -212,7 +210,7 @@ function App() {
   );
 
   // Show global sync modal ONLY on initial state: no room selected and no modal/panel open
-  const shouldShowGlobalSyncModal = (forceShowSyncModal || (isSyncing && !roomId &&
+  const shouldShowGlobalSyncModal = (forceShowSyncModal || (!roomId &&
     !isAnnouncementsPanelOpen && !isSettingsPanelOpen && !isPromptModalOpen && !isCharacterPanelOpen &&
     !isCreateGroupChatModalOpen && !isEditGroupChatModalOpen));
 
@@ -284,9 +282,17 @@ function App() {
         />
 
         {/* Sync indicators: show modal only for pristine initial state, else corner indicator */}
-        {shouldShowGlobalSyncModal ? <SyncModal /> : <SyncCornerIndicator />}
+        {
+          shouldShowGlobalSyncModal ? (
+            <SyncModal />
+          ) : isConflict ? (
+            <SyncConflictModal />
+          ) : (
+            <SyncCornerIndicator />
+          )
+        }
 
-        {isConflict && <SyncConflictModal />}
+
         {/* Realm Import Modal */}
         {realmImport && (
           <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={handleRealmImportClose} />

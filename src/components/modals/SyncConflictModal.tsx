@@ -1,11 +1,12 @@
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { selectSyncConflict } from '../../entities/sync/selectors';
 import { restoreStateFromServer, backupStateToServer } from '../../utils/backup';
 import type { RootState } from '../../app/store';
-
+import { uiActions } from '../../entities/ui/slice';
 
 function SyncConflictModal() {
+    const dispatch = useDispatch();
     const { t } = useTranslation();
     const conflict = useSelector(selectSyncConflict);
     const syncSettings = useSelector((state: RootState) => state.settings.syncSettings);
@@ -13,6 +14,7 @@ function SyncConflictModal() {
     if (!conflict) return null;
 
     const handleKeepLocal = async () => {
+        dispatch(uiActions.forceShowSyncModal());
         try {
             await backupStateToServer(syncSettings.syncClientId, syncSettings.syncBaseUrl);
         } catch (error) {
@@ -21,6 +23,7 @@ function SyncConflictModal() {
     };
 
     const handleApplyServer = async () => {
+        dispatch(uiActions.forceShowSyncModal());
         try {
             await restoreStateFromServer(syncSettings.syncClientId, syncSettings.syncBaseUrl);
         } catch (error) {
@@ -56,7 +59,7 @@ function SyncConflictModal() {
                                     {t('sync.conflict.serverPatchSeq', 'Server Patch Seq')}
                                 </span>
                                 <span className="font-mono text-[var(--color-text-primary)] bg-[var(--color-bg-hover)] px-2.5 py-1 rounded-md">
-                                    {conflict.lastServerPatchSeq}
+                                    {conflict!.lastServerPatchSeq}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
@@ -64,7 +67,7 @@ function SyncConflictModal() {
                                     {t('sync.conflict.serverTimestamp', 'Server Timestamp')}
                                 </span>
                                 <span className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-bg-hover)] px-2.5 py-1 rounded-md">
-                                    {new Date(conflict.lastServerTimestamp).toLocaleString()}
+                                    {new Date(conflict!.lastServerTimestamp).toLocaleString()}
                                 </span>
                             </div>
                         </div>
@@ -73,7 +76,7 @@ function SyncConflictModal() {
                     <div className="flex flex-col gap-2.5 pt-2">
                         <button
                             onClick={handleKeepLocal}
-                            className="w-full px-4 py-3 bg-[var(--color-button-primary)] text-[var(--color-text-button)] rounded-xl hover:bg-[var(--color-button-primary-hover)] transition-colors font-medium"
+                            className="w-full px-4 py-3 bg-[var(--color-button-neutral)] text-[var(--color-text-accent)] rounded-xl hover:bg-[var(--color-button-neutral-hover)] transition-colors font-medium"
                         >
                             {t('sync.conflict.keepLocal', 'Keep Local Changes')}
                         </button>
