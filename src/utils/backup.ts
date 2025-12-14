@@ -275,6 +275,7 @@ export async function backupStateToServer(
         store.dispatch(syncActions.popPatchQueue());
 
         if (snapshotNeeded) {
+          store.dispatch(syncActions.clearPatchQueue());
           store.dispatch(syncActions.resolveConflict());
         }
         break;
