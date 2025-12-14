@@ -9,6 +9,7 @@ self.onmessage = function(e) {
     }
     self.postMessage({ success: true, result });
   } catch (error) {
-    self.postMessage({ success: false, error: error.message });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    self.postMessage({ success: false, error: errorMessage });
   }
 };
