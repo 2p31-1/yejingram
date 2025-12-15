@@ -407,7 +407,6 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                             );
                         } catch (err) {
                             console.error(`[${clientId}] ${i18next.t('proactiveServer.pushError')}`, err);
-                        } finally {
                             unsubscribe();
                             break;
                         }
