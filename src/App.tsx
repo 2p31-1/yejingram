@@ -30,9 +30,16 @@ import { selectIsSyncConflict } from './entities/sync/selectors'
 
 function App() {
   const dispatch = useDispatch();
-  const [roomId, setRoomId] = useState<string | null>(null)
-  const room = useSelector((state: RootState) => roomId ? selectRoomById(state, roomId) : null)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setIsMobileSidebarOpen(false);
+      return params.get('roomId')?.trim() || null;
+    }
+    return null;
+  })
+  const room = useSelector((state: RootState) => roomId ? selectRoomById(state, roomId) : null)
   const [isAnnouncementsPanelOpen, setIsAnnouncementsPanelOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);

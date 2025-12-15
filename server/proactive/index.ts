@@ -402,6 +402,7 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                                 icon: `${proactiveSettings.proactiveServerBaseUrl}/api/${clientId}/push/icon/${newlyAdded.authorId}`,
                                 badge: '/yejingram.png',
                                 body: characterName + ": " + (newlyAdded.content ?? i18next.t('proactiveServer.stickerOrImage')),
+                                tag: randomRoom.id
                             })
                         );
                     }
