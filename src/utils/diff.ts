@@ -9,15 +9,12 @@ export function getPatch(prev: RootState, next: RootState): Operation[] | undefi
 
 export function applyPatch(base: RootState, patches: Patch[]): RootState {
     let result: RootState = base;
+    const concatDiff: Operation[] = patches.flatMap(p => p.diff ? p.diff : []);
 
-    for (const patch of patches) {
-        if (!patch.diff) continue;
-
-        try {
-            result = jsonpatch.applyPatch(result, patch.diff, false, false).newDocument;
-        } catch (error) {
-            continue;
-        }
+    try {
+        result = jsonpatch.applyPatch(result, concatDiff, false, false).newDocument;
+    } catch (error) {
+        throw new Error(`Failed to apply patch: ${(error as Error).message}`);
     }
 
     return result;
