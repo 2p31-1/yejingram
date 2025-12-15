@@ -25,7 +25,7 @@ function SyncConflictModal() {
     const handleApplyServer = async () => {
         dispatch(uiActions.forceShowSyncModal());
         try {
-            await restoreStateFromServer(syncSettings.syncClientId, syncSettings.syncBaseUrl);
+            await restoreStateFromServer(syncSettings.syncClientId, syncSettings.syncBaseUrl, true);
         } catch (error) {
             console.error('Failed to resolve conflict (Apply Server):', error);
         }
