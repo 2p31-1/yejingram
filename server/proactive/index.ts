@@ -395,16 +395,21 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
 
                         const characterName = selectCharacterById(state, newlyAdded.authorId)?.name ?? 'Unknown';
                         printMessages([newlyAdded]);
-
-                        await webpush.sendNotification(
-                            push,
-                            JSON.stringify({
-                                icon: `${proactiveSettings.proactiveServerBaseUrl}/api/${clientId}/push/icon/${newlyAdded.authorId}`,
-                                badge: '/yejingram.png',
-                                body: characterName + ": " + (newlyAdded.content ?? i18next.t('proactiveServer.stickerOrImage')),
-                                tag: randomRoom.id
-                            })
-                        );
+                        try {
+                            await webpush.sendNotification(
+                                push,
+                                JSON.stringify({
+                                    icon: `${proactiveSettings.proactiveServerBaseUrl}/api/${clientId}/push/icon/${newlyAdded.authorId}`,
+                                    badge: '/yejingram.png',
+                                    body: characterName + ": " + (newlyAdded.content ?? i18next.t('proactiveServer.stickerOrImage')),
+                                    tag: randomRoom.id
+                                })
+                            );
+                        } catch (err) {
+                            console.error(`[${clientId}] ${i18next.t('proactiveServer.pushError')}`, err);
+                        } finally {
+                            unsubscribe();
+                        }
                     }
                 });
 

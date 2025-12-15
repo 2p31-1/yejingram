@@ -50,6 +50,7 @@ const en = {
         probabilisticRoll: "Probabilistic proactive roll: {{roll}} vs {{probability}}% (today {{current}}/{{max}})",
         stickerOrImage: "[Sticker/Image]",
         missingEnv: "Missing required environment variable: {{var}}",
+        pushError: "Push notification send error",
     },
 
     sidebar: {

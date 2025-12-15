@@ -50,6 +50,7 @@ const ko = {
         probabilisticRoll: "확률적 선톡 주사위: {{roll}} vs {{probability}}% (오늘 {{current}}/{{max}}회)",
         stickerOrImage: "[스티커/이미지]",
         missingEnv: "필요한 환경 변수가 누락되었습니다: {{var}}",
+        pushError: "푸시 알림 전송 오류",
     },
 
     sidebar: {

@@ -50,6 +50,7 @@ const ja = {
         probabilisticRoll: "確率的話しかけの判定: {{roll}} vs {{probability}}% (本日 {{current}}/{{max}}回)",
         stickerOrImage: "[ステッカー/画像]",
         missingEnv: "必要な環境変数がありません: {{var}}",
+        pushError: "プッシュ通知送信エラー",
     },
 
     sidebar: {
