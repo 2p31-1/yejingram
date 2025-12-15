@@ -35,8 +35,17 @@ i18next
 
 const pushPublicKey = process.env.push_public_key;
 const pushPrivateKey = process.env.push_private_key;
-if (!pushPublicKey || !pushPrivateKey) {
-    throw new Error('Missing required environment variables: push_public_key and push_private_key');
+if (!pushPublicKey || !pushPrivateKey || !process.env.SYNC_BASE_URL) {
+    if (!pushPublicKey) {
+        console.error(i18next.t('proactiveServer.missingEnv', { var: 'push_public_key' }));
+    }
+    if (!pushPrivateKey) {
+        console.error(i18next.t('proactiveServer.missingEnv', { var: 'push_private_key' }));
+    }
+    if (!process.env.SYNC_BASE_URL) {
+        console.error(i18next.t('proactiveServer.missingEnv', { var: 'SYNC_BASE_URL' }));
+    }
+    process.exit(1);
 }
 
 webpush.setVapidDetails(
@@ -301,7 +310,15 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
         for (const [clientId, push] of Object.entries(subscription)) {
             try {
                 console.log(`[${clientId}] ${i18next.t('proactiveServer.restoreStart')}`);
-                await restoreStateFromServer(clientId, process.env.SYNC_BASE_URL!, true);
+
+                const isRestoreSuccessful = await restoreStateFromServer(clientId, process.env.SYNC_BASE_URL!, true);
+                if (isRestoreSuccessful !== true) {
+                    console.log(`[${clientId}] ${i18next.t('proactiveServer.restoreFailed',
+                        {
+                            cause: isRestoreSuccessful ? isRestoreSuccessful.cause : 'Unknown error'
+                        })}`);
+                    continue;
+                }
                 console.log(i18next.t('proactiveServer.restoreComplete'));
 
                 const state = store.getState();

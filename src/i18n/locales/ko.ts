@@ -31,7 +31,7 @@ const ko = {
 
     proactiveServer: {
         restoreStart: "백업 복원 시작",
-        restoreFailed: "백업 데이터 불러오기 실패:",
+        restoreFailed: "백업 데이터 불러오기 실패: {{cause}}",
         restoreComplete: "백업 로드 완료",
         featureDisabled: "Proactive Chat 기능이 설정에서 활성화되어 있지 않습니다.",
         restrictedTime: "현재 제한 시간대입니다. 선톡을 건너뜁니다.",
@@ -49,6 +49,7 @@ const ko = {
         probabilisticMaxReached: "확률적 선톡: 오늘 최대 횟수({{max}})에 도달함 (현재: {{current}})",
         probabilisticRoll: "확률적 선톡 주사위: {{roll}} vs {{probability}}% (오늘 {{current}}/{{max}}회)",
         stickerOrImage: "[스티커/이미지]",
+        missingEnv: "필요한 환경 변수가 누락되었습니다: {{var}}",
     },
 
     sidebar: {

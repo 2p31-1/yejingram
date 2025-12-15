@@ -31,7 +31,7 @@ const ja = {
 
     proactiveServer: {
         restoreStart: "バックアップ復元開始",
-        restoreFailed: "バックアップデータの読み込みに失敗:",
+        restoreFailed: "バックアップデータの読み込みに失敗: {{cause}}",
         restoreComplete: "バックアップ読み込み完了",
         featureDisabled: "話しかけ機能が設定で有効になっていません。",
         restrictedTime: "現在は制限時間帯です。話しかけをスキップします。",
@@ -49,6 +49,7 @@ const ja = {
         probabilisticMaxReached: "確率的話しかけ: 本日の最大回数({{max}})に達しました (現在: {{current}})",
         probabilisticRoll: "確率的話しかけの判定: {{roll}} vs {{probability}}% (本日 {{current}}/{{max}}回)",
         stickerOrImage: "[ステッカー/画像]",
+        missingEnv: "必要な環境変数がありません: {{var}}",
     },
 
     sidebar: {

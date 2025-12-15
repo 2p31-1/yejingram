@@ -31,7 +31,7 @@ const en = {
 
     proactiveServer: {
         restoreStart: "Starting backup restore",
-        restoreFailed: "Failed to load backup data:",
+        restoreFailed: "Failed to load backup data: {{cause}}",
         restoreComplete: "Backup load complete",
         featureDisabled: "Proactive Chat feature is not enabled in settings.",
         restrictedTime: "Currently in restricted time period. Skipping proactive message.",
@@ -49,6 +49,7 @@ const en = {
         probabilisticMaxReached: "Probabilistic proactive: Max daily count ({{max}}) reached (current: {{current}})",
         probabilisticRoll: "Probabilistic proactive roll: {{roll}} vs {{probability}}% (today {{current}}/{{max}})",
         stickerOrImage: "[Sticker/Image]",
+        missingEnv: "Missing required environment variable: {{var}}",
     },
 
     sidebar: {

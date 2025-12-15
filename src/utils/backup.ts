@@ -356,7 +356,11 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
       });
     } else {
       const res = await fetch(`${baseURL}/api/${clientId}/sync?${queryParams.toString()}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        return {
+          cause: res.statusText
+        }
+      }
       jsonText = await res.text();
     }
 
@@ -372,11 +376,18 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
       }));
       store.dispatch(syncActions.clearPatchQueue());
       store.dispatch(syncActions.resolveConflict());
+      return true;
+    }
+  } catch (error) {
+    return {
+      'cause': (error as Error).message
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());
     store.dispatch(uiActions.clearForceShowSyncModal());
   }
+
+  return false;
 }
 
 export function handleBackupError(
