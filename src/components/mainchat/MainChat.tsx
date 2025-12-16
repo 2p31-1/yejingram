@@ -3,7 +3,7 @@ import { Menu, MoreHorizontal, Smile, X, Plus, Paperclip, Edit2, Check, XCircle,
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectCharacterById } from '../../entities/character/selectors';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, type RefObject } from 'react';
 import { type AppDispatch, type RootState } from '../../app/store';
 import { selectMessagesByRoomId } from '../../entities/message/selectors';
 import MessageList from './Message';
@@ -157,8 +157,17 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     }
   };
 
+  const scroll = (virtuosoRef: RefObject<VirtuosoHandle | null>) => {
+    if (!virtuosoRef?.current) return;
+
+    virtuosoRef.current.scrollToIndex({
+      index: "LAST",
+      behavior: "smooth"
+    });
+  };
+
   // Add message immediately to UI and schedule LLM request after 1s of no further typing
-  const sendPendingRequest = () => {
+  const sendPendingRequest = async () => {
     // clear timer
     if (debounceTimerRef.current) {
       window.clearTimeout(debounceTimerRef.current);
@@ -174,16 +183,18 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const targetRoom = pending.room;
     pendingRequestRef.current = null;
 
-    let responsePromise;
-    if (targetRoom.type === 'Group') {
-      responsePromise = SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
-    } else {
-      responsePromise = SendMessage(targetRoom, setTypingCharacterId, t);
-    }
-
-    responsePromise.then(() => {
+    try {
+      if (targetRoom.type === 'Group') {
+        await SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
+      } else {
+        await SendMessage(targetRoom, setTypingCharacterId, t);
+      }
+    } catch (error) {
+      console.error('Error sending message to LLM:', error);
+    } finally {
+      scroll(messagesContainerRef);
       setIsWaitingForResponse(false);
-    });
+    }
   };
 
   const handleSendMessage = (text: string) => {
@@ -247,17 +258,21 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     }, DEBOUNCE_DELAY) as unknown as number;
   };
 
-  const handleRequestProactiveChat = () => {
+  const handleRequestProactiveChat = async () => {
     if (!room) return;
     if (isWaitingForResponse) {
       toast.error(t('main.toast.waitForResponse'));
       return;
     }
     setIsWaitingForResponse(true);
-    SendMessage(room, setTypingCharacterId, t, 'proactive')
-      .finally(() => {
-        setIsWaitingForResponse(false);
-      });
+    try {
+      await SendMessage(room, setTypingCharacterId, t, 'proactive');
+    } catch (error) {
+      console.error('Error requesting proactive chat:', error);
+    } finally {
+      setIsWaitingForResponse(false);
+      scroll(messagesContainerRef);
+    }
   };
 
   // Called when user types or interacts with input to postpone/send LLM request
@@ -690,7 +705,7 @@ interface InputAreaProps {
   isWaitingForResponse: boolean;
   fileToSend?: FileToSend | null;
   stickerToSend?: Sticker | null;
-  virtuosoRef?: React.RefObject<VirtuosoHandle | null>;
+  virtuosoRef?: RefObject<VirtuosoHandle | null>;
 
   // 이벤트 핸들러들
   onOpenFileUpload?: () => void;
