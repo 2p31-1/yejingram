@@ -447,7 +447,7 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             min="0"
                                                             max="23"
                                                             value={localSettings.proactiveSettings.timeRestriction?.startHour ?? 23}
-                                                            onChange={e => updateTimeRestriction('startHour', parseInt(e.target.value) || 0)}
+                                                            onChange={e => updateTimeRestriction('startHour', parseInt(e.target.value) || 23)}
                                                             className="w-full px-2 py-1 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm text-center"
                                                         />
                                                         <span className="text-[var(--color-text-secondary)] self-center">:</span>
@@ -469,7 +469,7 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             min="0"
                                                             max="23"
                                                             value={localSettings.proactiveSettings.timeRestriction?.endHour ?? 7}
-                                                            onChange={e => updateTimeRestriction('endHour', parseInt(e.target.value) || 0)}
+                                                            onChange={e => updateTimeRestriction('endHour', parseInt(e.target.value) || 7)}
                                                             className="w-full px-2 py-1 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm text-center"
                                                         />
                                                         <span className="text-[var(--color-text-secondary)] self-center">:</span>
