@@ -52,7 +52,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const [isLoreBookOpen, setIsLoreBookOpen] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Pending LLM request management: store last pending room/message and debounce timer
   const pendingRequestRef = useRef<{ room: Room; } | null>(null);
@@ -309,6 +309,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       const cssVariables: Record<string, string> = {};
       const isDark = document.documentElement.classList.contains('dark');
       const theme = isDark ? 'dark' : 'light';
+      const locale = i18n.resolvedLanguage || 'en';
 
       // Extract all CSS variables from :root
       for (const sheet of document.styleSheets) {
@@ -328,7 +329,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       }
 
       iframeRef.current.contentWindow.postMessage(
-        { type: 'CSS_VARIABLES', variables: cssVariables, theme },
+        { type: 'CSS_VARIABLES', variables: cssVariables, theme, locale },
         '*'
       );
     };
