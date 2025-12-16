@@ -26,7 +26,7 @@ import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
 import { syncService } from './services/syncService'
-import { selectIsSyncConflict } from './entities/sync/selectors'
+import { selectIsSyncConflict, selectIsSyncing } from './entities/sync/selectors'
 
 function App() {
   const dispatch = useDispatch();
@@ -53,6 +53,7 @@ function App() {
   const uiLanguage = useSelector(selectUILanguage);
   const editingCharacterId = useSelector(selectEditingCharacterId);
   const isConflict = useSelector(selectIsSyncConflict);
+  const isSyncing = useSelector(selectIsSyncing);
 
   const [realmImport, setRealmImport] = useState<RealmImportParams | null>(() => {
     if (typeof window !== 'undefined') {
@@ -111,29 +112,30 @@ function App() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (syncEnabled && !syncCheckedRef.current) {
-      syncCheckedRef.current = true;
-      syncService.checkConflict();
-    }
-
     if (syncEnabled) {
-      // 매분마다 실행 (60000ms = 1분)
-      intervalRef.current = setInterval(() => {
+      if (!syncCheckedRef.current && !isSyncing) {
+        syncCheckedRef.current = true;
         syncService.checkConflict();
-      }, 60000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
       }
+
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(() => {
+          if (!isSyncing) {
+            syncService.checkConflict();
+          }
+        }, 60000);
+      }
+    } else {
+      // syncEnabled가 false일 때 interval 제거
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [syncEnabled]);
+  }, [syncEnabled, isSyncing]);
+
 
 
   useEffect(() => {

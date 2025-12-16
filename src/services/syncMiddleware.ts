@@ -46,7 +46,7 @@ export const syncMiddleware: Middleware<{}, RootState> = store => next => (actio
             const patch: Patch = {
                 id: nanoid(),
                 baseSnapshotSeq: nextState.sync.snapshotSeq,
-                seq: nextState.sync.patchSeq,
+                seq: nextState.sync.patchSeq + nextState.sync.patchQueue.length,
                 diff: diff,
                 timestamp: Date.now()
             };

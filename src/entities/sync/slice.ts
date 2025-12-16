@@ -36,6 +36,9 @@ export const syncSlice = createSlice({
         },
         clearPatchQueue: (state) => {
             state.patchQueue = [];
+        },
+        setIsSyncing: (state, action: PayloadAction<boolean>) => {
+            state.isSyncing = action.payload;
         }
     },
 });
