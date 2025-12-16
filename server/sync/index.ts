@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
 
-import type { ClientSyncResponse, Patch, ServerState } from '../../src/entities/sync/types';
+import type { ClientSyncResponse, Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
 import type { RootState } from '../../src/app/store';
 import { applyPatch } from '../../src/utils/diff';
 
@@ -226,6 +226,7 @@ app.get('/api/:clientId/sync', async (req, res, next) => {
                 type: 'full',
                 snapshotSeq: state.metadata.snapshotSeq,
                 patchSeq: state.metadata.patchSeq,
+                version: state.metadata.version,
                 snapshot: state.snapshot,
                 patches: state.patches
             } as ClientSyncResponse);
@@ -235,6 +236,7 @@ app.get('/api/:clientId/sync', async (req, res, next) => {
             type: 'patch',
             snapshotSeq: state.metadata.snapshotSeq,
             patchSeq: state.metadata.patchSeq,
+            version: state.metadata.version,
             patches: state.patches.filter(p => p.seq >= sincePatchSeq)
         } as ClientSyncResponse);
     } catch (err) {
@@ -249,16 +251,17 @@ app.post('/api/:clientId/sync', async (req, res, next) => {
 
         /* snapshot upload */
         if (req.query.type === 'snapshot') {
-            const patch = req.body as Patch;
+            const snapshot = req.body as Snapshot;
 
             const metadata = {
                 snapshotSeq: 0,
-                patchSeq: 0
+                patchSeq: 0,
+                version: snapshot.version
             };
 
             const state: ServerState = {
                 metadata,
-                snapshot: patch.snapshot as RootState,
+                snapshot: snapshot.snapshot,
                 patches: []
             };
 

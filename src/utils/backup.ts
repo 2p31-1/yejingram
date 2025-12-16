@@ -8,7 +8,7 @@ import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
-import type { ClientSyncResponse, Patch, BackupFile, BackupData, BackupError } from '../entities/sync/types';
+import type { ClientSyncResponse, Patch, BackupFile, BackupState, BackupError, Snapshot } from '../entities/sync/types';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
@@ -78,7 +78,7 @@ export function buildBackupPayload() {
     messages: state.messages,
     settings: state.settings,
     lastSaved: state.lastSaved,
-  } satisfies BackupData;
+  } satisfies BackupState;
   const payload: BackupFile = {
     app: 'yejingram',
     version: persistConfig.version,
@@ -123,7 +123,7 @@ export async function restoreStateFromPayload(payload: BackupFile) {
     throw new Error('이 앱의 백업 형식이 아닙니다.');
   }
 
-  await restoreState(payload.data, persistConfig.version);
+  await restoreState(payload.data, payload.version);
 }
 
 async function restoreState(state: Partial<RootState>, lastVersion = persistConfig.version) {
@@ -205,18 +205,14 @@ export async function backupStateToServer(
 
   let url = `${baseURL}/api/${clientId}/sync`;
 
-  const snapshotNeeded = !diff;
-  if (snapshotNeeded) {
+  let payload: Patch | Snapshot | undefined = diff;
+  if (!diff) {
     url += '?type=snapshot';
-    const payload = buildBackupPayload();
 
-    diff = {
-      id: `backup-${Date.now()}`,
-      baseSnapshotSeq: 0,
-      seq: 0,
-      snapshot: payload.data,
-      timestamp: Date.now()
-    };
+    payload = {
+      snapshot: buildBackupPayload().data,
+      version: persistConfig.version,
+    } as Snapshot;
   }
 
   let statusCode: number | null = null;
@@ -246,7 +242,7 @@ export async function backupStateToServer(
         };
 
         xhr.onerror = () => reject(new Error('Upload failed'));
-        jsonStringify(diff).then((json) => xhr.send(json)).catch(reject);
+        jsonStringify(payload).then((json) => xhr.send(json)).catch(reject);
       });
     } else {
       const res = await fetch(url, {
@@ -274,7 +270,7 @@ export async function backupStateToServer(
         store.dispatch(syncActions.setPatchSeq(newSeq));
         store.dispatch(syncActions.popPatchQueue());
 
-        if (snapshotNeeded) {
+        if (!diff) {
           store.dispatch(syncActions.clearPatchQueue());
           store.dispatch(syncActions.resolveConflict());
         }
@@ -368,7 +364,7 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
       const serverState: ClientSyncResponse = await jsonParse(jsonText);
       const state = serverState.type === 'full' ? serverState.snapshot : store.getState();
       const patchedState = applyPatch(state, serverState.patches);
-      await restoreState(patchedState, persistConfig.version);
+      await restoreState(patchedState, serverState.type === 'full' ? serverState.version : persistConfig.version);
 
       store.dispatch(syncActions.updateFromSnapshot({
         snapshotSeq: serverState.snapshotSeq,

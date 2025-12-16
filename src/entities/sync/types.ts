@@ -1,13 +1,13 @@
 import type { Operation } from 'fast-json-patch';
 import type { RootState } from '../../app/store';
 
-export type BackupData = Pick<RootState, 'characters' | 'rooms' | 'messages' | 'settings' | 'lastSaved'>;
+export type BackupState = Pick<RootState, 'characters' | 'rooms' | 'messages' | 'settings' | 'lastSaved'>;
 
 export type BackupFile = {
     app: 'yejingram';
     version: number;
     createdAt: string;
-    data: BackupData;
+    data: BackupState;
 };
 
 export interface Patch {
@@ -15,13 +15,18 @@ export interface Patch {
     seq: number;
     baseSnapshotSeq: number;
     diff?: Operation[];
-    snapshot?: BackupData;
     timestamp: number;
+}
+
+export interface Snapshot {
+    snapshot: RootState;
+    version: number;
 }
 
 export interface SyncMetadata {
     snapshotSeq: number;
     patchSeq: number;
+    version: number;
 }
 
 export interface ServerState {
@@ -38,6 +43,7 @@ export interface FullSyncResponse {
     patchSeq: number;
     snapshot: RootState;
     patches: Patch[];
+    version: number;
 }
 
 export interface PatchSyncResponse {
@@ -45,6 +51,7 @@ export interface PatchSyncResponse {
     snapshotSeq: number;
     patchSeq: number;
     patches: Patch[];
+    version: number;
 }
 
 export interface SyncState {
