@@ -19,7 +19,7 @@ function SyncCornerIndicator() {
                         <div className="h-full bg-[var(--color-button-primary)] transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
                     </div>
                     <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-interface)]">
-                        <span>{t('common.uploading')}</span>
+                        <span>{t('common.syncing')}</span>
                         <span>{uploadProgress}%</span>
                     </div>
                 </div>

@@ -7,7 +7,6 @@ const en = {
         cancel: "Cancel",
         save: "Save",
         unknown: "Unknown",
-        uploading: "Uploading…",
         syncing: "Syncing…",
     },
 
