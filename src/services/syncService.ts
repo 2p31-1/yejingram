@@ -12,19 +12,27 @@ export const syncService = {
         store.dispatch(syncActions.setIsSyncing(true));
 
         try {
-            const currentState = store.getState();
-            const { patchQueue } = currentState.sync;
+            while (true) {
+                const currentState = store.getState();
+                const { patchQueue } = currentState.sync;
 
-            if (patchQueue.length === 0) return;
+                if (patchQueue.length === 0) break;
 
-            const patch = patchQueue[0];
-            const { syncSettings } = currentState.settings;
+                const patch = patchQueue[0];
+                const { syncSettings } = currentState.settings;
 
-            await backupStateToServer(
-                syncSettings.syncClientId,
-                syncSettings.syncBaseUrl,
-                patch
-            );
+                await backupStateToServer(
+                    syncSettings.syncClientId,
+                    syncSettings.syncBaseUrl,
+                    patch
+                );
+
+                const nextState = store.getState();
+                // If the patch is still in the queue (failed to sync), break the loop to avoid infinite retry
+                if (nextState.sync.patchQueue.length > 0 && nextState.sync.patchQueue[0].id === patch.id) {
+                    break;
+                }
+            }
         } catch (e) {
             console.error("Sync failed", e);
         } finally {
