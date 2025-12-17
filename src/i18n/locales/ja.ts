@@ -529,7 +529,15 @@ const ja = {
                 restoreRemote: "サーバーから復元",
                 failed: "同期に失敗しました。サーバーアドレスとネットワークを確認してください。",
                 restoreFailed: "復元に失敗しました。サーバーアドレスとネットワークを確認してください。",
-                conflict: "サーバーに既に新しいバージョンがアップロードされています。",
+                conflict: {
+                    title: "同期競合",
+                    message: "同期競合が発生しました。解決方法を選択してください：",
+                    local: "ローカル",
+                    server: "サーバー",
+                    serverTimestamp: "サーバータイムスタンプ",
+                    keepLocal: "ローカルの変更を保持",
+                    applyServer: "サーバーの変更を適用",
+                },
             },
             proactiveChat: {
                 title: "話しかけ設定",

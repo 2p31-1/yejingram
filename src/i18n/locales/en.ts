@@ -530,7 +530,15 @@ const en = {
                 syncing: "Syncing...",
                 failed: "Sync failed. Please check server address and network.",
                 restoreFailed: "Restore failed. Please check server address and network.",
-                conflict: "A newer version is already uploaded to the server.",
+                conflict: {
+                    title: "Sync Conflict",
+                    message: "A sync conflict has occurred. Choose how to resolve it:",
+                    local: "Local",
+                    server: "Server",
+                    serverTimestamp: "Server Timestamp",
+                    keepLocal: "Keep Local Changes",
+                    applyServer: "Apply Server Changes",
+                },
             },
             proactiveChat: {
                 title: "Proactive Chat Settings",

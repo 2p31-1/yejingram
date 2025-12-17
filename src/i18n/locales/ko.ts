@@ -529,7 +529,15 @@ const ko = {
                 restoreRemote: "서버로부터 복원",
                 failed: "동기화에 실패했습니다. 서버 주소와 네트워크를 확인하세요.",
                 restoreFailed: "복원에 실패했습니다. 서버 주소와 네트워크를 확인하세요.",
-                conflict: "서버에 이미 더 최신 버전이 업로드된 상태입니다.",
+                conflict: {
+                    title: "동기화 충돌",
+                    message: "동기화 충돌이 발생했습니다. 해결 방법을 선택하세요:",
+                    local: "로컬",
+                    server: "서버",
+                    serverTimestamp: "서버 타임스탬프",
+                    keepLocal: "로컬 변경사항 유지",
+                    applyServer: "서버 변경사항 적용",
+                },
             },
             proactiveChat: {
                 title: "선톡 설정",
