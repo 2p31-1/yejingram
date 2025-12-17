@@ -46,13 +46,13 @@ function SyncConflictModal() {
                 <div className="p-6 border-b border-[var(--color-border)]">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
-                            ⚠️ {t('sync.conflict.title')}
+                            ⚠️ {t('settings.others.sync.conflict.title')}
                         </h3>
                     </div>
                 </div>
                 <div className="p-6 space-y-4">
                     <p className="text-[var(--color-text-secondary)] text-sm leading-relaxed">
-                        {t('sync.conflict.message')}
+                        {t('settings.others.sync.conflict.message')}
                     </p>
 
                     {/* Conflict Information */}
@@ -61,7 +61,7 @@ function SyncConflictModal() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center">
                                     <div className="text-[var(--color-text-interface)] font-medium mb-1">
-                                        {t('sync.conflict.local')}
+                                        {t('settings.others.sync.conflict.local')}
                                     </div>
                                     <div className="font-mono text-[var(--color-text-primary)] bg-[var(--color-bg-hover)] px-3 py-2 rounded-md">
                                         {localPatchSeq}
@@ -69,7 +69,7 @@ function SyncConflictModal() {
                                 </div>
                                 <div className="text-center">
                                     <div className="text-[var(--color-text-interface)] font-medium mb-1">
-                                        {t('sync.conflict.server')}
+                                        {t('settings.others.sync.conflict.server')}
                                     </div>
                                     <div className="font-mono text-[var(--color-text-primary)] bg-[var(--color-bg-hover)] px-3 py-2 rounded-md">
                                         {conflict.lastServerPatchSeq}
@@ -81,7 +81,7 @@ function SyncConflictModal() {
                             </div>
                             <div className="text-center">
                                 <div className="text-[var(--color-text-interface)] font-medium mb-1">
-                                    {t('sync.conflict.serverTimestamp')}
+                                    {t('settings.others.sync.conflict.serverTimestamp')}
                                 </div>
                                 <div className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-bg-hover)] px-2.5 py-1 rounded-md">
                                     {new Date(conflict.lastServerTimestamp).toLocaleString()}
@@ -95,13 +95,13 @@ function SyncConflictModal() {
                             onClick={handleKeepLocal}
                             className="w-full px-4 py-3 bg-[var(--color-button-neutral)] text-[var(--color-text-accent)] rounded-xl hover:bg-[var(--color-button-neutral-hover)] transition-colors font-medium"
                         >
-                            {t('sync.conflict.keepLocal')}
+                            {t('settings.others.sync.conflict.keepLocal')}
                         </button>
                         <button
                             onClick={handleApplyServer}
                             className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors font-medium border border-[var(--color-border)]"
                         >
-                            {t('sync.conflict.applyServer')}
+                            {t('settings.others.sync.conflict.applyServer')}
                         </button>
                     </div>
                 </div>
