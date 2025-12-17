@@ -52,7 +52,6 @@ export const syncMiddleware: Middleware<{}, RootState> = store => next => (actio
             };
             store.dispatch(syncActions.enqueuePatch(patch));
 
-            messagePrevState = {} as RootState;
             // Trigger sync
             syncService.sync();
         }
