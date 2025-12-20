@@ -248,7 +248,7 @@ export async function backupStateToServer(
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: await jsonStringify(diff)
+        body: await jsonStringify(payload)
       });
 
       statusCode = res.status;
