@@ -201,7 +201,7 @@ export async function backupStateToServer(
   baseURL: string,
   diff?: Patch
 ) {
-  store.dispatch(uiActions.setSyncProgress(0));
+  store.dispatch(uiActions.setSyncProgress(1));
 
   let url = `${baseURL}/api/${clientId}/sync`;
 
@@ -316,8 +316,7 @@ export async function backupStateToServer(
 }
 
 export async function restoreStateFromServer(clientId: string, baseURL: string, full = false) {
-  // 다운로드 진행률을 바이트 기준으로 표시
-  store.dispatch(uiActions.setSyncProgress(0));
+  store.dispatch(uiActions.setSyncProgress(1));
   try {
     const currentState = store.getState();
     const queryParams = new URLSearchParams({
