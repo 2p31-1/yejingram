@@ -31,22 +31,10 @@ export interface SyncMetadata {
 
 export interface ServerState {
     metadata: SyncMetadata;
-    snapshot: RootState;
     patches: Patch[];
 }
 
-export type ClientSyncResponse = FullSyncResponse | PatchSyncResponse;
-
-export interface FullSyncResponse {
-    type: 'full';
-    snapshotSeq: number;
-    patchSeq: number;
-    snapshot: RootState;
-    patches: Patch[];
-    version: number;
-}
-
-export interface PatchSyncResponse {
+export interface ClientSyncResponse {
     type: 'patch';
     snapshotSeq: number;
     patchSeq: number;

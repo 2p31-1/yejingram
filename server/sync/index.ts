@@ -2,9 +2,8 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
-
-import type { ClientSyncResponse, Patch, ServerState, Snapshot } from '../../src/entities/sync/types';
-import type { RootState } from '../../src/app/store';
+import multer from 'multer';
+import type { ClientSyncResponse, Patch, ServerState } from '../../src/entities/sync/types';
 import { applyPatch } from '../../src/utils/diff';
 
 interface ApiError extends Error {
@@ -17,6 +16,8 @@ interface ApiError extends Error {
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
+
+const upload = multer({ limits: { fieldSize: 100 * 1024 * 1024 } }); // 100MB
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -82,10 +83,10 @@ async function writeMetadata(
 /* =====================================================
    Storage: snapshot
 ===================================================== */
-async function readSnapshot(clientId: string): Promise<RootState | null> {
+async function readSnapshot(clientId: string): Promise<string | null> {
     try {
         const raw = await fsp.readFile(snapshotPath(clientId), 'utf-8');
-        return JSON.parse(raw);
+        return raw;
     } catch (err: any) {
         if (err.code === 'ENOENT') return null;
         throw err;
@@ -94,12 +95,9 @@ async function readSnapshot(clientId: string): Promise<RootState | null> {
 
 async function writeSnapshot(
     clientId: string,
-    snapshot: RootState
+    snapshot: string
 ): Promise<void> {
-    await fsp.writeFile(
-        snapshotPath(clientId),
-        JSON.stringify(snapshot, null, 2)
-    );
+    await fsp.writeFile(snapshotPath(clientId), snapshot);
 }
 
 /* =====================================================
@@ -134,16 +132,11 @@ async function readServerState(clientId: string): Promise<ServerState | null> {
         return stateCache.get(clientId)!;
     }
 
-    const [metadata, snapshot] = await Promise.all([
-        readMetadata(clientId),
-        readSnapshot(clientId)
-    ]);
-
-    if (!metadata || !snapshot) return null;
+    const metadata = await readMetadata(clientId);
+    if (!metadata) return null;
 
     const state: ServerState = {
         metadata,
-        snapshot,
         patches: []
     };
 
@@ -223,11 +216,9 @@ app.get('/api/:clientId/sync', async (req, res, next) => {
 
         if (req.query.full === 'true' || sinceSnapshotSeq < state.metadata.snapshotSeq) {
             return res.json({
-                type: 'full',
                 snapshotSeq: state.metadata.snapshotSeq,
                 patchSeq: state.metadata.patchSeq,
                 version: state.metadata.version,
-                snapshot: state.snapshot,
                 patches: state.patches
             } as ClientSyncResponse);
         }
@@ -244,35 +235,53 @@ app.get('/api/:clientId/sync', async (req, res, next) => {
     }
 });
 
+/* ---------- snapshot download ---------- */
+app.get('/api/:clientId/snapshot', async (req, res, next) => {
+    try {
+        const clientId = sanitizeClientId(req.params.clientId);
+        const snapshot = await readSnapshot(clientId);
+        if (!snapshot) return res.status(404).json({ error: 'Snapshot not found' });
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="snapshot.json"');
+        res.send(snapshot);
+    } catch (err) {
+        next(err);
+    }
+});
+
+/* ---------- snapshot upload ---------- */
+app.post('/api/:clientId/snapshot', upload.none(), async (req, res, next) => {
+    try {
+        const clientId = sanitizeClientId(req.params.clientId);
+
+        const metadata = {
+            snapshotSeq: 0,
+            patchSeq: 0,
+            version: Number(req.body.version)
+        };
+
+        const state: ServerState = {
+            metadata,
+            patches: []
+        };
+
+        stateCache.set(clientId, state);
+
+        await writeMetadata(clientId, metadata);
+        await writeSnapshot(clientId, req.body.snapshot);
+        await resetPatchLog(clientId);
+
+        res.json({ seq: 0 });
+    } catch (err) {
+        next(err);
+    }
+});
+
 /* ---------- sync push ---------- */
 app.post('/api/:clientId/sync', async (req, res, next) => {
     try {
         const clientId = sanitizeClientId(req.params.clientId);
-
-        /* snapshot upload */
-        if (req.query.type === 'snapshot') {
-            const snapshot = req.body as Snapshot;
-
-            const metadata = {
-                snapshotSeq: 0,
-                patchSeq: 0,
-                version: snapshot.version
-            };
-
-            const state: ServerState = {
-                metadata,
-                snapshot: snapshot.snapshot,
-                patches: []
-            };
-
-            stateCache.set(clientId, state);
-
-            await writeMetadata(clientId, metadata);
-            await writeSnapshot(clientId, state.snapshot);
-            await resetPatchLog(clientId);
-
-            return res.json({ seq: 0 });
-        }
 
         const state = await readServerState(clientId);
         if (!state) return res.status(404).json({ error: 'State not found' });
@@ -289,13 +298,16 @@ app.post('/api/:clientId/sync', async (req, res, next) => {
 
         /* snapshot every 100 patches */
         if (state.patches.length >= 100) {
-            state.snapshot = applyPatch(state.snapshot, state.patches);
+            const currentSnapshot = await readSnapshot(clientId);
+            if (!currentSnapshot) return res.status(404).json({ error: 'Snapshot not found' });
+
+            const newSnapshot = applyPatch(JSON.parse(currentSnapshot), state.patches);
 
             state.metadata.snapshotSeq += 1;
             state.metadata.patchSeq = 0;
             state.patches = [];
 
-            await writeSnapshot(clientId, state.snapshot);
+            await writeSnapshot(clientId, JSON.stringify(newSnapshot));
             await writeMetadata(clientId, state.metadata);
             await resetPatchLog(clientId);
         }
