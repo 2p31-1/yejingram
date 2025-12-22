@@ -191,6 +191,13 @@ async function restoreState(state: Partial<RootState>, lastVersion = persistConf
   if (lastSaved) store.dispatch(lastSavedActions.importLastSaved(lastSaved));
   persistor.persist();
 
+  // Snapshot upload if version changeds
+  if (lastVersion != persistConfig.version && state.settings) {
+    if (state.settings.syncSettings.syncEnabled && state.settings.syncSettings.syncClientId && state.settings.syncSettings.syncBaseUrl) {
+      await backupStateToServer(state.settings.syncSettings.syncClientId, state.settings.syncSettings.syncBaseUrl);
+    }
+  }
+
   store.dispatch({ type: 'sync/applyDeltaEnd' });
 }
 
