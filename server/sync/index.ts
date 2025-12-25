@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import multer from 'multer';
-import type { ClientSyncResponse, Patch, ServerState } from '../../src/entities/sync/types';
+import type { ClientSyncResponse, Patch, ServerState, SyncMetadata } from '../../src/entities/sync/types';
 import { applyPatch } from '../../src/utils/diff';
 
 interface ApiError extends Error {
@@ -272,7 +272,10 @@ app.post('/api/:clientId/snapshot', upload.none(), async (req, res, next) => {
         await writeSnapshot(clientId, req.body.snapshot);
         await resetPatchLog(clientId);
 
-        res.json({ seq: 0 });
+        res.json({
+            snapshotSeq: 0,
+            patchSeq: 0
+        } as SyncMetadata);
     } catch (err) {
         next(err);
     }
@@ -312,7 +315,10 @@ app.post('/api/:clientId/sync', async (req, res, next) => {
             await resetPatchLog(clientId);
         }
 
-        return res.json({ seq: state.metadata.patchSeq });
+        return res.json({
+            snapshotSeq: state.metadata.snapshotSeq,
+            patchSeq: state.metadata.patchSeq
+        } as SyncMetadata);
     } catch (err) {
         next(err);
     }

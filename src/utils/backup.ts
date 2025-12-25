@@ -8,7 +8,7 @@ import { settingsActions } from '../entities/setting/slice';
 import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
-import type { ClientSyncResponse, Patch, BackupFile, BackupState, BackupError } from '../entities/sync/types';
+import type { ClientSyncResponse, Patch, BackupFile, BackupState, BackupError, SyncMetadata } from '../entities/sync/types';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
 
@@ -50,11 +50,17 @@ async function jsonParse(text: string): Promise<any> {
   });
 }
 
-async function fetchWithProgress(url: string, method: string = 'GET', body?: string | FormData): Promise<any> {
+async function fetchWithProgress(url: string, method: string = 'GET', body?: Patch | FormData): Promise<any> {
+  const IsFromData = body instanceof FormData;
+  const payload = IsFromData ? body : body ? await jsonStringify(body) : undefined;
   if (isBrowser) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open(method, url);
+
+      if (payload && !IsFromData) {
+        xhr.setRequestHeader('Content-Type', 'application/json');
+      }
 
       xhr.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -68,15 +74,15 @@ async function fetchWithProgress(url: string, method: string = 'GET', body?: str
           try {
             resolve(JSON.parse(xhr.responseText));
           } catch (e) {
-            reject(new Error('JSON parse error'));
+            reject({ status: xhr.status, response: xhr.responseText });
           }
         } else {
-          reject(new Error(`${method} failed: ${xhr.statusText}`));
+          reject({ status: xhr.status, response: xhr.responseText });
         }
       };
 
-      xhr.onerror = () => reject(new Error(`${method} failed`));
-      xhr.send(body as any);
+      xhr.onerror = () => reject({ status: null, response: null });
+      xhr.send(payload);
     });
   } else {
     const headers: Record<string, string> = {};
@@ -87,11 +93,11 @@ async function fetchWithProgress(url: string, method: string = 'GET', body?: str
     const res = await fetch(url, {
       method,
       headers,
-      body: body as any
+      body: payload
     });
 
     if (!res.ok) {
-      throw new Error(`${method} failed: ${res.statusText}`);
+      throw { status: res.status, response: await res.json() };
     }
 
     return await res.json();
@@ -271,88 +277,49 @@ export async function backupStateToServer(
     payload = formData;
   }
 
-  let statusCode: number | null = null;
   let response: any = null;
 
   try {
     const state = store.getState();
     console.log(`[backupStateToServer] Client patchSeq: ${state.sync.patchSeq}, snapshotSeq: ${state.sync.snapshotSeq}`);
 
-    if (isBrowser) {
-      response = await fetchWithProgress(url, 'POST', payload as any);
-      statusCode = 200;
-    } else {
-      const headers: Record<string, string> = {};
-      let body: string | FormData;
-      if (payload instanceof FormData) {
-        body = payload;
-      } else {
-        headers['Content-Type'] = 'application/json';
-        body = await jsonStringify(payload);
-      }
+    response = await fetchWithProgress(url, 'POST', payload);
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body
-      });
+    const res = response as SyncMetadata;
 
-      statusCode = res.status;
-      response = await res.json();
+    store.dispatch(syncActions.setSnapshotSeq(res.snapshotSeq));
+    store.dispatch(syncActions.setPatchSeq(res.patchSeq));
+    store.dispatch(syncActions.popPatchQueue());
 
-      store.dispatch(uiActions.setSyncProgress(100));
+    if (!diff) {
+      store.dispatch(syncActions.clearPatchQueue());
+      store.dispatch(syncActions.resolveConflict());
     }
 
-    if (statusCode == null) {
-      throw new Error('No response status');
-    }
+  } catch (err: any) {
+    const status = err.status;
+    const res = err.response;
 
-    switch (statusCode) {
-      case 200: {
-        const res = response;
-        const newSeq = Number(res.seq);
-
-        store.dispatch(syncActions.setPatchSeq(newSeq));
-        store.dispatch(syncActions.popPatchQueue());
-
-        if (!diff) {
-          store.dispatch(syncActions.clearPatchQueue());
-          store.dispatch(syncActions.resolveConflict());
-        }
-        break;
-      }
-
+    switch (status) {
       case 404: {
         await backupStateToServer(clientId, baseURL);
         break;
       }
 
       case 409: {
-        const res = response;
-        console.log(`[backupStateToServer] Conflict: Server seq: ${res.seq}, timestamp: ${res.timestamp}, Client patchSeq: ${state.sync.patchSeq}`);
-        throw {
-          cause: 'conflict',
-          timestamp: Number(res.timestamp),
-          seq: Number(res.seq)
-        };
+        console.log(`[backupStateToServer] Conflict: Server seq: ${res.seq}, timestamp: ${res.timestamp}, Client patchSeq: ${store.getState().sync.patchSeq}`);
+        handleBackupError({ cause: 'conflict', seq: Number(res.seq), timestamp: Number(res.timestamp) }, clientId, baseURL);
+        break;
       }
 
       case 410: {
-        throw { cause: 'snapshot_mismatch' };
+        console.log(`[backupStateToServer] Snapshot mismatch`)
+        handleBackupError({ cause: 'snapshot_mismatch' }, clientId, baseURL);
+        break;
       }
 
       default:
-        throw new Error(`Upload failed: ${statusCode}`);
-    }
-  } catch (err) {
-    if (err && (err as BackupError).cause) {
-      handleBackupError(
-        err as BackupError,
-        clientId,
-        baseURL
-      );
-    } else {
-      console.error('백업 실패', err);
+        throw new Error(`Upload failed: ${status}`);
     }
   } finally {
     store.dispatch(uiActions.clearSyncProgress());

@@ -26,7 +26,7 @@ export interface Snapshot {
 export interface SyncMetadata {
     snapshotSeq: number;
     patchSeq: number;
-    version: number;
+    version?: number;
 }
 
 export interface ServerState {
