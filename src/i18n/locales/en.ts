@@ -538,6 +538,7 @@ const en = {
                     serverTimestamp: "Server Timestamp",
                     keepLocal: "Keep Local Changes",
                     applyServer: "Apply Server Changes",
+                    backupLocal: "Backup Local Data",
                 },
             },
             proactiveChat: {

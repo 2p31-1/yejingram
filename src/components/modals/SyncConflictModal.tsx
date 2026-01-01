@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { selectSyncConflict } from '../../entities/sync/selectors';
-import { restoreStateFromServer, backupStateToServer } from '../../utils/backup';
+import { restoreStateFromServer, backupStateToServer, backupStateToFile } from '../../utils/backup';
 import type { RootState } from '../../app/store';
 import { uiActions } from '../../entities/ui/slice';
 
@@ -32,6 +32,14 @@ function SyncConflictModal() {
             await restoreStateFromServer(syncSettings.syncClientId, syncSettings.syncBaseUrl, true);
         } catch (error) {
             console.error('Failed to resolve conflict (Apply Server):', error);
+        }
+    };
+
+    const handleBackupLocal = async () => {
+        try {
+            await backupStateToFile();
+        } catch (error) {
+            console.error('Failed to backup local state:', error);
         }
     };
 
@@ -102,6 +110,12 @@ function SyncConflictModal() {
                             className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors font-medium border border-[var(--color-border)]"
                         >
                             {t('settings.others.sync.conflict.applyServer')}
+                        </button>
+                        <button
+                            onClick={handleBackupLocal}
+                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors font-medium border border-[var(--color-border)]"
+                        >
+                            {t('settings.others.sync.conflict.backupLocal')}
                         </button>
                     </div>
                 </div>

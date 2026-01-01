@@ -537,6 +537,7 @@ const ja = {
                     serverTimestamp: "サーバータイムスタンプ",
                     keepLocal: "ローカルの変更を保持",
                     applyServer: "サーバーの変更を適用",
+                    backupLocal: "ローカルデータをバックアップ",
                 },
             },
             proactiveChat: {

@@ -537,6 +537,7 @@ const ko = {
                     serverTimestamp: "서버 타임스탬프",
                     keepLocal: "로컬 변경사항 유지",
                     applyServer: "서버 변경사항 적용",
+                    backupLocal: "로컬 데이터 백업",
                 },
             },
             proactiveChat: {
