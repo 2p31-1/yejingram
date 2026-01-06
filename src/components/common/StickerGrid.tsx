@@ -4,8 +4,8 @@ import type { Sticker } from '../../entities/character/types';
 import { getBlob } from '../../services/binaryStore';
 
 function StickerMedia({ sticker }: { sticker: Sticker }) {
-    const isVideo = sticker.type.startsWith('video/');
-    const isAudio = sticker.type.startsWith('audio/');
+    const isVideo = sticker.mimeType.startsWith('video/');
+    const isAudio = sticker.mimeType.startsWith('audio/');
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {

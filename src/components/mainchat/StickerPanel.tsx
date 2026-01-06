@@ -32,14 +32,10 @@ export function StickerPanel({ characterId, stickers, onSelectSticker, onClose }
 
         const newStickers = await filesToStickers(files);
         for (const sticker of newStickers) {
-            if (!sticker.data) {
-                console.warn('Sticker upload missing dataUrl; skipping', sticker);
-                continue;
-            }
             const storageKey = makeStickerBinaryKey(sticker.id);
             try {
-                await saveDataUrl(storageKey, sticker.data);
-                const refSticker: Sticker = { ...sticker, storageKey, data: undefined };
+                await saveDataUrl(storageKey, sticker.dataUrl);
+                const refSticker: Sticker = { id: sticker.id, name: sticker.name, storageKey, mimeType: sticker.mimeType };
                 dispatch(charactersActions.addSticker({ characterId, sticker: refSticker }));
             } catch (e) {
                 console.warn('Failed to persist sticker binary; skipping sticker', e);

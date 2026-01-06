@@ -1,5 +1,11 @@
 import { nanoid } from '@reduxjs/toolkit';
-import type { Sticker } from '../entities/character/types';
+
+export type UploadedSticker = {
+    id: string;
+    name: string;
+    dataUrl: string;
+    mimeType: string;
+};
 
 function readFileAsDataURL(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -10,16 +16,16 @@ function readFileAsDataURL(file: File): Promise<string> {
     });
 }
 
-export async function filesToStickers(files: FileList | File[]): Promise<Sticker[]> {
+export async function filesToStickers(files: FileList | File[]): Promise<UploadedSticker[]> {
     const list = Array.from(files as any as File[]);
     const results = await Promise.all(
         list.map(async (file) => {
-            const data = await readFileAsDataURL(file);
-            const sticker: Sticker = {
+            const dataUrl = await readFileAsDataURL(file);
+            const sticker: UploadedSticker = {
                 id: nanoid(),
                 name: file.name,
-                data,
-                type: file.type,
+                dataUrl,
+                mimeType: file.type || 'application/octet-stream',
             };
             return sticker;
         })

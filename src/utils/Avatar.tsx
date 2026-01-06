@@ -31,7 +31,7 @@ export const Avatar = ({ char, size = 'md' }: { char: Character; size?: 'md' | '
         };
     }, [isStoredBinaryRef(char?.avatar) ? char.avatar.storageKey : null]);
 
-    const src = isStoredBinaryRef(char?.avatar) ? objectUrl : (typeof char?.avatar === 'string' ? char.avatar : null);
+    const src = isStoredBinaryRef(char?.avatar) ? objectUrl : null;
     if (src) {
         return (
             <div className={`${sizeClasses} relative aspect-square rounded-full overflow-hidden`}>

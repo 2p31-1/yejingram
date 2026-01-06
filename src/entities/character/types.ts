@@ -1,18 +1,13 @@
 import type { Lore } from "../lorebook/types";
 import type { StoredBinaryRef } from "../../services/binaryStore";
 
-export interface Sticker {
+export interface Sticker extends StoredBinaryRef {
     id: string;
     name: string;
-    // Legacy persisted format (dataUrl). Avoid adding new dataUrl stickers.
-    data?: string;
-    // New format: Blob lives in binary store, Redux keeps only the key.
-    storageKey?: string;
-    type: string;
 }
 
-// Avatar can be a regular URL string, a legacy dataUrl string, or a stored binary reference.
-export type AvatarRef = string | StoredBinaryRef | null;
+// Avatar is stored only as a binary reference.
+export type AvatarRef = StoredBinaryRef | null;
 
 export interface Character {
     id: number

@@ -1,8 +1,70 @@
 import { extractBasicCharacterInfo } from './risuai/risuCharacterCard';
 import { decodeText } from './imageStego';
 import { newCharacterDefault, type Character, type PersonaChatAppCharacterCard } from '../entities/character/types';
+import { isStoredBinaryRef, makeAvatarBinaryKey, makeStickerBinaryKey, saveDataUrl, type StoredBinaryRef } from '../services/binaryStore';
+import { nanoid } from '@reduxjs/toolkit';
 
-const personaCardToCharacter = (card: PersonaChatAppCharacterCard, imageUrl: string | null): Character => {
+type CharacterImportDraft = Omit<Character, 'avatar' | 'stickers'> & {
+    avatar: StoredBinaryRef | string | null;
+    stickers: any[];
+};
+
+function mimeTypeFromDataUrl(dataUrl: string): string {
+    try {
+        return dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+    } catch {
+        return 'application/octet-stream';
+    }
+}
+
+async function persistImportedBinaries(character: CharacterImportDraft): Promise<Character> {
+    // Avatar
+    let avatar: StoredBinaryRef | null;
+    const rawAvatar = (character as any).avatar;
+    if (typeof rawAvatar === 'string' && rawAvatar.startsWith('data:')) {
+        const storageKey = makeAvatarBinaryKey(nanoid());
+        await saveDataUrl(storageKey, rawAvatar);
+        avatar = { storageKey, mimeType: mimeTypeFromDataUrl(rawAvatar) };
+    } else if (isStoredBinaryRef(rawAvatar)) {
+        avatar = rawAvatar;
+    } else {
+        avatar = null;
+    }
+
+    // Stickers
+    const stickers = (await Promise.all((character.stickers ?? []).map(async (sticker) => {
+        const id = String((sticker as any)?.id || nanoid());
+        const name = String((sticker as any)?.name || '');
+
+        const existingStorageKey = (sticker as any)?.storageKey;
+        const existingMimeType = (sticker as any)?.mimeType;
+        if (typeof existingStorageKey === 'string') {
+            return {
+                id,
+                name,
+                storageKey: existingStorageKey,
+                mimeType: typeof existingMimeType === 'string' ? existingMimeType : 'application/octet-stream',
+            };
+        }
+
+        const data = (sticker as any)?.data;
+        if (typeof data === 'string' && data.startsWith('data:')) {
+            const storageKey = makeStickerBinaryKey(id);
+            await saveDataUrl(storageKey, data);
+            return { id, name, storageKey, mimeType: mimeTypeFromDataUrl(data) };
+        }
+
+        return null;
+    }))).filter((v): v is NonNullable<typeof v> => v != null);
+
+    return {
+        ...(character as any),
+        avatar,
+        stickers
+    } as Character;
+}
+
+const personaCardToCharacter = (card: PersonaChatAppCharacterCard, imageUrl: string | null): CharacterImportDraft => {
     const { name, prompt, responseTime, thinkingTime, reactivity, tone, proactiveEnabled } = card;
 
     return {
@@ -38,16 +100,18 @@ export async function importCharacterFromFile(file: File): Promise<ImportCharact
             if (info.personality) promptParts.push(`personality: ${info.personality}`);
             if (info.scenario) promptParts.push(`scenario: ${info.scenario}`);
 
-            const characterFromCard: Character = {
+            const characterFromCard: CharacterImportDraft = {
                 ...newCharacterDefault,
                 id: Date.now(),
                 name: info.name || '',
                 prompt: promptParts.join('\n\n'),
                 avatar: info.avatarDataUrl ?? null,
                 lorebook: info.lorebook ?? [],
-            } as Character;
+                stickers: [],
+            };
 
-            return { success: true, character: characterFromCard };
+            const persisted = await persistImportedBinaries(characterFromCard);
+            return { success: true, character: persisted };
         }
     } catch (err) {
         console.warn('extractBasicCharacterInfo 실패, decodeText로 폴백:', err);
@@ -66,9 +130,10 @@ export async function importCharacterFromFile(file: File): Promise<ImportCharact
             const decodeResult = await decodeText(dataUrl);
             if (decodeResult.text) {
                 try {
-                    let characterFromCard: Character;
+                    let characterFromCard: CharacterImportDraft;
                     if (decodeResult.method === "png-trailer") {
-                        characterFromCard = JSON.parse(decodeResult.text) as Character;
+                        characterFromCard = JSON.parse(decodeResult.text) as any;
+                        if (!Array.isArray(characterFromCard.stickers)) characterFromCard.stickers = [];
                     } else {
                         const jsonData = JSON.parse(decodeResult.text) as PersonaChatAppCharacterCard;
                         if (jsonData.source !== 'PersonaChatAppCharacterCard') {
@@ -76,7 +141,8 @@ export async function importCharacterFromFile(file: File): Promise<ImportCharact
                         }
                         characterFromCard = personaCardToCharacter(jsonData, dataUrl);
                     }
-                    return { success: true, character: characterFromCard };
+                    const persisted = await persistImportedBinaries(characterFromCard);
+                    return { success: true, character: persisted };
                 } catch (e) {
                     console.error("Failed to parse character card:", e);
                     return { success: false, error: 'invalidFormat' };

@@ -276,6 +276,14 @@ export const migrations = {
             return typeof value === 'string' && value.startsWith('data:') && value.includes(',');
         };
 
+        const mimeTypeFromDataUrl = (dataUrl: string): string => {
+            try {
+                return dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+            } catch {
+                return 'application/octet-stream';
+            }
+        };
+
         return (async () => {
             const jobs: Array<() => Promise<void>> = [];
 
@@ -299,11 +307,13 @@ export const migrations = {
                     if (msg.type === 'STICKER' && msg.sticker && !msg.sticker.storageKey && isDataUrlString(msg.sticker.data)) {
                         const dataUrl = msg.sticker.data;
                         const stickerId = msg.sticker.id;
+                        if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
                         const storageKey = makeStickerBinaryKey(stickerId);
+                        const mimeType = mimeTypeFromDataUrl(dataUrl);
+                        const name = typeof msg.sticker.name === 'string' ? msg.sticker.name : '';
                         jobs.push(async () => {
                             await saveDataUrl(storageKey, dataUrl);
-                            msg.sticker = { ...msg.sticker, storageKey };
-                            delete msg.sticker.data;
+                            msg.sticker = { id: stickerId, name, storageKey, mimeType };
                         });
                     }
                 }
@@ -331,10 +341,16 @@ export const migrations = {
                             if (!isDataUrlString(st.data)) continue;
                             const dataUrl = st.data;
                             const stickerId = st.id;
+                            if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
                             const storageKey = makeStickerBinaryKey(stickerId);
+                            const mimeType = mimeTypeFromDataUrl(dataUrl);
                             jobs.push(async () => {
                                 await saveDataUrl(storageKey, dataUrl);
+                                const name = typeof st.name === 'string' ? st.name : '';
+                                st.id = stickerId;
+                                st.name = name;
                                 st.storageKey = storageKey;
+                                st.mimeType = mimeType;
                                 delete st.data;
                             });
                         }

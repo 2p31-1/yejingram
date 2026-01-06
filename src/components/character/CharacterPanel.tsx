@@ -11,7 +11,7 @@ import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
 import { importCharacterFromFile } from '../../utils/importCharacter';
-import { deleteBlob, getBlob, isStoredBinaryRef, makeAvatarBinaryKey, makeStickerBinaryKey, resolveDataUrlFromRef, saveBlob, saveDataUrl } from '../../services/binaryStore';
+import { deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, resolveDataUrlFromRef, saveBlob, saveDataUrl } from '../../services/binaryStore';
 import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
@@ -63,11 +63,6 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 return;
             }
 
-            if (typeof char.avatar === 'string') {
-                setAvatarPreviewSrc(char.avatar);
-                return;
-            }
-
             const blob = await getBlob(char.avatar.storageKey);
             if (!blob || cancelled) {
                 setAvatarPreviewSrc(null);
@@ -81,7 +76,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             cancelled = true;
             if (revoked) URL.revokeObjectURL(revoked);
         };
-    }, [typeof char.avatar === 'string' ? char.avatar : char.avatar?.storageKey]);
+    }, [char.avatar?.storageKey]);
 
     const handleSave = async () => {
         if (!char.name) return;
@@ -89,31 +84,8 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
         // Ensure stable id before persisting binaries.
         const id = editingId ?? Date.now();
 
-        // Migrate legacy avatar dataUrl to binary store on save.
-        let nextAvatar = char.avatar;
-        if (typeof nextAvatar === 'string' && nextAvatar.startsWith('data:')) {
-            const storageKey = makeAvatarBinaryKey(nanoid());
-            try {
-                await saveDataUrl(storageKey, nextAvatar);
-                const mimeType = nextAvatar.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
-                nextAvatar = { storageKey, mimeType };
-            } catch (e) {
-                console.warn('Failed to persist avatar binary; keeping legacy dataUrl', e);
-            }
-        }
-
-        // Migrate any legacy sticker dataUrls to binary store on save.
-        const nextStickers = await Promise.all((char.stickers ?? []).map(async (sticker) => {
-            if (sticker.storageKey || !sticker.data) return sticker;
-            const storageKey = makeStickerBinaryKey(sticker.id);
-            try {
-                await saveDataUrl(storageKey, sticker.data);
-                return { ...sticker, storageKey, data: undefined };
-            } catch (e) {
-                console.warn('Failed to persist sticker binary; keeping legacy dataUrl', e);
-                return sticker;
-            }
-        }));
+        const nextAvatar = char.avatar;
+        const nextStickers = char.stickers ?? [];
 
         const charToSave = {
             ...char,
@@ -136,7 +108,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
         if (!file) return;
 
         // Best-effort cleanup of previous stored avatar
-        if (isStoredBinaryRef(char.avatar)) {
+        if (char.avatar?.storageKey) {
             void deleteBlob(char.avatar.storageKey);
         }
 
@@ -145,12 +117,15 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             await saveBlob(storageKey, file);
             setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
         } catch (e) {
-            console.warn('Failed to persist avatar blob; falling back to dataUrl', e);
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setChar(prev => ({ ...prev, avatar: event.target?.result as string }));
-            };
-            reader.readAsDataURL(file);
+            console.warn('Failed to persist avatar blob; falling back to dataUrl -> binary store', e);
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(reader.error ?? new Error('readAsDataURL failed'));
+                reader.readAsDataURL(file);
+            });
+            await saveDataUrl(storageKey, dataUrl);
+            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
         }
     };
 
@@ -192,7 +167,27 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             return;
         }
 
-        const dataURL = await encodeText(avatarDataUrl, JSON.stringify(method === "png-trailer" ? char : characterToPersonaCard(char)), method);
+        const stickersForExport = await Promise.all((char.stickers ?? []).map(async (sticker) => {
+            const data = await getDataUrl(sticker.storageKey);
+            return {
+                id: sticker.id,
+                name: sticker.name,
+                data,
+                type: sticker.mimeType,
+            };
+        }));
+
+        const exportChar: any = {
+            ...char,
+            avatar: avatarDataUrl,
+            stickers: stickersForExport,
+        };
+
+        const dataURL = await encodeText(
+            avatarDataUrl,
+            JSON.stringify(method === "png-trailer" ? exportChar : characterToPersonaCard(exportChar)),
+            method
+        );
         const link = document.createElement("a");
         link.href = dataURL;
         link.download = `${char.name || 'character'}_persona.png`;
