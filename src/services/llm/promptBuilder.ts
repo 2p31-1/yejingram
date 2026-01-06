@@ -13,6 +13,7 @@ import type { Room } from "../../entities/room/types";
 import type { PromptItem } from "../../entities/setting/types";
 import type { Lore } from "../../entities/lorebook/types";
 import { countTokens } from "../../utils/token";
+import { getBase64, getDataUrl } from "../binaryStore";
 
 export type GeminiContent = {
     role: string;
@@ -76,18 +77,18 @@ const OpenAIStructuredOutputSchema: OpenAIStructuredSchema = {
                         properties: {
                             delay: { type: 'integer' },
                             content: { type: 'string' },
-                            sticker: { type: ['string', 'null'] }
+                            sticker: { type: 'string' },
                         },
-                        required: ['delay', 'content', 'sticker'],
-                        additionalProperties: false
-                    }
+                        required: ['delay'],
+                        additionalProperties: false,
+                    },
                 },
-                newMemory: { type: ['string', 'null'] }
+                newMemory: { type: 'string' },
             },
             required: ['reactionDelay', 'messages', 'newMemory'],
-            additionalProperties: false
-        }
-    }
+            additionalProperties: false,
+        },
+    },
 };
 
 function shouldIncludePromptItem(item: PromptItem, useStructuredOutput: boolean, room?: Room | null, useImageResponse?: boolean): boolean {
@@ -238,7 +239,7 @@ function buildSystemPrompt(persona?: Persona | null, character?: Character, extr
     return lines.join('\n\n');
 }
 
-function buildGeminiContents(messages: Message[], isProactive: boolean, persona: Persona, character: Character, room: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, useThoughtSignature?: boolean, apiConfig?: ApiConfig) {
+async function buildGeminiContents(messages: Message[], isProactive: boolean, persona: Persona, character: Character, room: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, useThoughtSignature?: boolean, apiConfig?: ApiConfig) {
     const state = store.getState();
     const activeRoomId = getActiveRoomId();
     const currentRoom = room || (activeRoomId ? selectRoomById(state, activeRoomId) : null);
@@ -248,11 +249,11 @@ function buildGeminiContents(messages: Message[], isProactive: boolean, persona:
     const contents: GeminiContent[] = [];
 
     // Add messages with lookahead merge for next user TEXT message
-    const buildGeminiMessageContentsWithMerge = (
+    const buildGeminiMessageContentsWithMerge = async (
         msgs: Message[],
         personaLocal: Persona | null | undefined,
         roomLocal: Room | null | undefined
-    ): GeminiContent[] => {
+    ): Promise<GeminiContent[]> => {
         const result: GeminiContent[] = [];
         const useSpeakerTag = roomLocal?.type !== 'Direct';
         let lastThoughtSignature: string | undefined;
@@ -280,9 +281,15 @@ function buildGeminiContents(messages: Message[], isProactive: boolean, persona:
             const parts: ({ text: string } | { inline_data: { mime_type: string; data: string } } | { file_data: { file_uri: string } } & { thought_signature?: string })[] = [{ text: baseText, thought_signature: thoughtSignatureToSend }];
 
             if (msg.file) {
-                const mimeType = msg.file.mimeType;
-                const dataUrl = msg.file.dataUrl;
-                const base64Data = dataUrl.split(',')[1];
+                const mimeType = (msg.file as any).mimeType as string | undefined;
+                let base64Data: string | null = null;
+
+                const storageKey = (msg.file as any).storageKey as string | undefined;
+                if (storageKey) {
+                    const res = await getBase64(storageKey);
+                    base64Data = res?.base64 || null;
+                }
+
                 if (mimeType && base64Data) {
                     if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
                         parts.push({
@@ -328,7 +335,7 @@ function buildGeminiContents(messages: Message[], isProactive: boolean, persona:
         return result;
     };
 
-    const messageContents = buildGeminiMessageContentsWithMerge(messages, persona, currentRoom);
+    const messageContents = await buildGeminiMessageContentsWithMerge(messages, persona, currentRoom);
 
     for (const item of main) {
         if (item && item.role !== 'system' && item.content && item.content.trim().length > 0) {
@@ -383,7 +390,7 @@ export async function buildGeminiApiPayload(
     let trimmedMessages = [...messages];
 
     const systemPrompt = buildSystemPrompt(persona, character, extraSystemInstruction, room, trimmedMessages, useStructuredOutput, useImageResponse);
-    const contentOnlyPrompt = buildGeminiContents([], isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
+    const contentOnlyPrompt = await buildGeminiContents([], isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
 
     const generationConfig: GeminiGenerationConfig = {
         temperature: selectPrompts(store.getState()).temperature,
@@ -433,7 +440,7 @@ export async function buildGeminiApiPayload(
     console.debug("Total tokens for system prompt only:", tokenCountForPromptOnly);
 
     while (true) {
-        const contents = buildGeminiContents(trimmedMessages, isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
+        const contents = await buildGeminiContents(trimmedMessages, isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
 
         const payload: GeminiApiPayload = {
             contents: contents,
@@ -466,7 +473,7 @@ export async function buildGeminiApiPayload(
     }
 }
 
-function buildClaudeContents(messages: Message[], isProactive: boolean, persona?: Persona, model?: string, character?: Character, extraSystemInstruction?: string, room?: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, apiConfig?: ApiConfig) {
+async function buildClaudeContents(messages: Message[], isProactive: boolean, persona?: Persona, model?: string, character?: Character, extraSystemInstruction?: string, room?: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, apiConfig?: ApiConfig) {
     const state = store.getState();
     const activeRoomId = getActiveRoomId();
     const currentRoom = room || (activeRoomId ? selectRoomById(state, activeRoomId) : null);
@@ -476,40 +483,49 @@ function buildClaudeContents(messages: Message[], isProactive: boolean, persona?
     const messagesPart: ClaudeContent[] = [];
 
     // Add messages
-    const messageContents = buildMessageContents(messages, persona, currentRoom, (msg, _speaker, header, role) => {
-        const content: ({ type: string; text: string; } |
-        { type: 'image'; source: { data: string; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; type: 'base64'; }; })[]
-            = msg.content ? [{ type: 'text', text: `${header}${msg.content}` }] : [];
-        if (msg.file && model !== "grok-3") {
-            const mimeType = msg.file.mimeType;
-            if (mimeType.startsWith('image')) {
-                if (mimeType !== 'image/jpeg' && mimeType !== 'image/png' && mimeType !== 'image/gif' && mimeType !== 'image/webp') {
-                    throw new Error(`Unsupported image type: ${mimeType} `);
-                }
-                const base64Data = msg.file.dataUrl.split(',')[1];
-                if (mimeType && base64Data) {
-                    if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
-                        content.push({
-                            type: 'image',
-                            source: {
-                                data: base64Data,
-                                media_type: mimeType,
-                                type: 'base64'
+    const messageContents = await Promise.all(
+        buildMessageContents(messages, persona, currentRoom, (msg, _speaker, header, role) => ({ msg, _speaker, header, role }))
+            .map(async ({ msg, _speaker, header, role }) => {
+                const content: ({ type: string; text: string; } |
+                { type: 'image'; source: { data: string; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; type: 'base64'; }; })[]
+                    = msg.content ? [{ type: 'text', text: `${header}${msg.content}` }] : [];
+                if (msg.file && model !== "grok-3") {
+                    const mimeType = (msg.file as any).mimeType as string;
+                    if (mimeType.startsWith('image')) {
+                        if (mimeType !== 'image/jpeg' && mimeType !== 'image/png' && mimeType !== 'image/gif' && mimeType !== 'image/webp') {
+                            throw new Error(`Unsupported image type: ${mimeType} `);
+                        }
+                        let base64Data: string | null = null;
+
+                        const storageKey = (msg.file as any).storageKey as string | undefined;
+                        if (storageKey) {
+                            const res = await getBase64(storageKey);
+                            base64Data = res?.base64 || null;
+                        }
+                        if (mimeType && base64Data) {
+                            if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
+                                content.push({
+                                    type: 'image',
+                                    source: {
+                                        data: base64Data,
+                                        media_type: mimeType,
+                                        type: 'base64'
+                                    }
+                                });
+                                content.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
+                                role = 'user';
+                            } else {
+                                content.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
                             }
-                        });
-                        content.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
-                        role = 'user';
-                    } else {
-                        content.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
+                        }
                     }
                 }
-            }
-        }
-        if (msg.sticker) {
-            content.push({ type: 'text', text: `${header}[Sent a sticker: "${(msg as any).sticker?.name || (msg as any).sticker}"]` });
-        }
-        return { role, content };
-    });
+                if (msg.sticker) {
+                    content.push({ type: 'text', text: `${header}[Sent a sticker: "${(msg as any).sticker?.name || (msg as any).sticker}"]` });
+                }
+                return { role, content };
+            })
+    );
 
     for (const item of main) {
         if (item && item.role !== 'system' && item.content && item.content.trim().length > 0) {
@@ -572,7 +588,7 @@ export async function buildClaudeApiPayload(
     let trimmedMessages = [...messages];
 
     const systemPrompt = buildSystemPrompt(persona, character, extraSystemInstruction, room, trimmedMessages, useStructuredOutput, useImageResponse);
-    const contentOnlyPrompt = buildClaudeContents([], isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
+    const contentOnlyPrompt = await buildClaudeContents([], isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
 
     const payload_promptOnly: ClaudeApiPayload = {
         model: apiConfig.model,
@@ -591,7 +607,7 @@ export async function buildClaudeApiPayload(
     console.debug("Total tokens for system prompt only:", tokenCountForPromptOnly);
 
     while (true) {
-        const contents = buildClaudeContents(trimmedMessages, isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
+        const contents = await buildClaudeContents(trimmedMessages, isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
 
         const payload: ClaudeApiPayload = {
             model: apiConfig.model,
@@ -634,33 +650,41 @@ async function buildOpenAIContents(messages: Message[], isProactive: boolean, pr
     const items: OpenAIContent[] = [];
 
     // Add messages
-    const messageContents = buildMessageContents(messages, persona, currentRoom, (msg, _speaker, header, role) => {
-        let text = (msg.content ? `${header}${msg.content}` : (header ? header : ''));
-        if (msg.sticker) {
-            text = `[User sent a sticker "${msg.sticker}"]` + (text ? ` ${text}` : '');
-        }
-
-        const parts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [];
-        if (text) {
-            parts.push({ type: 'text', text });
-        }
-        if (msg.file?.dataUrl) {
-            if (msg.file.mimeType.startsWith('image')) {
-                if (provider !== 'custom' || apiConfig.includeImages) {
-                    parts.push({ type: 'image_url', image_url: { url: msg.file.dataUrl } });
-                } else {
-                    parts.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
+    const messageContents = await Promise.all(
+        buildMessageContents(messages, persona, currentRoom, (msg, _speaker, header, role) => ({ msg, _speaker, header, role }))
+            .map(async ({ msg, _speaker, header, role }) => {
+                let text = (msg.content ? `${header}${msg.content}` : (header ? header : ''));
+                if (msg.sticker) {
+                    text = `[User sent a sticker "${msg.sticker}"]` + (text ? ` ${text}` : '');
                 }
-            }
-        }
 
-        // Use array content when we have image or want multimodal; otherwise plain string
-        const content = parts.length > 1 || (parts.length === 1 && 'image_url' in parts[0])
-            ? parts
-            : (parts[0]?.type === 'text' ? parts[0].text : '');
+                const parts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [];
+                if (text) {
+                    parts.push({ type: 'text', text });
+                }
+                if (msg.file) {
+                    const mimeType = (msg.file as any).mimeType as string;
+                    if (mimeType && mimeType.startsWith('image')) {
+                        const storageKey = (msg.file as any).storageKey as string | undefined;
+                        const dataUrl = storageKey ? await getDataUrl(storageKey) : null;
+                        if (dataUrl) {
+                            if (provider !== 'custom' || apiConfig.includeImages) {
+                                parts.push({ type: 'image_url', image_url: { url: dataUrl } });
+                            } else {
+                                parts.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
+                            }
+                        }
+                    }
+                }
 
-        return { role, content };
-    });
+                // Use array content when we have image or want multimodal; otherwise plain string
+                const content = parts.length > 1 || (parts.length === 1 && 'image_url' in parts[0])
+                    ? parts
+                    : (parts[0]?.type === 'text' ? parts[0].text : '');
+
+                return { role, content };
+            })
+    );
 
     for (const item of main) {
         if (item && item.role === 'system' && item.content && item.content.trim().length > 0) {

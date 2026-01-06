@@ -3,10 +3,11 @@ import type { Sticker } from '../../entities/character/types';
 import { Plus, X, Smile } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { charactersActions } from '../../entities/character/slice';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { filesToStickers, formatBytes, estimateBase64Size } from '../../utils/sticker';
+import { filesToStickers, formatBytes } from '../../utils/sticker';
 import { StickerGrid } from '../common/StickerGrid';
+import { getBlob, makeStickerBinaryKey, saveDataUrl } from '../../services/binaryStore';
 
 interface StickerPanelProps {
     characterId: number;
@@ -19,6 +20,7 @@ export function StickerPanel({ characterId, stickers, onSelectSticker, onClose }
     const dispatch = useDispatch();
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [totalSize, setTotalSize] = useState(0);
 
     const handleAddStickerClick = () => {
         fileInputRef.current?.click();
@@ -30,9 +32,36 @@ export function StickerPanel({ characterId, stickers, onSelectSticker, onClose }
 
         const newStickers = await filesToStickers(files);
         for (const sticker of newStickers) {
-            dispatch(charactersActions.addSticker({ characterId, sticker }));
+            if (!sticker.data) {
+                console.warn('Sticker upload missing dataUrl; skipping', sticker);
+                continue;
+            }
+            const storageKey = makeStickerBinaryKey(sticker.id);
+            try {
+                await saveDataUrl(storageKey, sticker.data);
+                const refSticker: Sticker = { ...sticker, storageKey, data: undefined };
+                dispatch(charactersActions.addSticker({ characterId, sticker: refSticker }));
+            } catch (e) {
+                console.warn('Failed to persist sticker binary; skipping sticker', e);
+            }
         }
     };
+
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            let sum = 0;
+            for (const sticker of stickers) {
+                if (!sticker.storageKey) continue;
+                const blob = await getBlob(sticker.storageKey);
+                if (blob) sum += blob.size;
+            }
+            if (!cancelled) setTotalSize(sum);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [stickers]);
 
     const handleDeleteSticker = (stickerId: string) => {
         if (confirm(t('main.stickerPanel.deleteConfirm'))) {
@@ -46,8 +75,6 @@ export function StickerPanel({ characterId, stickers, onSelectSticker, onClose }
             dispatch(charactersActions.editStickerName({ characterId, stickerId, newName: newName.trim() }));
         }
     };
-
-    const totalSize = stickers.reduce((acc, sticker) => acc + estimateBase64Size(sticker.data), 0);
 
     return (
         <div className="absolute bottom-full left-0 mb-2 w-96 h-96 bg-[var(--color-bg-main)] rounded-2xl shadow-xl border border-[var(--color-border)] animate-fadeIn flex flex-col">

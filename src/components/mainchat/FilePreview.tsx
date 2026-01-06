@@ -1,21 +1,81 @@
-import type { FileToSend } from '../../entities/message/types';
+import { useEffect, useState } from 'react';
 import { StickyNote } from 'lucide-react';
+import type { StoredFileRef } from '../../entities/message/types';
+import { getBlob } from '../../services/binaryStore';
 
+export function FilePreview({
+  file,
+  preview,
+  t,
+  previewSrc,
+  onResolveImageUrl,
+}: {
+  file: StoredFileRef;
+  preview: boolean;
+  t: (key: string) => string;
+  previewSrc?: string;
+  onResolveImageUrl?: (url: string) => void;
+}) {
+  const mimeType = file.mimeType;
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
-export const renderFile = (file: FileToSend, preview: boolean, t: (key: string) => string) => {
-  const { dataUrl, mimeType } = file;
+  useEffect(() => {
+    let canceled = false;
+    let createdUrl: string | null = null;
+
+    async function run() {
+      const blob = await getBlob(file.storageKey);
+      if (canceled) return;
+      if (!blob) {
+        setObjectUrl(null);
+        return;
+      }
+      createdUrl = URL.createObjectURL(blob);
+      setObjectUrl(createdUrl);
+      if (onResolveImageUrl && mimeType.startsWith('image/')) {
+        onResolveImageUrl(createdUrl);
+      }
+    }
+
+    run();
+
+    return () => {
+      canceled = true;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [file.storageKey, mimeType, onResolveImageUrl]);
+
+  const src = objectUrl || previewSrc || null;
 
   if (mimeType.startsWith('image/')) {
+    if (!src) {
+      return (
+        <div className="flex flex-col items-center justify-center h-24 bg-[var(--color-button-secondary-accent)] rounded-lg">
+          <StickyNote className="w-8 h-8 text-[var(--color-icon-tertiary)]" />
+          <span className="text-sm text-[var(--color-text-tertiary)] mt-1">{t('main.filePreview.loading')}</span>
+        </div>
+      );
+    }
     return (
       <img
-        src={dataUrl}
-        className={`${preview ? "max-w-full max-h-32" : "max-w-64"} object-contain rounded-lg`}
+        src={src}
+        className={`${preview ? 'max-w-full max-h-32' : 'max-w-64'} object-contain rounded-lg`}
         alt={t('main.filePreview.alt')}
       />
     );
   }
 
   if (mimeType.startsWith('audio/')) {
+    if (!src) {
+      return (
+        <div className="w-64 bg-gradient-to-r from-[var(--color-preview-from)] to-[var(--color-preview-to)] p-4 rounded-lg border border-[var(--color-preview-border)]">
+          <p className="text-sm font-medium text-[var(--color-text-primary)]">{t('main.filePreview.audioFile')}</p>
+          <p className="text-xs text-[var(--color-text-secondary)]">{t('main.filePreview.loading')}</p>
+        </div>
+      );
+    }
     return (
       <div className="w-64 bg-gradient-to-r from-[var(--color-preview-from)] to-[var(--color-preview-to)] p-4 rounded-lg border border-[var(--color-preview-border)]">
         <div className="flex items-center space-x-3 mb-3">
@@ -32,10 +92,10 @@ export const renderFile = (file: FileToSend, preview: boolean, t: (key: string) 
         </div>
         <audio
           controls
-          src={dataUrl}
+          src={src}
           className="w-full h-8 rounded-md"
           style={{
-            filter: 'sepia(20%) saturate(70%) hue-rotate(315deg) brightness(95%) contrast(105%)'
+            filter: 'sepia(20%) saturate(70%) hue-rotate(315deg) brightness(95%) contrast(105%)',
           }}
         />
       </div>
@@ -43,9 +103,17 @@ export const renderFile = (file: FileToSend, preview: boolean, t: (key: string) 
   }
 
   if (mimeType.startsWith('video/')) {
+    if (!src) {
+      return (
+        <div className="flex flex-col items-center justify-center h-24 bg-[var(--color-button-secondary-accent)] rounded-lg">
+          <StickyNote className="w-8 h-8 text-[var(--color-icon-tertiary)]" />
+          <span className="text-sm text-[var(--color-text-tertiary)] mt-1">{t('main.filePreview.loading')}</span>
+        </div>
+      );
+    }
     return (
       <video
-        src={dataUrl}
+        src={src}
         className="max-w-full max-h-32 object-contain rounded-lg cursor-pointer"
         onClick={(e) => {
           const video = e.currentTarget;
@@ -63,8 +131,8 @@ export const renderFile = (file: FileToSend, preview: boolean, t: (key: string) 
     <div className="flex flex-col items-center justify-center h-24 bg-[var(--color-button-secondary-accent)] rounded-lg">
       <StickyNote className="w-8 h-8 text-[var(--color-icon-tertiary)]" />
       <span className="text-sm text-[var(--color-text-tertiary)] mt-1">
-        {file.name ? (file.name.length > 14 ? file.name.slice(0, 14) + '...' : file.name) : 'File'}
+        {'name' in file && file.name ? (file.name.length > 14 ? file.name.slice(0, 14) + '...' : file.name) : 'File'}
       </span>
     </div>
   );
-};
+}

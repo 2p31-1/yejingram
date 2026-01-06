@@ -13,7 +13,7 @@ import { Avatar, GroupChatAvatar } from '../../utils/Avatar';
 import { SendMessage, SendGroupChatMessage } from '../../services/llm/LLMcaller';
 import type { Sticker } from '../../entities/character/types';
 import { StickerPanel } from './StickerPanel';
-import type { FileToSend, Message } from '../../entities/message/types';
+import type { Message } from '../../entities/message/types';
 import { selectAllSettings } from '../../entities/setting/selectors';
 import { replacePlaceholders } from '../../utils/placeholder';
 import { nanoid } from '@reduxjs/toolkit';
@@ -22,11 +22,13 @@ import { LorebookEditor } from '../character/LorebookEditor';
 import { settingsActions } from '../../entities/setting/slice';
 import { charactersActions } from '../../entities/character/slice';
 import { MemoryManager } from '../character/MemoryManager';
-import { renderFile } from './FilePreview';
 import { useTranslation } from 'react-i18next';
 import type { Character } from '../../entities/character/types';
 import type { Lore } from '../../entities/lorebook/types';
 import { type VirtuosoHandle } from 'react-virtuoso';
+import type { StoredFileRef } from '../../entities/message/types';
+import { getBlob, saveDataUrl } from '../../services/binaryStore';
+import { FilePreview } from './FilePreview';
 
 interface MainChatProps {
   room: Room | null;
@@ -44,7 +46,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const [stickerToSend, setStickerToSend] = useState<Sticker | null>(null);
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
-  const [fileToSend, setFileToSend] = useState<FileToSend | null>(null);
+  const [fileToSend, setFileToSend] = useState<{ dataUrl: string; mimeType: string; name: string; storageKey: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAuthorNoteOpen, setIsAuthorNoteOpen] = useState(false);
   const [tempAuthorNote, setTempAuthorNote] = useState('');
@@ -139,7 +141,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
+        const dataUrl = reader.result as string;
+        const storageKey = `draftfile:${nanoid()}`;
+        void saveDataUrl(storageKey, dataUrl);
+        setFileToSend({ dataUrl, mimeType: file.type, name: file.name, storageKey });
       };
       reader.readAsDataURL(file);
     }
@@ -151,7 +156,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       event.preventDefault();
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
+        const dataUrl = reader.result as string;
+        const storageKey = `draftfile:${nanoid()}`;
+        void saveDataUrl(storageKey, dataUrl);
+        setFileToSend({ dataUrl, mimeType: file.type, name: file.name, storageKey });
       };
       reader.readAsDataURL(file);
     }
@@ -230,7 +238,9 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     } else if (['IMAGE', 'AUDIO', 'VIDEO', 'FILE'].includes(messageType)) {
       userMessage.push(userMessage[0]);
-      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: fileToSend! } as Message;
+      // Persisted at selection time; keep only a reference in Redux
+      const storedFile: StoredFileRef = { storageKey: fileToSend!.storageKey, mimeType: fileToSend!.mimeType, name: fileToSend!.name };
+      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: storedFile } as Message;
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     }
 
@@ -704,7 +714,7 @@ function ChatHeader({
 interface InputAreaProps {
   room: Room;
   isWaitingForResponse: boolean;
-  fileToSend?: FileToSend | null;
+  fileToSend?: { dataUrl: string; mimeType: string; name: string; storageKey: string } | null;
   stickerToSend?: Sticker | null;
   virtuosoRef?: RefObject<VirtuosoHandle | null>;
 
@@ -745,6 +755,32 @@ function InputArea({
   const [showInputOptions, setInputOptions] = useState(false);
   const hasFile = !!fileToSend;
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [stickerPreviewUrl, setStickerPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      const storageKey = stickerToSend?.storageKey;
+      if (!storageKey) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      const blob = await getBlob(storageKey);
+      if (!blob || cancelled) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      revoked = URL.createObjectURL(blob);
+      setStickerPreviewUrl(revoked);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [stickerToSend?.storageKey]);
 
   useEffect(() => {
     if (!isWaitingForResponse && inputRef.current && virtuosoRef?.current) {
@@ -782,7 +818,12 @@ function InputArea({
         <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl">
           <div className="relative inline-block">
             <div className="rounded-lg overflow-hidden">
-              {renderFile(fileToSend, true, t)}
+              <FilePreview
+                file={{ storageKey: fileToSend.storageKey, mimeType: fileToSend.mimeType, name: fileToSend.name }}
+                preview={true}
+                t={t}
+                previewSrc={fileToSend.dataUrl}
+              />
             </div>
             <button
               type="button"
@@ -799,7 +840,7 @@ function InputArea({
       {stickerToSend && (
         <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl flex items-center gap-3 text-sm text-[var(--color-icon-primary)]">
           <img
-            src={stickerToSend.data}
+            src={stickerPreviewUrl ?? ''}
             alt={stickerToSend.name}
             className="w-8 h-8 rounded-lg object-cover"
           />

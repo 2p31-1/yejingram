@@ -8,6 +8,7 @@ import type { RootState } from '../../app/store';
 import type { Sticker, Character } from '../../entities/character/types';
 import { filesToStickers } from '../../utils/sticker';
 import { StickerGrid } from '../common/StickerGrid';
+import { makeStickerBinaryKey, saveDataUrl } from '../../services/binaryStore';
 
 interface StickerManagerProps {
     characterId: number;
@@ -48,10 +49,26 @@ export function StickerManager({ characterId, draft, onDraftChange }: StickerMan
         if (!files) return;
 
         const newStickers = await filesToStickers(files);
+
+        const persisted: Sticker[] = [];
+        for (const sticker of newStickers) {
+            if (!sticker.data) {
+                console.warn('Sticker upload missing dataUrl; skipping', sticker);
+                continue;
+            }
+            const storageKey = makeStickerBinaryKey(sticker.id);
+            try {
+                await saveDataUrl(storageKey, sticker.data);
+                persisted.push({ ...sticker, storageKey, data: undefined });
+            } catch (e) {
+                console.warn('Failed to persist sticker binary; skipping sticker', e);
+            }
+        }
+
         if (draft && onDraftChange) {
-            onStickersChange([...stickers, ...newStickers]);
+            onStickersChange([...stickers, ...persisted]);
         } else {
-            for (const sticker of newStickers) {
+            for (const sticker of persisted) {
                 dispatch(charactersActions.addSticker({ characterId, sticker }));
             }
         }

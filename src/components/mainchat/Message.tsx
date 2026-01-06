@@ -14,8 +14,10 @@ import { SendMessage } from '../../services/llm/LLMcaller';
 import type { Room } from '../../entities/room/types';
 import { inviteCharacter } from '../../utils/inviteCharacter';
 import { UrlPreview } from './chatcontents/UrlPreviewProps';
-import { renderFile } from './FilePreview';
 import { callImageGeneration } from '../../services/image/ImageCaller';
+import { getBlob, saveDataUrl, makeMessageBinaryKey } from '../../services/binaryStore';
+import type { Sticker } from '../../entities/character/types';
+import { FilePreview } from './FilePreview';
 
 // Helper function for date formatting
 const formatDateSeparator = (date: Date, locale: string | undefined): string => {
@@ -28,6 +30,54 @@ const extractUrls = (text: string): string[] => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.match(urlRegex) || [];
 };
+
+function StickerMessageContent({
+  messageId,
+  sticker,
+  sizeClass,
+  onToggle,
+  stickerName,
+}: {
+  messageId: string;
+  sticker: Sticker;
+  sizeClass: string;
+  onToggle: (messageId: string) => void;
+  stickerName: string;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      if (!sticker.storageKey) {
+        setObjectUrl(null);
+        return;
+      }
+      const blob = await getBlob(sticker.storageKey);
+      if (!blob || cancelled) {
+        setObjectUrl(null);
+        return;
+      }
+      revoked = URL.createObjectURL(blob);
+      setObjectUrl(revoked);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [sticker.storageKey]);
+
+  const imgSrc = objectUrl ?? '';
+
+  return (
+    <div className="space-x-1 inline-block cursor-pointer transition-all duration-300" onClick={() => onToggle(messageId)}>
+      <img src={imgSrc} alt={stickerName} className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`} />
+    </div>
+  );
+}
 
 // Helper function to render text with links
 const renderTextWithLinks = (text: string, isMe: boolean) => {
@@ -109,6 +159,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
   const [expandedStickers, setExpandedStickers] = useState<Set<string>>(new Set());
   const [imageModalOpen, setImageModalOpen] = useState<boolean>(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+  const selectedImageObjectUrlRef = useRef<string | null>(null);
   const [regeneratingImageIds, setRegeneratingImageIds] = useState<Set<string>>(new Set());
   // Mobile gesture helpers
   const [isCoarsePointer, setIsCoarsePointer] = useState<boolean>(() => {
@@ -174,7 +225,30 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
       if (hideControlsTimeoutRef.current) {
         window.clearTimeout(hideControlsTimeoutRef.current);
       }
+      if (selectedImageObjectUrlRef.current) {
+        URL.revokeObjectURL(selectedImageObjectUrlRef.current);
+        selectedImageObjectUrlRef.current = null;
+      }
     };
+  }, []);
+
+  const openImageModalForMessage = useCallback(async (msg: MessageType) => {
+    if (!msg.file) return;
+
+    const storageKey = (msg.file as any).storageKey as string | undefined;
+    if (!storageKey) return;
+
+    const blob = await getBlob(storageKey);
+    if (!blob) return;
+
+    if (selectedImageObjectUrlRef.current) {
+      URL.revokeObjectURL(selectedImageObjectUrlRef.current);
+      selectedImageObjectUrlRef.current = null;
+    }
+    const url = URL.createObjectURL(blob);
+    selectedImageObjectUrlRef.current = url;
+    setSelectedImageUrl(url);
+    setImageModalOpen(true);
   }, []);
 
   const showControlsWithAutoHide = useCallback((messageId: string) => {
@@ -314,22 +388,24 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
         const stickerData = msg.sticker;
         const isExpanded = expandedStickers.has(msg.id.toString());
         const sizeClass = isExpanded ? 'max-w-64' : 'max-w-48';
-
-        const imgSrc = stickerData.data;
         const stickerName = stickerData.name || t('main.message.sticker.defaultName');
 
         return (
-          <div className="space-x-1 inline-block cursor-pointer transition-all duration-300" onClick={() => toggleStickerSize(msg.id.toString())}>
-            <img src={imgSrc} alt={stickerName} className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`} />
-          </div>
+          <StickerMessageContent
+            messageId={msg.id.toString()}
+            sticker={stickerData}
+            sizeClass={sizeClass}
+            stickerName={stickerName}
+            onToggle={toggleStickerSize}
+          />
         );
-      } else if ((msg.type === 'IMAGE' || msg.type === 'AUDIO' || msg.type === 'VIDEO' || msg.type === 'FILE') && msg.file?.dataUrl) {
+      } else if ((msg.type === 'IMAGE' || msg.type === 'AUDIO' || msg.type === 'VIDEO' || msg.type === 'FILE') && msg.file) {
         const isRegenerating = regeneratingImageIds.has(msg.id.toString());
         return (
           <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
             <div
               onClick={() => {
-                if (!(msg.type === 'IMAGE' && msg.file?.dataUrl) || isRegenerating) return;
+                if (!(msg.type === 'IMAGE' && msg.file) || isRegenerating) return;
                 // Mobile(coarse pointer): single tap shows controls, double-tap opens modal
                 if (isCoarsePointer) {
                   // First tap: show controls; second tap on same image: open modal
@@ -337,18 +413,16 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                     showControlsWithAutoHide(msg.id.toString());
                     return;
                   }
-                  setSelectedImageUrl(msg.file.dataUrl);
-                  setImageModalOpen(true);
+                  void openImageModalForMessage(msg);
                   setActiveMessageId(null);
                   return;
                 }
                 // Desktop: open modal on single click
-                setSelectedImageUrl(msg.file.dataUrl);
-                setImageModalOpen(true);
+                void openImageModalForMessage(msg);
               }}
               className={`relative ${msg.type === 'IMAGE' && !isRegenerating ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
             >
-              {renderFile(msg.file, false, t)}
+              <FilePreview file={msg.file} preview={false} t={t} />
               {isRegenerating && (
                 <div className="absolute inset-0 bg-[var(--color-bg-shadow)]/50 flex items-center justify-center rounded-lg">
                   <div className="flex flex-col items-center text-[var(--color-text-accent)]">
@@ -577,13 +651,15 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                   const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
                                   if (inlineDataBody) {
                                     const newDataUrl = `data:${inlineDataBody.mimeType};base64,${inlineDataBody.data}`;
+                                    const storageKey = makeMessageBinaryKey(msg.id);
+                                    await saveDataUrl(storageKey, newDataUrl);
                                     dispatch(messagesActions.updateOne({
                                       id: msg.id,
                                       changes: {
                                         file: {
-                                          ...msg.file,
-                                          dataUrl: newDataUrl,
-                                          mimeType: inlineDataBody.mimeType
+                                          storageKey,
+                                          mimeType: inlineDataBody.mimeType,
+                                          name: (msg.file as any).name
                                         },
                                         thoughtSignature: imageResponse.candidates[0].content.parts[0].thoughtSignature
                                       }

@@ -9,6 +9,7 @@ import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { selectLastSaved } from '../entities/lastSaved/selectors';
 import { uiActions } from '../entities/ui/slice';
+import { clearAllBinaries, getDataUrl, saveDataUrl } from '../services/binaryStore';
 
 export function entityStateToArray<T>(
   // Id extends PropertyKey 대신 Id extends EntityId를 사용합니다.
@@ -24,6 +25,7 @@ export async function wipeAllState() {
   persistor.pause();
   await persistor.flush();     // 남은 write 처리
   await persistor.purge();     // ← localforage에 저장된 'yejingram' 스냅샷 제거
+  await clearAllBinaries();    // ← 별도 binary store 제거
   store.dispatch(resetAll());  // ← 메모리상의 Redux 상태 초기화
 }
 
@@ -33,7 +35,50 @@ export type BackupFile = {
   version: number;         // 우리 스키마 버전 (persist 버전과 별개)
   createdAt: string;       // ISO 문자열
   data: Pick<RootState, 'characters' | 'rooms' | 'messages' | 'settings' | 'lastSaved'>;
+  binaries: Array<{ storageKey: string; dataUrl: string }>;
 };
+
+async function buildBinaryPayloadFromState(state: RootState): Promise<Array<{ storageKey: string; dataUrl: string }>> {
+  const keys = new Set<string>();
+
+  // Messages: file attachments + sticker messages
+  const msgEntities = (state.messages as any)?.entities as Record<string, any> | undefined;
+  if (msgEntities) {
+    for (const msg of Object.values(msgEntities)) {
+      if (!msg) continue;
+      const file = msg.file;
+      if (file && typeof file.storageKey === 'string') keys.add(file.storageKey);
+
+      if (msg.type === 'STICKER' && msg.sticker && typeof msg.sticker.storageKey === 'string') {
+        keys.add(msg.sticker.storageKey);
+      }
+    }
+  }
+
+  // Characters: avatar + stickers
+  const charEntities = (state.characters as any)?.entities as Record<string, any> | undefined;
+  if (charEntities) {
+    for (const ch of Object.values(charEntities)) {
+      if (!ch) continue;
+      const avatar = ch.avatar;
+      if (avatar && typeof avatar === 'object' && typeof avatar.storageKey === 'string') {
+        keys.add(avatar.storageKey);
+      }
+      if (Array.isArray(ch.stickers)) {
+        for (const st of ch.stickers) {
+          if (st && typeof st.storageKey === 'string') keys.add(st.storageKey);
+        }
+      }
+    }
+  }
+
+  const binaries: Array<{ storageKey: string; dataUrl: string }> = [];
+  for (const key of keys) {
+    const dataUrl = await getDataUrl(key);
+    if (dataUrl) binaries.push({ storageKey: key, dataUrl });
+  }
+  return binaries;
+}
 
 // Build a compact payload from current state
 export function buildBackupPayload() {
@@ -45,18 +90,26 @@ export function buildBackupPayload() {
     settings: state.settings,
     lastSaved: state.lastSaved,
   } satisfies BackupFile['data'];
+  // NOTE: binaries are built in async variant below.
   const payload: BackupFile = {
     app: 'yejingram',
     version: persistConfig.version,
     createdAt: new Date().toISOString(),
     data,
+    binaries: [],
   };
   return payload;
 }
 
+export async function buildBackupPayloadWithBinaries(): Promise<BackupFile> {
+  const base = buildBackupPayload();
+  const binaries = await buildBinaryPayloadFromState(store.getState());
+  return { ...base, binaries };
+}
+
 // ---------- 백업 ----------
 export async function backupStateToFile() {
-  const payload = buildBackupPayload();
+  const payload = await buildBackupPayloadWithBinaries();
 
   const json = JSON.stringify(payload, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
@@ -95,7 +148,28 @@ export async function restoreStateFromPayload(payload: BackupFile, autoSync = tr
   let state = payload.data;
   for (let v = payload.version + 1; v <= persistConfig.version; v++) {
     if (migrations[v] == null) continue;
-    state = migrations[v](state as unknown as any) as unknown as typeof state;
+    // Support both sync and async migrations
+    state = await Promise.resolve(migrations[v](state as unknown as any) as any) as unknown as typeof state;
+  }
+
+  // Restore binary store payloads if present (for backups created after binary offloading).
+  const legacyBinaries = (payload as any).binaries;
+  const binariesArray: Array<{ storageKey: string; dataUrl: string }> = Array.isArray(legacyBinaries)
+    ? legacyBinaries
+    : (legacyBinaries && typeof legacyBinaries === 'object')
+      ? Object.entries(legacyBinaries).map(([storageKey, dataUrl]) => ({ storageKey, dataUrl: String(dataUrl) }))
+      : [];
+
+  for (const item of binariesArray) {
+    const storageKey = item?.storageKey;
+    const dataUrl = item?.dataUrl;
+    if (typeof storageKey !== 'string' || typeof dataUrl !== 'string') continue;
+    if (!dataUrl.startsWith('data:')) continue;
+    try {
+      await saveDataUrl(storageKey, dataUrl);
+    } catch {
+      // Skip broken entries.
+    }
   }
 
   const { characters, rooms, messages, settings, lastSaved } = state;
@@ -116,7 +190,7 @@ export async function backupStateToServer(clientId: string, baseURL: string) {
   try {
     const data = JSON.stringify({
       lastSaved: selectLastSaved(store.getState()),
-      backup: buildBackupPayload(),
+      backup: await buildBackupPayloadWithBinaries(),
     });
 
     if (isBrowser) {

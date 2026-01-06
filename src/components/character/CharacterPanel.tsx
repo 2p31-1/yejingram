@@ -11,6 +11,8 @@ import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
 import { importCharacterFromFile } from '../../utils/importCharacter';
+import { deleteBlob, getBlob, isStoredBinaryRef, makeAvatarBinaryKey, makeStickerBinaryKey, resolveDataUrlFromRef, saveBlob, saveDataUrl } from '../../services/binaryStore';
+import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
     return {
@@ -39,6 +41,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
     const [char, setChar] = useState<Character>(newCharacterDefault);
     const [activeTab, setActiveTab] = useState<'basicInfo' | 'lorebook' | 'backup'>('basicInfo');
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarPreviewSrc, setAvatarPreviewSrc] = useState<string | null>(null);
 
     const isNew = !editingId;
 
@@ -50,29 +53,104 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
         }
     }, [editingCharacter]);
 
-    const handleSave = () => {
-        if (char.name) {
-            const charToSave = {
-                ...char,
-                id: editingId ?? Date.now()
+    useEffect(() => {
+        let revoked: string | null = null;
+        let cancelled = false;
+
+        void (async () => {
+            if (!char.avatar) {
+                setAvatarPreviewSrc(null);
+                return;
             }
-            dispatch(charactersActions.upsertOne(charToSave));
-            dispatch(charactersActions.resetEditingCharacterId());
-            onClose();
+
+            if (typeof char.avatar === 'string') {
+                setAvatarPreviewSrc(char.avatar);
+                return;
+            }
+
+            const blob = await getBlob(char.avatar.storageKey);
+            if (!blob || cancelled) {
+                setAvatarPreviewSrc(null);
+                return;
+            }
+            revoked = URL.createObjectURL(blob);
+            setAvatarPreviewSrc(revoked);
+        })();
+
+        return () => {
+            cancelled = true;
+            if (revoked) URL.revokeObjectURL(revoked);
+        };
+    }, [typeof char.avatar === 'string' ? char.avatar : char.avatar?.storageKey]);
+
+    const handleSave = async () => {
+        if (!char.name) return;
+
+        // Ensure stable id before persisting binaries.
+        const id = editingId ?? Date.now();
+
+        // Migrate legacy avatar dataUrl to binary store on save.
+        let nextAvatar = char.avatar;
+        if (typeof nextAvatar === 'string' && nextAvatar.startsWith('data:')) {
+            const storageKey = makeAvatarBinaryKey(nanoid());
+            try {
+                await saveDataUrl(storageKey, nextAvatar);
+                const mimeType = nextAvatar.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+                nextAvatar = { storageKey, mimeType };
+            } catch (e) {
+                console.warn('Failed to persist avatar binary; keeping legacy dataUrl', e);
+            }
         }
+
+        // Migrate any legacy sticker dataUrls to binary store on save.
+        const nextStickers = await Promise.all((char.stickers ?? []).map(async (sticker) => {
+            if (sticker.storageKey || !sticker.data) return sticker;
+            const storageKey = makeStickerBinaryKey(sticker.id);
+            try {
+                await saveDataUrl(storageKey, sticker.data);
+                return { ...sticker, storageKey, data: undefined };
+            } catch (e) {
+                console.warn('Failed to persist sticker binary; keeping legacy dataUrl', e);
+                return sticker;
+            }
+        }));
+
+        const charToSave = {
+            ...char,
+            id,
+            avatar: nextAvatar,
+            stickers: nextStickers,
+        };
+
+        dispatch(charactersActions.upsertOne(charToSave));
+        dispatch(charactersActions.resetEditingCharacterId());
+        onClose();
     };
 
     const handleInputChange = (field: keyof Character, value: any) => {
         setChar(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Best-effort cleanup of previous stored avatar
+        if (isStoredBinaryRef(char.avatar)) {
+            void deleteBlob(char.avatar.storageKey);
+        }
+
+        const storageKey = makeAvatarBinaryKey(nanoid());
+        try {
+            await saveBlob(storageKey, file);
+            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
+        } catch (e) {
+            console.warn('Failed to persist avatar blob; falling back to dataUrl', e);
             const reader = new FileReader();
             reader.onload = (event) => {
                 setChar(prev => ({ ...prev, avatar: event.target?.result as string }));
             };
-            reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(file);
         }
     };
 
@@ -108,7 +186,13 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             return;
         }
 
-        const dataURL = await encodeText(char.avatar, JSON.stringify(method === "png-trailer" ? char : characterToPersonaCard(char)), method);
+        const avatarDataUrl = await resolveDataUrlFromRef(char.avatar);
+        if (!avatarDataUrl) {
+            alert(t('characterPanel.alerts.missingAvatar'));
+            return;
+        }
+
+        const dataURL = await encodeText(avatarDataUrl, JSON.stringify(method === "png-trailer" ? char : characterToPersonaCard(char)), method);
         const link = document.createElement("a");
         link.href = dataURL;
         link.download = `${char.name || 'character'}_persona.png`;
@@ -147,7 +231,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                     <>
                         <div className="flex items-center space-x-4">
                             <div className="w-20 h-20 rounded-full bg-[var(--color-bg-input-primary)] flex items-center justify-center overflow-hidden shrink-0 border-2 border-[var(--color-border)]">
-                                {char.avatar ? <img src={char.avatar} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
+                                {avatarPreviewSrc ? <img src={avatarPreviewSrc} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
                             </div>
                             <div className="flex flex-col gap-2">
                                 <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">

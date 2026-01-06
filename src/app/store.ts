@@ -22,6 +22,7 @@ import { initialState as imageSettingsInitialState } from '../entities/setting/i
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
 import lastSavedReducer from '../entities/lastSaved/slice';
+import { makeAvatarBinaryKey, makeMessageBinaryKey, makeStickerBinaryKey, saveDataUrl } from '../services/binaryStore';
 
 // Enable localforage only in browser environments
 export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -249,13 +250,110 @@ export const migrations = {
         });
         return state;
     },
+    7: (state: any) => {
+        if (!state) return state;
+        if (!isBrowser) return state;
+
+        const runWithConcurrency = async (jobs: Array<() => Promise<void>>, limit: number) => {
+            const pending = new Set<Promise<void>>();
+            for (const job of jobs) {
+                const p = (async () => {
+                    try {
+                        await job();
+                    } catch (e) {
+                        console.warn('Binary migration job failed (continuing):', e);
+                    }
+                })().finally(() => pending.delete(p));
+                pending.add(p);
+                if (pending.size >= limit) {
+                    await Promise.race(pending);
+                }
+            }
+            await Promise.all(pending);
+        };
+
+        const isDataUrlString = (value: unknown): value is string => {
+            return typeof value === 'string' && value.startsWith('data:') && value.includes(',');
+        };
+
+        return (async () => {
+            const jobs: Array<() => Promise<void>> = [];
+
+            // Messages: attachments + sticker messages
+            const msgEntities: Record<string, any> | undefined = state?.messages?.entities;
+            if (msgEntities) {
+                for (const [id, msg] of Object.entries(msgEntities)) {
+                    if (!msg) continue;
+
+                    if (msg.file?.dataUrl && isDataUrlString(msg.file.dataUrl)) {
+                        const dataUrl = msg.file.dataUrl;
+                        const storageKey = makeMessageBinaryKey(id);
+                        const mimeType = msg.file.mimeType;
+                        const name = msg.file.name;
+                        jobs.push(async () => {
+                            await saveDataUrl(storageKey, dataUrl);
+                            msg.file = { storageKey, mimeType, name };
+                        });
+                    }
+
+                    if (msg.type === 'STICKER' && msg.sticker && !msg.sticker.storageKey && isDataUrlString(msg.sticker.data)) {
+                        const dataUrl = msg.sticker.data;
+                        const stickerId = msg.sticker.id;
+                        const storageKey = makeStickerBinaryKey(stickerId);
+                        jobs.push(async () => {
+                            await saveDataUrl(storageKey, dataUrl);
+                            msg.sticker = { ...msg.sticker, storageKey };
+                            delete msg.sticker.data;
+                        });
+                    }
+                }
+            }
+
+            // Characters: avatar + stickers
+            const charEntities: Record<string, any> | undefined = state?.characters?.entities;
+            if (charEntities) {
+                for (const [id, ch] of Object.entries(charEntities)) {
+                    if (!ch) continue;
+
+                    if (isDataUrlString(ch.avatar)) {
+                        const dataUrl = ch.avatar;
+                        const storageKey = makeAvatarBinaryKey(id);
+                        const mimeType = dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+                        jobs.push(async () => {
+                            await saveDataUrl(storageKey, dataUrl);
+                            ch.avatar = { storageKey, mimeType };
+                        });
+                    }
+
+                    if (Array.isArray(ch.stickers)) {
+                        for (const st of ch.stickers) {
+                            if (!st || st.storageKey) continue;
+                            if (!isDataUrlString(st.data)) continue;
+                            const dataUrl = st.data;
+                            const stickerId = st.id;
+                            const storageKey = makeStickerBinaryKey(stickerId);
+                            jobs.push(async () => {
+                                await saveDataUrl(storageKey, dataUrl);
+                                st.storageKey = storageKey;
+                                delete st.data;
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Limit concurrency to avoid spiking memory during migration.
+            await runWithConcurrency(jobs, 4);
+            return state;
+        })();
+    },
 } as MigrationManifest;
 
 
 export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
-    version: 6,
+    version: 7,
     whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved'],
     migrate: createMigrate(migrations, { debug: true }),
 };

@@ -47,7 +47,7 @@ export async function callImageGeneration(imageGenerationSetting: { prompt: stri
     } else if (provider === 'gemini') {
         if (!imageConfig.apiKey) throw new Error('Gemini API Key가 설정되지 않았습니다.');
         url = `${GEMINI_API_BASE_URL}${model}:generateContent?key=${imageConfig.apiKey}`;
-        payload = buildGeminiImagePayload(positivePrompt, imageGenerationSetting.isIncludingChar, char);
+        payload = await buildGeminiImagePayload(positivePrompt, imageGenerationSetting.isIncludingChar, char);
     } else if (provider === 'comfy') {
         const customCfg = imageConfig.custom;
         if (!customCfg?.baseUrl) {
