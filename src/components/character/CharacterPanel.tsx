@@ -10,7 +10,7 @@ import { AttributeSliders } from './AttributeSliders';
 import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
-import { importCharacterFromFile } from '../../utils/importCharacter';
+import { importCharacterFromFile, sanitizeAvatarImageForStorage } from '../../utils/importCharacter';
 import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
 import { nanoid } from '@reduxjs/toolkit';
 
@@ -114,14 +114,20 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
 
         const storageKey = makeAvatarBinaryKey(nanoid());
         try {
-            await saveBlob(storageKey, file);
-            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
+            const sanitized = await sanitizeAvatarImageForStorage(file);
+            const blobToSave = sanitized?.blob ?? file;
+            const nameToSave = sanitized?.suggestedName ?? file.name;
+            await saveBlob(storageKey, blobToSave);
+            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: blobToSave.type || 'application/octet-stream', name: nameToSave } }));
         } catch (e) {
             console.warn('Failed to persist avatar blob; retrying with cloned Blob', e);
             try {
-                const cloned = new Blob([await file.arrayBuffer()], { type: file.type || 'application/octet-stream' });
+                const sanitized = await sanitizeAvatarImageForStorage(file);
+                const blobToSave = sanitized?.blob ?? file;
+                const nameToSave = sanitized?.suggestedName ?? file.name;
+                const cloned = new Blob([await blobToSave.arrayBuffer()], { type: blobToSave.type || 'application/octet-stream' });
                 await saveBlob(storageKey, cloned);
-                setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
+                setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: cloned.type || 'application/octet-stream', name: nameToSave } }));
             } catch (e2) {
                 console.warn('Failed to persist avatar blob; aborting avatar update', e2);
             }
