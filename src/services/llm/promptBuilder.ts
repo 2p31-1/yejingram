@@ -281,16 +281,14 @@ async function buildGeminiContents(messages: Message[], isProactive: boolean, pe
             const parts: ({ text: string } | { inline_data: { mime_type: string; data: string } } | { file_data: { file_uri: string } } & { thought_signature?: string })[] = [{ text: baseText, thought_signature: thoughtSignatureToSend }];
 
             if (msg.file) {
-                const mimeType = (msg.file as any).mimeType as string | undefined;
+                const mimeType = msg.file.mimeType;
                 let base64Data: string | null = null;
 
-                const storageKey = (msg.file as any).storageKey as string | undefined;
-                if (storageKey) {
-                    const res = await getBase64(storageKey);
-                    base64Data = res?.base64 || null;
-                }
+                const storageKey = msg.file.storageKey;
+                const res = await getBase64(storageKey);
+                base64Data = res?.base64 || null;
 
-                if (mimeType && base64Data) {
+                if (base64Data) {
                     if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
                         parts.push({
                             inline_data: {

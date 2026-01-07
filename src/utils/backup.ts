@@ -9,7 +9,7 @@ import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { selectLastSaved } from '../entities/lastSaved/selectors';
 import { uiActions } from '../entities/ui/slice';
-import { clearAllBinaries, getDataUrl, saveDataUrl } from '../services/binaryStore';
+import { clearAllBinaries, dataUrlToBlob, getDataUrl, saveBlob } from '../services/binaryStore';
 
 export function entityStateToArray<T>(
   // Id extends PropertyKey 대신 Id extends EntityId를 사용합니다.
@@ -166,7 +166,8 @@ export async function restoreStateFromPayload(payload: BackupFile, autoSync = tr
     if (typeof storageKey !== 'string' || typeof dataUrl !== 'string') continue;
     if (!dataUrl.startsWith('data:')) continue;
     try {
-      await saveDataUrl(storageKey, dataUrl);
+      const blob = await dataUrlToBlob(dataUrl);
+      await saveBlob(storageKey, blob);
     } catch {
       // Skip broken entries.
     }

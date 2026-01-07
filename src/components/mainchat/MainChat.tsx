@@ -27,7 +27,7 @@ import type { Character } from '../../entities/character/types';
 import type { Lore } from '../../entities/lorebook/types';
 import { type VirtuosoHandle } from 'react-virtuoso';
 import type { StoredFileRef } from '../../entities/message/types';
-import { getBlob, saveDataUrl } from '../../services/binaryStore';
+import { getBlob, saveBlob } from '../../services/binaryStore';
 import { FilePreview } from './FilePreview';
 
 interface MainChatProps {
@@ -46,12 +46,28 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const [stickerToSend, setStickerToSend] = useState<Sticker | null>(null);
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
-  const [fileToSend, setFileToSend] = useState<{ dataUrl: string; mimeType: string; name: string; storageKey: string } | null>(null);
+  const [fileToSend, setFileToSend] = useState<{ previewSrc: string; mimeType: string; name: string; storageKey: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAuthorNoteOpen, setIsAuthorNoteOpen] = useState(false);
   const [tempAuthorNote, setTempAuthorNote] = useState('');
   const [isRoomMemoryOpen, setIsRoomMemoryOpen] = useState(false);
   const [isLoreBookOpen, setIsLoreBookOpen] = useState(false);
+
+  const filePreviewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const next = fileToSend?.previewSrc ?? null;
+    const prev = filePreviewUrlRef.current;
+    if (prev && prev !== next && prev.startsWith('blob:')) {
+      URL.revokeObjectURL(prev);
+    }
+    filePreviewUrlRef.current = next;
+    return () => {
+      const current = filePreviewUrlRef.current;
+      if (current && current.startsWith('blob:')) URL.revokeObjectURL(current);
+      filePreviewUrlRef.current = null;
+    };
+  }, [fileToSend?.previewSrc]);
 
   const dispatch = useDispatch<AppDispatch>();
   const { t, i18n } = useTranslation();
@@ -139,14 +155,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        const storageKey = `draftfile:${nanoid()}`;
-        void saveDataUrl(storageKey, dataUrl);
-        setFileToSend({ dataUrl, mimeType: file.type, name: file.name, storageKey });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
@@ -154,14 +166,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const file = Array.from(event.clipboardData.items).find(item => item.kind === 'file')?.getAsFile();
     if (file) {
       event.preventDefault();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        const storageKey = `draftfile:${nanoid()}`;
-        void saveDataUrl(storageKey, dataUrl);
-        setFileToSend({ dataUrl, mimeType: file.type, name: file.name, storageKey });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
@@ -714,7 +722,7 @@ function ChatHeader({
 interface InputAreaProps {
   room: Room;
   isWaitingForResponse: boolean;
-  fileToSend?: { dataUrl: string; mimeType: string; name: string; storageKey: string } | null;
+  fileToSend?: { previewSrc: string; mimeType: string; name: string; storageKey: string } | null;
   stickerToSend?: Sticker | null;
   virtuosoRef?: RefObject<VirtuosoHandle | null>;
 
@@ -814,7 +822,7 @@ function InputArea({
   return (
     <div className="input-area-container relative">
       {/* File Preview*/}
-      {hasFile && fileToSend?.dataUrl && (
+      {hasFile && fileToSend?.previewSrc && (
         <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl">
           <div className="relative inline-block">
             <div className="rounded-lg overflow-hidden">
@@ -822,7 +830,7 @@ function InputArea({
                 file={{ storageKey: fileToSend.storageKey, mimeType: fileToSend.mimeType, name: fileToSend.name }}
                 preview={true}
                 t={t}
-                previewSrc={fileToSend.dataUrl}
+                previewSrc={fileToSend.previewSrc}
               />
             </div>
             <button

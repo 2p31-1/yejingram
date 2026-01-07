@@ -3,34 +3,18 @@ import { nanoid } from '@reduxjs/toolkit';
 export type UploadedSticker = {
     id: string;
     name: string;
-    dataUrl: string;
+    blob: Blob;
     mimeType: string;
 };
 
-function readFileAsDataURL(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-    });
-}
-
 export async function filesToStickers(files: FileList | File[]): Promise<UploadedSticker[]> {
     const list = Array.from(files as any as File[]);
-    const results = await Promise.all(
-        list.map(async (file) => {
-            const dataUrl = await readFileAsDataURL(file);
-            const sticker: UploadedSticker = {
-                id: nanoid(),
-                name: file.name,
-                dataUrl,
-                mimeType: file.type || 'application/octet-stream',
-            };
-            return sticker;
-        })
-    );
-    return results;
+    return list.map((file) => ({
+        id: nanoid(),
+        name: file.name,
+        blob: file,
+        mimeType: file.type || 'application/octet-stream',
+    }));
 }
 
 export function formatBytes(bytes: number, decimals = 2): string {

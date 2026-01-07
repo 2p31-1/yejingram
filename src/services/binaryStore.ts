@@ -21,6 +21,17 @@ export function isStoredBinaryRef(value: unknown): value is StoredBinaryRef {
     return !!value && typeof value === 'object' && typeof (value as any).storageKey === 'string';
 }
 
+export async function blobToBase64(blob: Blob): Promise<string> {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return base64FromUint8Array(bytes);
+}
+
+export async function blobToDataUrl(blob: Blob, mimeType?: string): Promise<string> {
+    const base64 = await blobToBase64(blob);
+    const type = mimeType || blob.type || 'application/octet-stream';
+    return `data:${type};base64,${base64}`;
+}
+
 function base64FromUint8Array(bytes: Uint8Array): string {
     let binary = '';
     const chunkSize = 0x8000;
@@ -86,9 +97,20 @@ export async function saveBlob(storageKey: string, blob: Blob): Promise<void> {
     await binaryInstance.setItem(storageKey, blob);
 }
 
-export async function saveDataUrl(storageKey: string, dataUrl: string): Promise<void> {
-    const blob = await dataUrlToBlob(dataUrl);
-    await saveBlob(storageKey, blob);
+export function base64ToBlob(base64: string, mimeType = 'application/octet-stream'): Blob {
+    // Note: decoding base64 inherently creates bytes in memory; avoid creating data: URLs.
+    if (typeof Buffer !== 'undefined') {
+        const buf = Buffer.from(base64, 'base64');
+        return new Blob([buf], { type: mimeType });
+    }
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
+}
+
+export async function saveBase64(storageKey: string, base64: string, mimeType?: string): Promise<void> {
+    await saveBlob(storageKey, base64ToBlob(base64, mimeType || 'application/octet-stream'));
 }
 
 export async function getBlob(storageKey: string): Promise<Blob | null> {

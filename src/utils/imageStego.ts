@@ -1,3 +1,5 @@
+import { blobToDataUrl } from '../services/binaryStore';
+
 const HEADER_PIXELS = 8; // 첫 8픽셀을 헤더로 사용
 const MARK = [0x50, 0x43, 0x41, 0x52] as const; // 'P','C','A','R'
 
@@ -152,12 +154,7 @@ function isPng(bytes: Uint8Array): boolean {
 
 export async function bytesToDataURLPNGAsync(bytes: Uint8Array): Promise<string> {
     const blob = new Blob([exactArrayBuffer(bytes)], { type: "image/png" });
-    return new Promise<string>((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result as string);
-        fr.onerror = () => reject(fr.error ?? new Error("DataURL 생성 실패"));
-        fr.readAsDataURL(blob);
-    });
+    return blobToDataUrl(blob, 'image/png');
 }
 
 export function appendTrailerToPng(pngBytes: Uint8Array, text: string): Uint8Array {

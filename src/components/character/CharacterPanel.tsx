@@ -11,7 +11,7 @@ import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
 import { importCharacterFromFile } from '../../utils/importCharacter';
-import { deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, resolveDataUrlFromRef, saveBlob, saveDataUrl } from '../../services/binaryStore';
+import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
 import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
@@ -117,15 +117,14 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             await saveBlob(storageKey, file);
             setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
         } catch (e) {
-            console.warn('Failed to persist avatar blob; falling back to dataUrl -> binary store', e);
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = () => reject(reader.error ?? new Error('readAsDataURL failed'));
-                reader.readAsDataURL(file);
-            });
-            await saveDataUrl(storageKey, dataUrl);
-            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
+            console.warn('Failed to persist avatar blob; retrying with cloned Blob', e);
+            try {
+                const cloned = new Blob([await file.arrayBuffer()], { type: file.type || 'application/octet-stream' });
+                await saveBlob(storageKey, cloned);
+                setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: file.type || 'application/octet-stream', name: file.name } }));
+            } catch (e2) {
+                console.warn('Failed to persist avatar blob; aborting avatar update', e2);
+            }
         }
     };
 
@@ -161,39 +160,53 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             return;
         }
 
-        const avatarDataUrl = await resolveDataUrlFromRef(char.avatar);
-        if (!avatarDataUrl) {
-            alert(t('characterPanel.alerts.missingAvatar'));
-            return;
-        }
+        const avatarBlob = await getBlob(char.avatar.storageKey);
+        let avatarDataUrl: string | null = null;
+        let avatarObjectUrl: string | null = null;
 
-        const stickersForExport = await Promise.all((char.stickers ?? []).map(async (sticker) => {
-            const data = await getDataUrl(sticker.storageKey);
-            return {
-                id: sticker.id,
-                name: sticker.name,
-                data,
-                type: sticker.mimeType,
+        try {
+            if (avatarBlob) {
+                avatarObjectUrl = URL.createObjectURL(avatarBlob);
+                avatarDataUrl = await blobToDataUrl(avatarBlob, char.avatar.mimeType);
+            } else {
+                avatarDataUrl = await resolveDataUrlFromRef(char.avatar);
+            }
+
+            if (!avatarDataUrl) {
+                alert(t('characterPanel.alerts.missingAvatar'));
+                return;
+            }
+
+            const stickersForExport = await Promise.all((char.stickers ?? []).map(async (sticker) => {
+                const data = await getDataUrl(sticker.storageKey);
+                return {
+                    id: sticker.id,
+                    name: sticker.name,
+                    data,
+                    type: sticker.mimeType,
+                };
+            }));
+
+            const exportChar: any = {
+                ...char,
+                avatar: avatarDataUrl,
+                stickers: stickersForExport,
             };
-        }));
 
-        const exportChar: any = {
-            ...char,
-            avatar: avatarDataUrl,
-            stickers: stickersForExport,
-        };
-
-        const dataURL = await encodeText(
-            avatarDataUrl,
-            JSON.stringify(method === "png-trailer" ? exportChar : characterToPersonaCard(exportChar)),
-            method
-        );
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = `${char.name || 'character'}_persona.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const dataURL = await encodeText(
+                avatarObjectUrl ?? avatarDataUrl,
+                JSON.stringify(method === "png-trailer" ? exportChar : characterToPersonaCard(exportChar)),
+                method
+            );
+            const link = document.createElement("a");
+            link.href = dataURL;
+            link.download = `${char.name || 'character'}_persona.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } finally {
+            if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
+        }
     };
 
     return (

@@ -15,7 +15,7 @@ import type { Room } from '../../entities/room/types';
 import { inviteCharacter } from '../../utils/inviteCharacter';
 import { UrlPreview } from './chatcontents/UrlPreviewProps';
 import { callImageGeneration } from '../../services/image/ImageCaller';
-import { getBlob, saveDataUrl, makeMessageBinaryKey } from '../../services/binaryStore';
+import { getBlob, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
 import type { Sticker } from '../../entities/character/types';
 import { FilePreview } from './FilePreview';
 
@@ -70,11 +70,21 @@ function StickerMessageContent({
     };
   }, [sticker.storageKey]);
 
-  const imgSrc = objectUrl ?? '';
-
   return (
     <div className="space-x-1 inline-block cursor-pointer transition-all duration-300" onClick={() => onToggle(messageId)}>
-      <img src={imgSrc} alt={stickerName} className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`} />
+      {objectUrl ? (
+        <img
+          src={objectUrl}
+          alt={stickerName}
+          className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`}
+        />
+      ) : (
+        <div
+          className={`${sizeClass} rounded-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 transition-all duration-500`}
+        >
+          <Loader2 className="w-4 h-4 animate-spin text-gray-400" aria-label="Loading sticker" />
+        </div>
+      )}
     </div>
   );
 }
@@ -650,9 +660,8 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                   const imageResponse = await callImageGeneration(msg.imageGenerationSetting!, char);
                                   const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
                                   if (inlineDataBody) {
-                                    const newDataUrl = `data:${inlineDataBody.mimeType};base64,${inlineDataBody.data}`;
                                     const storageKey = makeMessageBinaryKey(msg.id);
-                                    await saveDataUrl(storageKey, newDataUrl);
+                                    await saveBase64(storageKey, inlineDataBody.data, inlineDataBody.mimeType);
                                     dispatch(messagesActions.updateOne({
                                       id: msg.id,
                                       changes: {

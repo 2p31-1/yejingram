@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { filesToStickers, formatBytes } from '../../utils/sticker';
 import { StickerGrid } from '../common/StickerGrid';
-import { getBlob, makeStickerBinaryKey, saveDataUrl } from '../../services/binaryStore';
+import { getBlob, makeStickerBinaryKey, saveBlob } from '../../services/binaryStore';
 
 interface StickerPanelProps {
     characterId: number;
@@ -34,7 +34,7 @@ export function StickerPanel({ characterId, stickers, onSelectSticker, onClose }
         for (const sticker of newStickers) {
             const storageKey = makeStickerBinaryKey(sticker.id);
             try {
-                await saveDataUrl(storageKey, sticker.dataUrl);
+                await saveBlob(storageKey, sticker.blob);
                 const refSticker: Sticker = { id: sticker.id, name: sticker.name, storageKey, mimeType: sticker.mimeType };
                 dispatch(charactersActions.addSticker({ characterId, sticker: refSticker }));
             } catch (e) {

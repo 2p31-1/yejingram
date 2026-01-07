@@ -22,7 +22,7 @@ import { initialState as imageSettingsInitialState } from '../entities/setting/i
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
 import lastSavedReducer from '../entities/lastSaved/slice';
-import { makeAvatarBinaryKey, makeMessageBinaryKey, makeStickerBinaryKey, saveDataUrl } from '../services/binaryStore';
+import { dataUrlToBlob, makeAvatarBinaryKey, makeMessageBinaryKey, makeStickerBinaryKey, saveBlob } from '../services/binaryStore';
 
 // Enable localforage only in browser environments
 export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -299,7 +299,7 @@ export const migrations = {
                         const mimeType = msg.file.mimeType;
                         const name = msg.file.name;
                         jobs.push(async () => {
-                            await saveDataUrl(storageKey, dataUrl);
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
                             msg.file = { storageKey, mimeType, name };
                         });
                     }
@@ -312,7 +312,7 @@ export const migrations = {
                         const mimeType = mimeTypeFromDataUrl(dataUrl);
                         const name = typeof msg.sticker.name === 'string' ? msg.sticker.name : '';
                         jobs.push(async () => {
-                            await saveDataUrl(storageKey, dataUrl);
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
                             msg.sticker = { id: stickerId, name, storageKey, mimeType };
                         });
                     }
@@ -330,7 +330,7 @@ export const migrations = {
                         const storageKey = makeAvatarBinaryKey(id);
                         const mimeType = dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
                         jobs.push(async () => {
-                            await saveDataUrl(storageKey, dataUrl);
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
                             ch.avatar = { storageKey, mimeType };
                         });
                     }
@@ -345,7 +345,7 @@ export const migrations = {
                             const storageKey = makeStickerBinaryKey(stickerId);
                             const mimeType = mimeTypeFromDataUrl(dataUrl);
                             jobs.push(async () => {
-                                await saveDataUrl(storageKey, dataUrl);
+                                await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
                                 const name = typeof st.name === 'string' ? st.name : '';
                                 st.id = stickerId;
                                 st.name = name;
