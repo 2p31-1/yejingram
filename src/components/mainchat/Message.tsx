@@ -15,7 +15,7 @@ import type { Room } from '../../entities/room/types';
 import { inviteCharacter } from '../../utils/inviteCharacter';
 import { UrlPreview } from './chatcontents/UrlPreviewProps';
 import { callImageGeneration } from '../../services/image/ImageCaller';
-import { getBlob, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
+import { getBlob, makeBinaryUrl, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
 import type { Sticker } from '../../entities/character/types';
 import { FilePreview } from './FilePreview';
 
@@ -47,7 +47,6 @@ function StickerMessageContent({
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    let revoked: string | null = null;
     let cancelled = false;
 
     void (async () => {
@@ -60,13 +59,12 @@ function StickerMessageContent({
         setObjectUrl(null);
         return;
       }
-      revoked = URL.createObjectURL(blob);
-      setObjectUrl(revoked);
+      // Ensure the binary is available and backfilled into persistent cache, then use stable URL.
+      setObjectUrl(makeBinaryUrl(sticker.storageKey));
     })();
 
     return () => {
       cancelled = true;
-      if (revoked) URL.revokeObjectURL(revoked);
     };
   }, [sticker.storageKey]);
 
@@ -169,7 +167,6 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
   const [expandedStickers, setExpandedStickers] = useState<Set<string>>(new Set());
   const [imageModalOpen, setImageModalOpen] = useState<boolean>(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
-  const selectedImageObjectUrlRef = useRef<string | null>(null);
   const [regeneratingImageIds, setRegeneratingImageIds] = useState<Set<string>>(new Set());
   // Mobile gesture helpers
   const [isCoarsePointer, setIsCoarsePointer] = useState<boolean>(() => {
@@ -235,10 +232,6 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
       if (hideControlsTimeoutRef.current) {
         window.clearTimeout(hideControlsTimeoutRef.current);
       }
-      if (selectedImageObjectUrlRef.current) {
-        URL.revokeObjectURL(selectedImageObjectUrlRef.current);
-        selectedImageObjectUrlRef.current = null;
-      }
     };
   }, []);
 
@@ -251,13 +244,8 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
     const blob = await getBlob(storageKey);
     if (!blob) return;
 
-    if (selectedImageObjectUrlRef.current) {
-      URL.revokeObjectURL(selectedImageObjectUrlRef.current);
-      selectedImageObjectUrlRef.current = null;
-    }
-    const url = URL.createObjectURL(blob);
-    selectedImageObjectUrlRef.current = url;
-    setSelectedImageUrl(url);
+    // Use stable URL; the getBlob call above ensures presence and backfills persistent cache.
+    setSelectedImageUrl(makeBinaryUrl(storageKey));
     setImageModalOpen(true);
   }, []);
 

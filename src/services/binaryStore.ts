@@ -4,6 +4,75 @@ const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefine
 
 const memoryStore = new Map<string, Blob>();
 
+// Prevent duplicate IndexedDB reads for the same key.
+const inflightBlobGets = new Map<string, Promise<Blob | null>>();
+
+const BINARY_CACHE_NAME = 'yejingram-binary-v1';
+
+export function makeBinaryUrl(storageKey: string): string {
+    return `/__binary/${encodeURIComponent(storageKey)}`;
+}
+
+function makeBinaryCacheRequest(storageKey: string): Request {
+    // Use a stable, same-origin URL so Cache Storage can persist it and SW can serve it.
+    // Encode to keep keys safe in path.
+    return new Request(makeBinaryUrl(storageKey));
+}
+
+async function cacheStoragePutBlob(storageKey: string, blob: Blob): Promise<void> {
+    if (!isBrowser) return;
+    if (!('caches' in window)) return;
+
+    try {
+        const cache = await caches.open(BINARY_CACHE_NAME);
+        const headers = new Headers();
+        headers.set('Content-Type', blob.type || 'application/octet-stream');
+        // This is an app-managed cache key; treat as immutable until overwritten.
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        await cache.put(makeBinaryCacheRequest(storageKey), new Response(blob, { headers }));
+    } catch {
+        // Cache Storage might be unavailable (private mode, quota, etc). Ignore.
+    }
+}
+
+async function cacheStorageGetBlob(storageKey: string): Promise<Blob | null> {
+    if (!isBrowser) return null;
+    if (!('caches' in window)) return null;
+
+    try {
+        const cache = await caches.open(BINARY_CACHE_NAME);
+        const res = await cache.match(makeBinaryCacheRequest(storageKey));
+        if (!res) return null;
+        return await res.blob();
+    } catch {
+        return null;
+    }
+}
+
+async function cacheStorageDeleteBlob(storageKey: string): Promise<void> {
+    if (!isBrowser) return;
+    if (!('caches' in window)) return;
+
+    try {
+        const cache = await caches.open(BINARY_CACHE_NAME);
+        await cache.delete(makeBinaryCacheRequest(storageKey));
+    } catch {
+        // ignore
+    }
+}
+
+async function cacheStorageClearAll(): Promise<void> {
+    if (!isBrowser) return;
+    if (!('caches' in window)) return;
+
+    try {
+        await caches.delete(BINARY_CACHE_NAME);
+    } catch {
+        // ignore
+    }
+}
+
+
 const binaryInstance = isBrowser
     ? localforage.createInstance({
         name: 'yejingram',
@@ -94,6 +163,8 @@ export async function saveBlob(storageKey: string, blob: Blob): Promise<void> {
         memoryStore.set(storageKey, blob);
         return;
     }
+    // Persist across restarts.
+    await cacheStoragePutBlob(storageKey, blob);
     await binaryInstance.setItem(storageKey, blob);
 }
 
@@ -110,16 +181,39 @@ export function base64ToBlob(base64: string, mimeType = 'application/octet-strea
 }
 
 export async function saveBase64(storageKey: string, base64: string, mimeType?: string): Promise<void> {
-    await saveBlob(storageKey, base64ToBlob(base64, mimeType || 'application/octet-stream'));
+    const type = mimeType || 'application/octet-stream';
+    await saveBlob(storageKey, base64ToBlob(base64, type));
 }
 
 export async function getBlob(storageKey: string): Promise<Blob | null> {
     if (!isBrowser || !binaryInstance) {
         return memoryStore.get(storageKey) ?? null;
     }
-    const item = await binaryInstance.getItem(storageKey);
-    if (!item) return null;
-    return item as Blob;
+
+    const inflight = inflightBlobGets.get(storageKey);
+    if (inflight) return await inflight;
+
+    const promise = (async () => {
+        // 1) Persistent Cache Storage
+        const persistent = await cacheStorageGetBlob(storageKey);
+        if (persistent) return persistent;
+
+        // 2) IndexedDB/localforage
+        const item = await binaryInstance.getItem(storageKey);
+        if (!item) return null;
+        const blob = item as Blob;
+
+        // Backfill persistent cache for next run (await to avoid races with /__binary/... rendering).
+        await cacheStoragePutBlob(storageKey, blob);
+        return blob;
+    })();
+
+    inflightBlobGets.set(storageKey, promise);
+    try {
+        return await promise;
+    } finally {
+        inflightBlobGets.delete(storageKey);
+    }
 }
 
 export async function deleteBlob(storageKey: string): Promise<void> {
@@ -127,6 +221,7 @@ export async function deleteBlob(storageKey: string): Promise<void> {
         memoryStore.delete(storageKey);
         return;
     }
+    await cacheStorageDeleteBlob(storageKey);
     await binaryInstance.removeItem(storageKey);
 }
 
@@ -135,6 +230,9 @@ export async function clearAllBinaries(): Promise<void> {
         memoryStore.clear();
         return;
     }
+    inflightBlobGets.clear();
+
+    await cacheStorageClearAll();
     await binaryInstance.clear();
 }
 
@@ -144,7 +242,8 @@ export async function getBase64(storageKey: string): Promise<{ mimeType: string;
 
     const buf = await blob.arrayBuffer();
     const base64 = base64FromUint8Array(new Uint8Array(buf));
-    return { mimeType: blob.type || 'application/octet-stream', base64 };
+    const mimeType = blob.type || 'application/octet-stream';
+    return { mimeType, base64 };
 }
 
 export async function getDataUrl(storageKey: string): Promise<string | null> {

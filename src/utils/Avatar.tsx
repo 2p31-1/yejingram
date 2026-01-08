@@ -1,14 +1,13 @@
 import type { Character } from '../entities/character/types';
 import { Bot } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getBlob, isStoredBinaryRef } from '../services/binaryStore';
+import { getBlob, isStoredBinaryRef, makeBinaryUrl } from '../services/binaryStore';
 
 export const Avatar = ({ char, size = 'md' }: { char: Character; size?: 'md' | 'sm' | 'lg' | 'xs' | '2xs' }) => {
     const sizeClasses = { xs: 'w-8 h-8 text-xs', sm: 'w-10 h-10 text-sm', md: 'w-12 h-12 text-base', lg: 'w-16 h-16 text-lg', '2xs': 'w-7 h-7 text-xs' }[size];
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        let revoked: string | null = null;
         let cancelled = false;
 
         void (async () => {
@@ -21,13 +20,12 @@ export const Avatar = ({ char, size = 'md' }: { char: Character; size?: 'md' | '
                 setObjectUrl(null);
                 return;
             }
-            revoked = URL.createObjectURL(blob);
-            setObjectUrl(revoked);
+            // Ensure presence/backfill, then use stable URL.
+            setObjectUrl(makeBinaryUrl(char.avatar.storageKey));
         })();
 
         return () => {
             cancelled = true;
-            if (revoked) URL.revokeObjectURL(revoked);
         };
     }, [isStoredBinaryRef(char?.avatar) ? char.avatar.storageKey : null]);
 

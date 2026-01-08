@@ -27,7 +27,7 @@ import type { Character } from '../../entities/character/types';
 import type { Lore } from '../../entities/lorebook/types';
 import { type VirtuosoHandle } from 'react-virtuoso';
 import type { StoredFileRef } from '../../entities/message/types';
-import { getBlob, saveBlob } from '../../services/binaryStore';
+import { getBlob, makeBinaryUrl, saveBlob } from '../../services/binaryStore';
 import { FilePreview } from './FilePreview';
 
 interface MainChatProps {
@@ -766,7 +766,6 @@ function InputArea({
   const [stickerPreviewUrl, setStickerPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    let revoked: string | null = null;
     let cancelled = false;
 
     void (async () => {
@@ -780,13 +779,11 @@ function InputArea({
         setStickerPreviewUrl(null);
         return;
       }
-      revoked = URL.createObjectURL(blob);
-      setStickerPreviewUrl(revoked);
+      setStickerPreviewUrl(makeBinaryUrl(storageKey));
     })();
 
     return () => {
       cancelled = true;
-      if (revoked) URL.revokeObjectURL(revoked);
     };
   }, [stickerToSend?.storageKey]);
 

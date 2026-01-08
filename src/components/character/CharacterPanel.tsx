@@ -11,7 +11,7 @@ import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
 import { importCharacterFromFile, sanitizeAvatarImageForStorage } from '../../utils/importCharacter';
-import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
+import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, makeBinaryUrl, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
 import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
@@ -54,7 +54,6 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
     }, [editingCharacter]);
 
     useEffect(() => {
-        let revoked: string | null = null;
         let cancelled = false;
 
         void (async () => {
@@ -68,13 +67,12 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 setAvatarPreviewSrc(null);
                 return;
             }
-            revoked = URL.createObjectURL(blob);
-            setAvatarPreviewSrc(revoked);
+            // Ensure presence/backfill, then use stable URL.
+            setAvatarPreviewSrc(makeBinaryUrl(char.avatar.storageKey));
         })();
 
         return () => {
             cancelled = true;
-            if (revoked) URL.revokeObjectURL(revoked);
         };
     }, [char.avatar?.storageKey]);
 

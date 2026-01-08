@@ -4,7 +4,8 @@ export async function registerProactivePush(clientId: string, serverBaseUrl: str
     }
 
     try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
+        // Dedicated push-only worker. Scope is separated from cache worker to avoid conflicts.
+        const registration = await navigator.serviceWorker.register('/sw-push.js', { scope: '/push/' });
 
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
@@ -48,7 +49,8 @@ export async function unsubscribeProactivePush(clientId: string, serverBaseUrl: 
     }
 
     try {
-        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+        // getRegistration expects a document URL within the SW scope.
+        const registration = await navigator.serviceWorker.getRegistration('/push/');
         if (!registration) return;
 
         const existing = await registration.pushManager.getSubscription();

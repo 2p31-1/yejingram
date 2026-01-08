@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StickyNote } from 'lucide-react';
 import type { StoredFileRef } from '../../entities/message/types';
-import { getBlob } from '../../services/binaryStore';
+import { getBlob, makeBinaryUrl } from '../../services/binaryStore';
 
 export function FilePreview({
   file,
@@ -30,11 +30,18 @@ export function FilePreview({
         setObjectUrl(null);
         return;
       }
+
+      if (mimeType.startsWith('image/')) {
+        // Use stable URL (served from SW/Cache Storage).
+        createdUrl = null;
+        const stable = makeBinaryUrl(file.storageKey);
+        setObjectUrl(stable);
+        onResolveImageUrl?.(stable);
+        return;
+      }
+
       createdUrl = URL.createObjectURL(blob);
       setObjectUrl(createdUrl);
-      if (onResolveImageUrl && mimeType.startsWith('image/')) {
-        onResolveImageUrl(createdUrl);
-      }
     }
 
     run();

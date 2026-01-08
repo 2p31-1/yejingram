@@ -1,11 +1,12 @@
 import { Edit3, CheckCircle, Music, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { Sticker } from '../../entities/character/types';
-import { getBlob } from '../../services/binaryStore';
+import { getBlob, makeBinaryUrl } from '../../services/binaryStore';
 
 function StickerMedia({ sticker }: { sticker: Sticker }) {
     const isVideo = sticker.mimeType.startsWith('video/');
     const isAudio = sticker.mimeType.startsWith('audio/');
+    const isImage = sticker.mimeType.startsWith('image/');
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -22,6 +23,13 @@ function StickerMedia({ sticker }: { sticker: Sticker }) {
                 setObjectUrl(null);
                 return;
             }
+
+            if (isImage) {
+                setObjectUrl(makeBinaryUrl(sticker.storageKey));
+                return;
+            }
+
+            // Keep blob: URLs for non-image media to avoid fetch/range quirks.
             revokedUrl = URL.createObjectURL(blob);
             setObjectUrl(revokedUrl);
         })();
@@ -30,7 +38,7 @@ function StickerMedia({ sticker }: { sticker: Sticker }) {
             cancelled = true;
             if (revokedUrl) URL.revokeObjectURL(revokedUrl);
         };
-    }, [sticker.storageKey]);
+    }, [sticker.storageKey, isImage]);
 
     if (isAudio) {
         return (
