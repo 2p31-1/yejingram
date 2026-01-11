@@ -9,8 +9,10 @@ import { lastSavedActions } from '../entities/lastSaved/slice';
 import type { EntityState, EntityId } from '@reduxjs/toolkit';
 import { uiActions } from '../entities/ui/slice';
 import type { ClientSyncResponse, Patch, BackupFile, BackupState, BackupError, SyncMetadata } from '../entities/sync/types';
+import { clearAllBinaries, dataUrlToBlob, getBlob, getDataUrl, saveBlob } from '../services/binaryStore';
 import { syncActions } from '../entities/sync/slice';
 import { applyPatch } from './diff';
+import { collectBinaryStorageKeysFromState } from './binaryKeys';
 
 async function jsonStringify(value: any, replacer?: any, space?: string | number): Promise<string> {
   if (!isBrowser) {
@@ -118,6 +120,7 @@ export async function wipeAllState() {
   persistor.pause();
   await persistor.flush();     // 남은 write 처리
   await persistor.purge();     // ← localforage에 저장된 'yejingram' 스냅샷 제거
+  await clearAllBinaries();    // ← 별도 binary store 제거
   store.dispatch(resetAll());  // ← 메모리상의 Redux 상태 초기화
 }
 
@@ -138,13 +141,79 @@ export function buildBackupPayload() {
     version: persistConfig.version,
     createdAt: new Date().toISOString(),
     data,
+    binaries: [],
   };
   return payload;
 }
 
+async function buildBinaryPayloadFromState(state: RootState): Promise<Array<{ storageKey: string; dataUrl: string }>> {
+  const keys = new Set<string>(collectBinaryStorageKeysFromState(state));
+  const binaries: Array<{ storageKey: string; dataUrl: string }> = [];
+  for (const key of keys) {
+    const dataUrl = await getDataUrl(key);
+    if (dataUrl) binaries.push({ storageKey: key, dataUrl });
+  }
+  return binaries;
+}
+
+function makeServerBinaryUrl(baseURL: string, clientId: string, storageKey: string): string {
+  return `${baseURL}/api/${clientId}/binaries/${encodeURIComponent(storageKey)}`;
+}
+
+async function uploadBinariesToServer(clientId: string, baseURL: string, storageKeys: string[]): Promise<void> {
+  for (let i = 0; i < storageKeys.length; i++) {
+    const key = storageKeys[i];
+    const blob = await getBlob(key);
+    if (!blob) continue;
+
+    // Simple linear progress (binary transfers are outside xhr.onprogress)
+    const percent = Math.max(1, Math.min(100, Math.floor(((i + 1) / storageKeys.length) * 100)));
+    store.dispatch(uiActions.setSyncProgress(percent));
+
+    const res = await fetch(makeServerBinaryUrl(baseURL, clientId, key), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': blob.type || 'application/octet-stream'
+      },
+      body: blob
+    });
+
+    if (!res.ok) {
+      throw new Error(`Binary upload failed (${res.status})`);
+    }
+  }
+}
+
+async function downloadBinariesFromServer(clientId: string, baseURL: string, storageKeys: string[]): Promise<void> {
+  for (let i = 0; i < storageKeys.length; i++) {
+    const key = storageKeys[i];
+    const existing = await getBlob(key);
+    if (existing) continue;
+
+    const percent = Math.max(1, Math.min(100, Math.floor(((i + 1) / storageKeys.length) * 100)));
+    store.dispatch(uiActions.setSyncProgress(percent));
+
+    const res = await fetch(makeServerBinaryUrl(baseURL, clientId, key), {
+      method: 'GET'
+    });
+    if (res.status === 404) continue;
+    if (!res.ok) throw new Error(`Binary download failed (${res.status})`);
+
+    const blob = await res.blob();
+    await saveBlob(key, blob);
+  }
+}
+
+
+export async function buildBackupPayloadWithBinaries(): Promise<BackupFile> {
+  const base = buildBackupPayload();
+  const binaries = await buildBinaryPayloadFromState(store.getState());
+  return { ...base, binaries };
+}
+
 // ---------- 백업 ----------
 export async function backupStateToFile() {
-  const payload = buildBackupPayload();
+  const payload = await buildBackupPayloadWithBinaries();
 
   const json = await jsonStringify(payload, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
@@ -180,13 +249,49 @@ export async function restoreStateFromPayload(payload: BackupFile) {
   await restoreState(payload.data, payload.version);
 }
 
-async function restoreState(state: Partial<RootState>, lastVersion = persistConfig.version) {
+async function restoreState(
+  state: Partial<RootState>,
+  lastVersion = persistConfig.version,
+  options?: { preloadBinaryKeys?: string[]; clientId?: string; baseURL?: string }
+) {
   store.dispatch({ type: 'sync/applyDeltaStart' });
 
   await wipeAllState();
   for (let v = lastVersion + 1; v <= persistConfig.version; v++) {
     if (migrations[v] == null) continue;
-    state = migrations[v](state as unknown as any) as unknown as typeof state;
+    // Support both sync and async migrations
+    state = await Promise.resolve(migrations[v](state as unknown as any) as any) as unknown as typeof state;
+  }
+
+  // Preload binaries from sync server AFTER wipeAllState (so they won't be deleted)
+  // and BEFORE importing Redux slices (so UI loads after binaries are present).
+  if (options?.preloadBinaryKeys?.length && options.clientId && options.baseURL) {
+    try {
+      await downloadBinariesFromServer(options.clientId, options.baseURL, options.preloadBinaryKeys);
+    } catch (e) {
+      console.warn('[restoreState] Binary preload failed', e);
+    }
+  }
+
+  // Restore binary store payloads if present (for backups created after binary offloading).
+  const legacyBinaries = (state as any).binaries;
+  const binariesArray: Array<{ storageKey: string; dataUrl: string }> = Array.isArray(legacyBinaries)
+    ? legacyBinaries
+    : (legacyBinaries && typeof legacyBinaries === 'object')
+      ? Object.entries(legacyBinaries).map(([storageKey, dataUrl]) => ({ storageKey, dataUrl: String(dataUrl) }))
+      : [];
+
+  for (const item of binariesArray) {
+    const storageKey = item?.storageKey;
+    const dataUrl = item?.dataUrl;
+    if (typeof storageKey !== 'string' || typeof dataUrl !== 'string') continue;
+    if (!dataUrl.startsWith('data:')) continue;
+    try {
+      const blob = await dataUrlToBlob(dataUrl);
+      await saveBlob(storageKey, blob);
+    } catch {
+      // Skip broken entries.
+    }
   }
 
   const { characters, rooms, messages, settings, lastSaved } = state;
@@ -280,6 +385,11 @@ export async function backupStateToServer(
   let response: any = null;
 
   try {
+    // If this is an incremental patch, upload newly referenced binaries first.
+    if (diff?.binary?.put?.length) {
+      await uploadBinariesToServer(clientId, baseURL, diff.binary.put);
+    }
+
     const state = store.getState();
     console.log(`[backupStateToServer] Client patchSeq: ${state.sync.patchSeq}, snapshotSeq: ${state.sync.snapshotSeq}`);
 
@@ -294,6 +404,15 @@ export async function backupStateToServer(
     if (!diff) {
       store.dispatch(syncActions.clearPatchQueue());
       store.dispatch(syncActions.resolveConflict());
+
+      // Snapshot mode: ensure server has all binaries referenced by the snapshot.
+      // (server may clear its binary dir on snapshot overwrite)
+      try {
+        const keys = collectBinaryStorageKeysFromState(store.getState());
+        if (keys.length) await uploadBinariesToServer(clientId, baseURL, keys);
+      } catch (e) {
+        console.warn('[backupStateToServer] Snapshot binary upload failed', e);
+      }
     }
 
   } catch (err: any) {
@@ -342,16 +461,23 @@ export async function restoreStateFromServer(clientId: string, baseURL: string, 
 
     if (serverResponse) {
       const serverState: ClientSyncResponse = serverResponse;
+
       if (full) {
         let snapshotResponse: RootState;
         snapshotResponse = await fetchWithProgress(`${baseURL}/api/${clientId}/snapshot`);
         const state: RootState = snapshotResponse;
         const patchedState = applyPatch(state, serverState.patches);
-        await restoreState(patchedState, serverState.version);
+
+        // Full restore: preload binaries referenced by the final state.
+        const needed = collectBinaryStorageKeysFromState(patchedState);
+        await restoreState(patchedState, serverState.version, { preloadBinaryKeys: needed, clientId, baseURL });
       } else {
         const state = store.getState();
         const patchedState = applyPatch(state, serverState.patches);
-        await restoreState(patchedState, persistConfig.version);
+
+        // Patch-only restore: preload binaries referenced by the resulting state.
+        const needed = collectBinaryStorageKeysFromState(patchedState);
+        await restoreState(patchedState, persistConfig.version, { preloadBinaryKeys: needed, clientId, baseURL });
       }
 
       store.dispatch(syncActions.updateFromSnapshot({

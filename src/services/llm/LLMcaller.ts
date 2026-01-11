@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { callImageGeneration } from "../image/ImageCaller";
 import { LLMJSONParser } from 'ai-json-fixer';
 import { CLAUDE_API_BASE_URL, GEMINI_API_BASE_URL, GROK_API_BASE_URL, OPENAI_API_BASE_URL, VERTEX_AI_API_BASE_URL, OPENROUTER_API_BASE_URL, DEEPSEEK_API_BASE_URL } from "../URLs";
+import { makeMessageBinaryKey, saveBase64 } from '../binaryStore';
 
 const llmParser = new LLMJSONParser();
 
@@ -123,14 +124,17 @@ async function createMessageFromPart(messagePart: MessagePart, roomId: string, c
         const imageResponse = await callImageGeneration(messagePart.imageGenerationSetting, char);
         const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
         if (inlineDataBody) {
+            const messageId = nanoid();
+            const storageKey = makeMessageBinaryKey(messageId);
+            await saveBase64(storageKey, inlineDataBody.data, inlineDataBody.mimeType);
             message.push({
-                id: nanoid(),
+                id: messageId,
                 roomId: roomId,
                 authorId: char.id,
                 createdAt: new Date().toISOString(),
                 type: 'IMAGE',
                 file: {
-                    dataUrl: `data:${inlineDataBody.mimeType};base64,${inlineDataBody.data}`,
+                    storageKey,
                     mimeType: inlineDataBody.mimeType,
                     name: `generated_image.${inlineDataBody.mimeType.split('/')[1] || 'png'}`
                 },

@@ -139,6 +139,20 @@ function App() {
 
 
   useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'open_in_yejingram' && event.data?.realmId) {
+        setRealmImport({
+          realmId: String(event.data.realmId),
+          charname: event.data.charname
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
     document.documentElement.classList.remove('light', 'dark', 'custom-theme');
     if (colorTheme === 'dark' || (colorTheme === 'system' && prefersDark)) {
       document.documentElement.classList.add('dark');

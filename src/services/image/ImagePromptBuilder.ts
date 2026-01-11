@@ -2,13 +2,18 @@ import { isBrowser } from "../../app/store";
 import type { Character } from "../../entities/character/types";
 import type { NAIConfig } from "../../entities/setting/image/types";
 import { loadImage } from "../../utils/imageStego";
+import { resolveDataUrlFromRef } from "../binaryStore";
 
-export function buildGeminiImagePayload(positivePrompt: string, isIncludingChar: boolean, char: Character) {
+export async function buildGeminiImagePayload(positivePrompt: string, isIncludingChar: boolean, char: Character) {
+    const avatarDataUrl = isIncludingChar ? await resolveDataUrlFromRef(char.avatar) : null;
+    const mimeType = avatarDataUrl ? (avatarDataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream') : null;
+    const base64 = avatarDataUrl ? avatarDataUrl.split(',')[1] : null;
+
     return {
         contents: [{
             parts: [
-                { "text": `${positivePrompt}${isIncludingChar && char.avatar ? `IMPORTANT: PROVIDED PICTURE IS THE TOP PRIORITY. 1) IF THE APPEARANCE OF PROMPT IS NOT MATCHING WITH THE PICTURE, IGNORE ALL OF THE PROMPT RELATED TO ${char.name}'S APPEARANCE FEATURES. 2) FOLLOW THE STYLE OF PROVIDED PICTURE STRICTLY.` : ''}` },
-                ...(isIncludingChar && char.avatar ? [{ "inline_data": { "mime_type": char.avatar.split(',')[0].split(':')[1].split(';')[0], "data": char.avatar.split(',')[1] } }] : []),
+                { "text": `${positivePrompt}${isIncludingChar && avatarDataUrl ? `IMPORTANT: PROVIDED PICTURE IS THE TOP PRIORITY. 1) IF THE APPEARANCE OF PROMPT IS NOT MATCHING WITH THE PICTURE, IGNORE ALL OF THE PROMPT RELATED TO ${char.name}'S APPEARANCE FEATURES. 2) FOLLOW THE STYLE OF PROVIDED PICTURE STRICTLY.` : ''}` },
+                ...(isIncludingChar && avatarDataUrl && mimeType && base64 ? [{ "inline_data": { "mime_type": mimeType, "data": base64 } }] : []),
             ]
         }],
         safetySettings: [
@@ -86,8 +91,9 @@ export async function buildNovelAIImagePayload(positivePrompt: string, negativeP
             "skip_cfg_above_sigma": skipCfgAboveSigma,
         }
     }
-    if (model.startsWith("nai-diffusion-4-5") && isIncludingChar && char.avatar) {
-        const resized = await resizeToNAI(char.avatar, "#ffffff");
+    const avatarDataUrl = isIncludingChar ? await resolveDataUrlFromRef(char.avatar) : null;
+    if (model.startsWith("nai-diffusion-4-5") && isIncludingChar && avatarDataUrl) {
+        const resized = await resizeToNAI(avatarDataUrl, "#ffffff");
         payload.parameters['director_reference_descriptions'] = [
             {
                 caption: {

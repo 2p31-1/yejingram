@@ -10,7 +10,9 @@ import { AttributeSliders } from './AttributeSliders';
 import { StickerManager } from './StickerManager';
 import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
-import { importCharacterFromFile } from '../../utils/importCharacter';
+import { importCharacterFromFile, sanitizeAvatarImageForStorage } from '../../utils/importCharacter';
+import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, makeBinaryUrl, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
+import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
     return {
@@ -39,6 +41,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
     const [char, setChar] = useState<Character>(newCharacterDefault);
     const [activeTab, setActiveTab] = useState<'basicInfo' | 'lorebook' | 'backup'>('basicInfo');
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarPreviewSrc, setAvatarPreviewSrc] = useState<string | null>(null);
 
     const isNew = !editingId;
 
@@ -50,29 +53,82 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
         }
     }, [editingCharacter]);
 
-    const handleSave = () => {
-        if (char.name) {
-            const charToSave = {
-                ...char,
-                id: editingId ?? Date.now()
+    useEffect(() => {
+        let cancelled = false;
+
+        void (async () => {
+            if (!char.avatar) {
+                setAvatarPreviewSrc(null);
+                return;
             }
-            dispatch(charactersActions.upsertOne(charToSave));
-            dispatch(charactersActions.resetEditingCharacterId());
-            onClose();
-        }
+
+            const blob = await getBlob(char.avatar.storageKey);
+            if (!blob || cancelled) {
+                setAvatarPreviewSrc(null);
+                return;
+            }
+            // Ensure presence/backfill, then use stable URL.
+            setAvatarPreviewSrc(makeBinaryUrl(char.avatar.storageKey));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [char.avatar?.storageKey]);
+
+    const handleSave = async () => {
+        if (!char.name) return;
+
+        // Ensure stable id before persisting binaries.
+        const id = editingId ?? Date.now();
+
+        const nextAvatar = char.avatar;
+        const nextStickers = char.stickers ?? [];
+
+        const charToSave = {
+            ...char,
+            id,
+            avatar: nextAvatar,
+            stickers: nextStickers,
+        };
+
+        dispatch(charactersActions.upsertOne(charToSave));
+        dispatch(charactersActions.resetEditingCharacterId());
+        onClose();
     };
 
     const handleInputChange = (field: keyof Character, value: any) => {
         setChar(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setChar(prev => ({ ...prev, avatar: event.target?.result as string }));
-            };
-            reader.readAsDataURL(e.target.files[0]);
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Best-effort cleanup of previous stored avatar
+        if (char.avatar?.storageKey) {
+            void deleteBlob(char.avatar.storageKey);
+        }
+
+        const storageKey = makeAvatarBinaryKey(nanoid());
+        try {
+            const sanitized = await sanitizeAvatarImageForStorage(file);
+            const blobToSave = sanitized?.blob ?? file;
+            const nameToSave = sanitized?.suggestedName ?? file.name;
+            await saveBlob(storageKey, blobToSave);
+            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: blobToSave.type || 'application/octet-stream', name: nameToSave } }));
+        } catch (e) {
+            console.warn('Failed to persist avatar blob; retrying with cloned Blob', e);
+            try {
+                const sanitized = await sanitizeAvatarImageForStorage(file);
+                const blobToSave = sanitized?.blob ?? file;
+                const nameToSave = sanitized?.suggestedName ?? file.name;
+                const cloned = new Blob([await blobToSave.arrayBuffer()], { type: blobToSave.type || 'application/octet-stream' });
+                await saveBlob(storageKey, cloned);
+                setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: cloned.type || 'application/octet-stream', name: nameToSave } }));
+            } catch (e2) {
+                console.warn('Failed to persist avatar blob; aborting avatar update', e2);
+            }
         }
     };
 
@@ -108,13 +164,53 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             return;
         }
 
-        const dataURL = await encodeText(char.avatar, JSON.stringify(method === "png-trailer" ? char : characterToPersonaCard(char)), method);
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = `${char.name || 'character'}_persona.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const avatarBlob = await getBlob(char.avatar.storageKey);
+        let avatarDataUrl: string | null = null;
+        let avatarObjectUrl: string | null = null;
+
+        try {
+            if (avatarBlob) {
+                avatarObjectUrl = URL.createObjectURL(avatarBlob);
+                avatarDataUrl = await blobToDataUrl(avatarBlob, char.avatar.mimeType);
+            } else {
+                avatarDataUrl = await resolveDataUrlFromRef(char.avatar);
+            }
+
+            if (!avatarDataUrl) {
+                alert(t('characterPanel.alerts.missingAvatar'));
+                return;
+            }
+
+            const stickersForExport = await Promise.all((char.stickers ?? []).map(async (sticker) => {
+                const data = await getDataUrl(sticker.storageKey);
+                return {
+                    id: sticker.id,
+                    name: sticker.name,
+                    data,
+                    type: sticker.mimeType,
+                };
+            }));
+
+            const exportChar: any = {
+                ...char,
+                avatar: avatarDataUrl,
+                stickers: stickersForExport,
+            };
+
+            const dataURL = await encodeText(
+                avatarObjectUrl ?? avatarDataUrl,
+                JSON.stringify(method === "png-trailer" ? exportChar : characterToPersonaCard(exportChar)),
+                method
+            );
+            const link = document.createElement("a");
+            link.href = dataURL;
+            link.download = `${char.name || 'character'}_persona.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } finally {
+            if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
+        }
     };
 
     return (
@@ -147,7 +243,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                     <>
                         <div className="flex items-center space-x-4">
                             <div className="w-20 h-20 rounded-full bg-[var(--color-bg-input-primary)] flex items-center justify-center overflow-hidden shrink-0 border-2 border-[var(--color-border)]">
-                                {char.avatar ? <img src={char.avatar} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
+                                {avatarPreviewSrc ? <img src={avatarPreviewSrc} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
                             </div>
                             <div className="flex flex-col gap-2">
                                 <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">

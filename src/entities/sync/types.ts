@@ -5,9 +5,10 @@ export type BackupState = Pick<RootState, 'characters' | 'rooms' | 'messages' | 
 
 export type BackupFile = {
     app: 'yejingram';
-    version: number;
-    createdAt: string;
-    data: BackupState;
+    version: number;         // 우리 스키마 버전 (persist 버전과 별개)
+    createdAt: string;       // ISO 문자열
+    data: Pick<RootState, 'characters' | 'rooms' | 'messages' | 'settings' | 'lastSaved'>;
+    binaries: Array<{ storageKey: string; dataUrl: string }>;
 };
 
 export interface Patch {
@@ -15,6 +16,15 @@ export interface Patch {
     seq: number;
     baseSnapshotSeq: number;
     diff?: Operation[];
+    /**
+     * Binary side-effects that must be processed outside JSON diff.
+     * - put: binaries newly referenced by this patch (client uploads / other clients download)
+     * - del: binaries no longer referenced after this patch (server deletes)
+     */
+    binary?: {
+        put?: string[];
+        del?: string[];
+    };
     timestamp: number;
 }
 

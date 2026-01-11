@@ -1,30 +1,20 @@
 import { nanoid } from '@reduxjs/toolkit';
-import type { Sticker } from '../entities/character/types';
 
-function readFileAsDataURL(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-    });
-}
+export type UploadedSticker = {
+    id: string;
+    name: string;
+    blob: Blob;
+    mimeType: string;
+};
 
-export async function filesToStickers(files: FileList | File[]): Promise<Sticker[]> {
+export async function filesToStickers(files: FileList | File[]): Promise<UploadedSticker[]> {
     const list = Array.from(files as any as File[]);
-    const results = await Promise.all(
-        list.map(async (file) => {
-            const data = await readFileAsDataURL(file);
-            const sticker: Sticker = {
-                id: nanoid(),
-                name: file.name,
-                data,
-                type: file.type,
-            };
-            return sticker;
-        })
-    );
-    return results;
+    return list.map((file) => ({
+        id: nanoid(),
+        name: file.name,
+        blob: file,
+        mimeType: file.type || 'application/octet-stream',
+    }));
 }
 
 export function formatBytes(bytes: number, decimals = 2): string {

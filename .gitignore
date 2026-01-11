@@ -3,6 +3,7 @@
 
 # Backend data
 server/**/*.json
+server/sync/data/*
 # Logs
 logs
 *.log

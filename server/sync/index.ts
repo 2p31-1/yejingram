@@ -21,6 +21,7 @@ const upload = multer({ limits: { fieldSize: 100 * 1024 * 1024 } }); // 100MB
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DATA_DIR = path.resolve(process.cwd(), 'data');
+const BIN_DIR = path.join(DATA_DIR, 'binaries');
 
 /* =====================================================
    In-memory cache & write debounce
@@ -53,6 +54,45 @@ function patchLogPath(clientId: string) {
 
 async function ensureDataDir(): Promise<void> {
     await fsp.mkdir(DATA_DIR, { recursive: true });
+    await fsp.mkdir(BIN_DIR, { recursive: true });
+}
+
+function toBase64Url(input: string): string {
+    // Avoid relying on Node's 'base64url' encoding for TS/lib compatibility.
+    return Buffer.from(input, 'utf8')
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+}
+
+function binaryDataPath(clientId: string, storageKey: string): string {
+    return path.join(BIN_DIR, clientId, `${toBase64Url(storageKey)}.bin`);
+}
+
+function binaryMetaPath(clientId: string, storageKey: string): string {
+    return path.join(BIN_DIR, clientId, `${toBase64Url(storageKey)}.meta.json`);
+}
+
+async function ensureBinaryDir(clientId: string): Promise<void> {
+    await fsp.mkdir(path.join(BIN_DIR, clientId), { recursive: true });
+}
+
+async function deleteBinary(clientId: string, storageKey: string): Promise<void> {
+    try { await fsp.unlink(binaryDataPath(clientId, storageKey)); } catch { }
+    try { await fsp.unlink(binaryMetaPath(clientId, storageKey)); } catch { }
+}
+
+async function clearAllClientBinaries(clientId: string): Promise<void> {
+    const dir = path.join(BIN_DIR, clientId);
+    try {
+        // Node 14+: rm exists in fs.promises
+        await (fsp as any).rm(dir, { recursive: true, force: true });
+    } catch {
+        // fallback for older
+        try { await fsp.rmdir(dir, { recursive: true } as any); } catch { }
+    }
+    await ensureBinaryDir(clientId);
 }
 
 /* =====================================================
@@ -272,10 +312,78 @@ app.post('/api/:clientId/snapshot', upload.none(), async (req, res, next) => {
         await writeSnapshot(clientId, req.body.snapshot);
         await resetPatchLog(clientId);
 
+        // Snapshot overwrite implies the server should drop stale binaries.
+        await clearAllClientBinaries(clientId);
+
         res.json({
             snapshotSeq: 0,
             patchSeq: 0
         } as SyncMetadata);
+    } catch (err) {
+        next(err);
+    }
+});
+
+/* ---------- binary upload/download/delete ---------- */
+app.put(
+    '/api/:clientId/binaries/:storageKey',
+    express.raw({ type: '*/*', limit: '100mb' }),
+    async (req, res, next) => {
+        try {
+            const clientId = sanitizeClientId(req.params.clientId);
+            const storageKey = String(req.params.storageKey ?? '');
+            if (!storageKey) return res.status(400).json({ error: 'Missing storageKey' });
+
+            await ensureBinaryDir(clientId);
+            const buf = req.body as Buffer;
+            if (!buf || !Buffer.isBuffer(buf) || buf.length === 0) {
+                return res.status(400).json({ error: 'Empty body' });
+            }
+
+            await fsp.writeFile(binaryDataPath(clientId, storageKey), buf);
+            await fsp.writeFile(
+                binaryMetaPath(clientId, storageKey),
+                JSON.stringify({ storageKey, mimeType: req.header('content-type') ?? 'application/octet-stream' }, null, 2)
+            );
+
+            return res.json({ ok: true });
+        } catch (err) {
+            next(err);
+        }
+    }
+);
+
+app.get('/api/:clientId/binaries/:storageKey', async (req, res, next) => {
+    try {
+        const clientId = sanitizeClientId(req.params.clientId);
+        const storageKey = String(req.params.storageKey ?? '');
+        if (!storageKey) return res.status(400).json({ error: 'Missing storageKey' });
+
+        const dataFile = binaryDataPath(clientId, storageKey);
+        try {
+            const metaRaw = await fsp.readFile(binaryMetaPath(clientId, storageKey), 'utf-8');
+            const meta = JSON.parse(metaRaw);
+            res.setHeader('Content-Type', meta?.mimeType || 'application/octet-stream');
+        } catch {
+            res.setHeader('Content-Type', 'application/octet-stream');
+        }
+
+        const buf = await fsp.readFile(dataFile);
+        res.send(buf);
+    } catch (err: any) {
+        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Binary not found' });
+        next(err);
+    }
+});
+
+app.delete('/api/:clientId/binaries/:storageKey', async (req, res, next) => {
+    try {
+        const clientId = sanitizeClientId(req.params.clientId);
+        const storageKey = String(req.params.storageKey ?? '');
+        if (!storageKey) return res.status(400).json({ error: 'Missing storageKey' });
+
+        await deleteBinary(clientId, storageKey);
+        res.json({ ok: true });
     } catch (err) {
         next(err);
     }
@@ -291,6 +399,12 @@ app.post('/api/:clientId/sync', async (req, res, next) => {
 
         const patch = req.body as Patch;
         if (!validatePatchSequence(patch, state, res)) return;
+
+        // Interpret binary deletes server-side.
+        if (patch.binary?.del?.length) {
+            await ensureBinaryDir(clientId);
+            await Promise.all(patch.binary.del.map(k => deleteBinary(clientId, String(k))));
+        }
 
         state.patches.push(patch);
         state.metadata.patchSeq = state.patches.length;

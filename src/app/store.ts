@@ -22,6 +22,7 @@ import { initialState as imageSettingsInitialState } from '../entities/setting/i
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
 import lastSavedReducer from '../entities/lastSaved/slice';
+import { dataUrlToBlob, makeAvatarBinaryKey, makeMessageBinaryKey, makeStickerBinaryKey, saveBlob } from '../services/binaryStore';
 import syncReducer from '../entities/sync/slice';
 
 // Enable localforage only in browser environments
@@ -250,13 +251,126 @@ export const migrations = {
         });
         return state;
     },
+    7: (state: any) => {
+        if (!state) return state;
+        if (!isBrowser) return state;
+
+        const runWithConcurrency = async (jobs: Array<() => Promise<void>>, limit: number) => {
+            const pending = new Set<Promise<void>>();
+            for (const job of jobs) {
+                const p = (async () => {
+                    try {
+                        await job();
+                    } catch (e) {
+                        console.warn('Binary migration job failed (continuing):', e);
+                    }
+                })().finally(() => pending.delete(p));
+                pending.add(p);
+                if (pending.size >= limit) {
+                    await Promise.race(pending);
+                }
+            }
+            await Promise.all(pending);
+        };
+
+        const isDataUrlString = (value: unknown): value is string => {
+            return typeof value === 'string' && value.startsWith('data:') && value.includes(',');
+        };
+
+        const mimeTypeFromDataUrl = (dataUrl: string): string => {
+            try {
+                return dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+            } catch {
+                return 'application/octet-stream';
+            }
+        };
+
+        return (async () => {
+            const jobs: Array<() => Promise<void>> = [];
+
+            // Messages: attachments + sticker messages
+            const msgEntities: Record<string, any> | undefined = state?.messages?.entities;
+            if (msgEntities) {
+                for (const [id, msg] of Object.entries(msgEntities)) {
+                    if (!msg) continue;
+
+                    if (msg.file?.dataUrl && isDataUrlString(msg.file.dataUrl)) {
+                        const dataUrl = msg.file.dataUrl;
+                        const storageKey = makeMessageBinaryKey(id);
+                        const mimeType = msg.file.mimeType;
+                        const name = msg.file.name;
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            msg.file = { storageKey, mimeType, name };
+                        });
+                    }
+
+                    if (msg.type === 'STICKER' && msg.sticker && !msg.sticker.storageKey && isDataUrlString(msg.sticker.data)) {
+                        const dataUrl = msg.sticker.data;
+                        const stickerId = msg.sticker.id;
+                        if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
+                        const storageKey = makeStickerBinaryKey(stickerId);
+                        const mimeType = mimeTypeFromDataUrl(dataUrl);
+                        const name = typeof msg.sticker.name === 'string' ? msg.sticker.name : '';
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            msg.sticker = { id: stickerId, name, storageKey, mimeType };
+                        });
+                    }
+                }
+            }
+
+            // Characters: avatar + stickers
+            const charEntities: Record<string, any> | undefined = state?.characters?.entities;
+            if (charEntities) {
+                for (const [id, ch] of Object.entries(charEntities)) {
+                    if (!ch) continue;
+
+                    if (isDataUrlString(ch.avatar)) {
+                        const dataUrl = ch.avatar;
+                        const storageKey = makeAvatarBinaryKey(id);
+                        const mimeType = dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            ch.avatar = { storageKey, mimeType };
+                        });
+                    }
+
+                    if (Array.isArray(ch.stickers)) {
+                        for (const st of ch.stickers) {
+                            if (!st || st.storageKey) continue;
+                            if (!isDataUrlString(st.data)) continue;
+                            const dataUrl = st.data;
+                            const stickerId = st.id;
+                            if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
+                            const storageKey = makeStickerBinaryKey(stickerId);
+                            const mimeType = mimeTypeFromDataUrl(dataUrl);
+                            jobs.push(async () => {
+                                await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                                const name = typeof st.name === 'string' ? st.name : '';
+                                st.id = stickerId;
+                                st.name = name;
+                                st.storageKey = storageKey;
+                                st.mimeType = mimeType;
+                                delete st.data;
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Limit concurrency to avoid spiking memory during migration.
+            await runWithConcurrency(jobs, 4);
+            return state;
+        })();
+    },
 } as MigrationManifest;
 
 
 export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
-    version: 6,
+    version: 7,
     whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved', 'sync'],
     migrate: createMigrate(migrations, { debug: true }),
 };

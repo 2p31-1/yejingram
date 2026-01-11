@@ -3,7 +3,7 @@ import { Menu, MoreHorizontal, Smile, X, Plus, Paperclip, Edit2, Check, XCircle,
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectCharacterById } from '../../entities/character/selectors';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, type RefObject } from 'react';
 import { type AppDispatch, type RootState } from '../../app/store';
 import { selectMessagesByRoomId } from '../../entities/message/selectors';
 import MessageList from './Message';
@@ -13,7 +13,7 @@ import { Avatar, GroupChatAvatar } from '../../utils/Avatar';
 import { SendMessage, SendGroupChatMessage } from '../../services/llm/LLMcaller';
 import type { Sticker } from '../../entities/character/types';
 import { StickerPanel } from './StickerPanel';
-import type { FileToSend, Message } from '../../entities/message/types';
+import type { Message } from '../../entities/message/types';
 import { selectAllSettings } from '../../entities/setting/selectors';
 import { replacePlaceholders } from '../../utils/placeholder';
 import { nanoid } from '@reduxjs/toolkit';
@@ -22,11 +22,13 @@ import { LorebookEditor } from '../character/LorebookEditor';
 import { settingsActions } from '../../entities/setting/slice';
 import { charactersActions } from '../../entities/character/slice';
 import { MemoryManager } from '../character/MemoryManager';
-import { renderFile } from './FilePreview';
 import { useTranslation } from 'react-i18next';
 import type { Character } from '../../entities/character/types';
 import type { Lore } from '../../entities/lorebook/types';
 import { type VirtuosoHandle } from 'react-virtuoso';
+import type { StoredFileRef } from '../../entities/message/types';
+import { getBlob, makeBinaryUrl, saveBlob } from '../../services/binaryStore';
+import { FilePreview } from './FilePreview';
 
 interface MainChatProps {
   room: Room | null;
@@ -44,15 +46,31 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const [stickerToSend, setStickerToSend] = useState<Sticker | null>(null);
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
-  const [fileToSend, setFileToSend] = useState<FileToSend | null>(null);
+  const [fileToSend, setFileToSend] = useState<{ previewSrc: string; mimeType: string; name: string; storageKey: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAuthorNoteOpen, setIsAuthorNoteOpen] = useState(false);
   const [tempAuthorNote, setTempAuthorNote] = useState('');
   const [isRoomMemoryOpen, setIsRoomMemoryOpen] = useState(false);
   const [isLoreBookOpen, setIsLoreBookOpen] = useState(false);
 
+  const filePreviewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const next = fileToSend?.previewSrc ?? null;
+    const prev = filePreviewUrlRef.current;
+    if (prev && prev !== next && prev.startsWith('blob:')) {
+      URL.revokeObjectURL(prev);
+    }
+    filePreviewUrlRef.current = next;
+    return () => {
+      const current = filePreviewUrlRef.current;
+      if (current && current.startsWith('blob:')) URL.revokeObjectURL(current);
+      filePreviewUrlRef.current = null;
+    };
+  }, [fileToSend?.previewSrc]);
+
   const dispatch = useDispatch<AppDispatch>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Pending LLM request management: store last pending room/message and debounce timer
   const pendingRequestRef = useRef<{ room: Room; } | null>(null);
@@ -137,11 +155,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
@@ -149,16 +166,24 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const file = Array.from(event.clipboardData.items).find(item => item.kind === 'file')?.getAsFile();
     if (file) {
       event.preventDefault();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
+  const scroll = (virtuosoRef: RefObject<VirtuosoHandle | null>) => {
+    if (!virtuosoRef?.current) return;
+
+    virtuosoRef.current.scrollToIndex({
+      index: "LAST",
+      behavior: "smooth"
+    });
+  };
+
   // Add message immediately to UI and schedule LLM request after 1s of no further typing
-  const sendPendingRequest = () => {
+  const sendPendingRequest = async () => {
     // clear timer
     if (debounceTimerRef.current) {
       window.clearTimeout(debounceTimerRef.current);
@@ -174,16 +199,18 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const targetRoom = pending.room;
     pendingRequestRef.current = null;
 
-    let responsePromise;
-    if (targetRoom.type === 'Group') {
-      responsePromise = SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
-    } else {
-      responsePromise = SendMessage(targetRoom, setTypingCharacterId, t);
-    }
-
-    responsePromise.then(() => {
+    try {
+      if (targetRoom.type === 'Group') {
+        await SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
+      } else {
+        await SendMessage(targetRoom, setTypingCharacterId, t);
+      }
+    } catch (error) {
+      console.error('Error sending message to LLM:', error);
+    } finally {
+      scroll(messagesContainerRef);
       setIsWaitingForResponse(false);
-    });
+    }
   };
 
   const handleSendMessage = (text: string) => {
@@ -219,7 +246,9 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     } else if (['IMAGE', 'AUDIO', 'VIDEO', 'FILE'].includes(messageType)) {
       userMessage.push(userMessage[0]);
-      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: fileToSend! } as Message;
+      // Persisted at selection time; keep only a reference in Redux
+      const storedFile: StoredFileRef = { storageKey: fileToSend!.storageKey, mimeType: fileToSend!.mimeType, name: fileToSend!.name };
+      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: storedFile } as Message;
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     }
 
@@ -247,17 +276,21 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     }, DEBOUNCE_DELAY) as unknown as number;
   };
 
-  const handleRequestProactiveChat = () => {
+  const handleRequestProactiveChat = async () => {
     if (!room) return;
     if (isWaitingForResponse) {
       toast.error(t('main.toast.waitForResponse'));
       return;
     }
     setIsWaitingForResponse(true);
-    SendMessage(room, setTypingCharacterId, t, 'proactive')
-      .finally(() => {
-        setIsWaitingForResponse(false);
-      });
+    try {
+      await SendMessage(room, setTypingCharacterId, t, 'proactive');
+    } catch (error) {
+      console.error('Error requesting proactive chat:', error);
+    } finally {
+      setIsWaitingForResponse(false);
+      scroll(messagesContainerRef);
+    }
   };
 
   // Called when user types or interacts with input to postpone/send LLM request
@@ -292,6 +325,9 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
 
       const rootStyles = getComputedStyle(document.documentElement);
       const cssVariables: Record<string, string> = {};
+      const isDark = document.documentElement.classList.contains('dark');
+      const theme = isDark ? 'dark' : 'light';
+      const locale = i18n.resolvedLanguage || 'en';
 
       // Extract all CSS variables from :root
       for (const sheet of document.styleSheets) {
@@ -311,7 +347,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       }
 
       iframeRef.current.contentWindow.postMessage(
-        { type: 'CSS_VARIABLES', variables: cssVariables },
+        { type: 'CSS_VARIABLES', variables: cssVariables, theme, locale },
         '*'
       );
     };
@@ -351,7 +387,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         </button>
         <iframe
           ref={iframeRef}
-          src="http://localhost:5174"
+          src={`${import.meta.env.DEV ? `http://localhost:5174` : import.meta.env.VITE_REALM_URL}`}
           className="w-full h-full"
         ></iframe>
       </div>
@@ -686,9 +722,9 @@ function ChatHeader({
 interface InputAreaProps {
   room: Room;
   isWaitingForResponse: boolean;
-  fileToSend?: FileToSend | null;
+  fileToSend?: { previewSrc: string; mimeType: string; name: string; storageKey: string } | null;
   stickerToSend?: Sticker | null;
-  virtuosoRef?: React.RefObject<VirtuosoHandle | null>;
+  virtuosoRef?: RefObject<VirtuosoHandle | null>;
 
   // 이벤트 핸들러들
   onOpenFileUpload?: () => void;
@@ -727,6 +763,29 @@ function InputArea({
   const [showInputOptions, setInputOptions] = useState(false);
   const hasFile = !!fileToSend;
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [stickerPreviewUrl, setStickerPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const storageKey = stickerToSend?.storageKey;
+      if (!storageKey) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      const blob = await getBlob(storageKey);
+      if (!blob || cancelled) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      setStickerPreviewUrl(makeBinaryUrl(storageKey));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stickerToSend?.storageKey]);
 
   useEffect(() => {
     if (!isWaitingForResponse && inputRef.current && virtuosoRef?.current) {
@@ -760,11 +819,16 @@ function InputArea({
   return (
     <div className="input-area-container relative">
       {/* File Preview*/}
-      {hasFile && fileToSend?.dataUrl && (
+      {hasFile && fileToSend?.previewSrc && (
         <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl">
           <div className="relative inline-block">
             <div className="rounded-lg overflow-hidden">
-              {renderFile(fileToSend, true, t)}
+              <FilePreview
+                file={{ storageKey: fileToSend.storageKey, mimeType: fileToSend.mimeType, name: fileToSend.name }}
+                preview={true}
+                t={t}
+                previewSrc={fileToSend.previewSrc}
+              />
             </div>
             <button
               type="button"
@@ -781,7 +845,7 @@ function InputArea({
       {stickerToSend && (
         <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl flex items-center gap-3 text-sm text-[var(--color-icon-primary)]">
           <img
-            src={stickerToSend.data}
+            src={stickerPreviewUrl ?? ''}
             alt={stickerToSend.name}
             className="w-8 h-8 rounded-lg object-cover"
           />

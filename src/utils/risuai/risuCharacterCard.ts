@@ -1,5 +1,6 @@
 import * as fflate from 'fflate';
 import type { Lore } from '../../entities/lorebook/types';
+import { blobToDataUrl } from '../../services/binaryStore';
 
 export type BasicCharacterInfo = {
     spec: 'chara_card_v2' | 'chara_card_v3' | 'offspec' | 'unknown'
@@ -171,15 +172,10 @@ async function readAllBytes(data: Uint8Array | File | ReadableStream<Uint8Array>
 
 // Convert raw bytes to Data URL
 async function bytesToDataURL(u8: Uint8Array, mime: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const ab = new ArrayBuffer(u8.byteLength)
-        new Uint8Array(ab).set(u8)
-        const blob = new Blob([ab], { type: mime })
-        const r = new FileReader()
-        r.onload = () => resolve(String(r.result || ''))
-        r.onerror = reject
-        r.readAsDataURL(blob)
-    })
+    const ab = new ArrayBuffer(u8.byteLength)
+    new Uint8Array(ab).set(u8)
+    const blob = new Blob([ab], { type: mime })
+    return blobToDataUrl(blob, mime)
 }
 
 function extractFromCard(card: AnyCard): BasicCharacterInfo {

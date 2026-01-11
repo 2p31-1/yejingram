@@ -1,5 +1,69 @@
 import { Edit3, CheckCircle, Music, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { Sticker } from '../../entities/character/types';
+import { getBlob, makeBinaryUrl } from '../../services/binaryStore';
+
+function StickerMedia({ sticker }: { sticker: Sticker }) {
+    const isVideo = sticker.mimeType.startsWith('video/');
+    const isAudio = sticker.mimeType.startsWith('audio/');
+    const isImage = sticker.mimeType.startsWith('image/');
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let revokedUrl: string | null = null;
+        let cancelled = false;
+
+        void (async () => {
+            if (!sticker.storageKey) {
+                setObjectUrl(null);
+                return;
+            }
+            const blob = await getBlob(sticker.storageKey);
+            if (!blob || cancelled) {
+                setObjectUrl(null);
+                return;
+            }
+
+            if (isImage) {
+                setObjectUrl(makeBinaryUrl(sticker.storageKey));
+                return;
+            }
+
+            // Keep blob: URLs for non-image media to avoid fetch/range quirks.
+            revokedUrl = URL.createObjectURL(blob);
+            setObjectUrl(revokedUrl);
+        })();
+
+        return () => {
+            cancelled = true;
+            if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+        };
+    }, [sticker.storageKey, isImage]);
+
+    if (isAudio) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-input-primary)]">
+                <Music className="w-6 h-6 text-[var(--color-icon-secondary)]" />
+            </div>
+        );
+    }
+
+    const src = objectUrl ?? '';
+
+    if (isVideo) {
+        return <video className="w-full h-full object-cover" muted src={src} />;
+    }
+
+    if (!src) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-input-primary)]">
+                <X className="w-6 h-6 text-[var(--color-icon-secondary)]" />
+            </div>
+        );
+    }
+
+    return <img src={src} alt={sticker.name} className="w-full h-full object-cover" />;
+}
 
 interface StickerGridProps {
     stickers: Sticker[];
@@ -33,24 +97,6 @@ export function StickerGrid({
     className = '',
     maxHeight,
 }: StickerGridProps) {
-
-    const renderStickerContent = (sticker: Sticker) => {
-        const isVideo = sticker.type.startsWith('video/');
-        const isAudio = sticker.type.startsWith('audio/');
-
-        if (isAudio) {
-            return (
-                <div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-input-primary)]">
-                    <Music className="w-6 h-6 text-[var(--color-icon-secondary)]" />
-                </div>
-            );
-        } else if (isVideo) {
-            return <video className="w-full h-full object-cover" muted src={sticker.data} />;
-        } else {
-            return <img src={sticker.data} alt={sticker.name} className="w-full h-full object-cover" />;
-        }
-    };
-
     const handleContainerClick = (sticker: Sticker) => {
         if (mode === 'select' && onToggleSelection) {
             onToggleSelection(sticker.id);
@@ -84,7 +130,7 @@ export function StickerGrid({
                             className="w-full h-full"
                             disabled={mode === 'manage' && !mode}
                         >
-                            {renderStickerContent(sticker)}
+                            <StickerMedia sticker={sticker} />
                         </button>
 
                         {/* Checkbox for select mode */}

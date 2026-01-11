@@ -1,15 +1,43 @@
 import type { Character } from '../entities/character/types';
 import { Bot } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { getBlob, isStoredBinaryRef, makeBinaryUrl } from '../services/binaryStore';
 
 export const Avatar = ({ char, size = 'md' }: { char: Character; size?: 'md' | 'sm' | 'lg' | 'xs' | '2xs' }) => {
     const sizeClasses = { xs: 'w-8 h-8 text-xs', sm: 'w-10 h-10 text-sm', md: 'w-12 h-12 text-base', lg: 'w-16 h-16 text-lg', '2xs': 'w-7 h-7 text-xs' }[size];
-    if (char?.avatar && char.avatar.startsWith('data:image')) {
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        void (async () => {
+            if (!isStoredBinaryRef(char?.avatar)) {
+                setObjectUrl(null);
+                return;
+            }
+            const blob = await getBlob(char.avatar.storageKey);
+            if (!blob || cancelled) {
+                setObjectUrl(null);
+                return;
+            }
+            // Ensure presence/backfill, then use stable URL.
+            setObjectUrl(makeBinaryUrl(char.avatar.storageKey));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isStoredBinaryRef(char?.avatar) ? char.avatar.storageKey : null]);
+
+    const src = isStoredBinaryRef(char?.avatar) ? objectUrl : null;
+    if (src) {
         return (
             <div className={`${sizeClasses} relative aspect-square rounded-full overflow-hidden`}>
-                <img src={char.avatar} alt={char.name} className="absolute inset-0 w-full h-full object-cover" />
+                <img src={src} alt={char.name} className="absolute inset-0 w-full h-full object-cover" />
             </div>
         );
     }
+
     const initial = char.name[0] || <Bot />;
     return (
         <div className={`${sizeClasses} aspect-square bg-gradient-to-br from-[var(--color-avatar-from)] to-[var(--color-avatar-to)] rounded-full flex items-center justify-center text-[var(--color-text-accent)] font-medium overflow-hidden`}>
@@ -82,4 +110,4 @@ export const GroupChatAvatar = ({ participants }: { participants: (Character | u
     };
 
     return <>{renderAvatars()}</>;
-}
+};

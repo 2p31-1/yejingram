@@ -14,8 +14,10 @@ import { SendMessage } from '../../services/llm/LLMcaller';
 import type { Room } from '../../entities/room/types';
 import { inviteCharacter } from '../../utils/inviteCharacter';
 import { UrlPreview } from './chatcontents/UrlPreviewProps';
-import { renderFile } from './FilePreview';
 import { callImageGeneration } from '../../services/image/ImageCaller';
+import { getBlob, makeBinaryUrl, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
+import type { Sticker } from '../../entities/character/types';
+import { FilePreview } from './FilePreview';
 
 // Helper function for date formatting
 const formatDateSeparator = (date: Date, locale: string | undefined): string => {
@@ -28,6 +30,62 @@ const extractUrls = (text: string): string[] => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   return text.match(urlRegex) || [];
 };
+
+function StickerMessageContent({
+  messageId,
+  sticker,
+  sizeClass,
+  onToggle,
+  stickerName,
+}: {
+  messageId: string;
+  sticker: Sticker;
+  sizeClass: string;
+  onToggle: (messageId: string) => void;
+  stickerName: string;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      if (!sticker.storageKey) {
+        setObjectUrl(null);
+        return;
+      }
+      const blob = await getBlob(sticker.storageKey);
+      if (!blob || cancelled) {
+        setObjectUrl(null);
+        return;
+      }
+      // Ensure the binary is available and backfilled into persistent cache, then use stable URL.
+      setObjectUrl(makeBinaryUrl(sticker.storageKey));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sticker.storageKey]);
+
+  return (
+    <div className="space-x-1 inline-block cursor-pointer transition-all duration-300" onClick={() => onToggle(messageId)}>
+      {objectUrl ? (
+        <img
+          src={objectUrl}
+          alt={stickerName}
+          className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`}
+        />
+      ) : (
+        <div
+          className={`${sizeClass} rounded-2xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 transition-all duration-500`}
+        >
+          <Loader2 className="w-4 h-4 animate-spin text-gray-400" aria-label="Loading sticker" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Helper function to render text with links
 const renderTextWithLinks = (text: string, isMe: boolean) => {
@@ -177,6 +235,20 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
     };
   }, []);
 
+  const openImageModalForMessage = useCallback(async (msg: MessageType) => {
+    if (!msg.file) return;
+
+    const storageKey = (msg.file as any).storageKey as string | undefined;
+    if (!storageKey) return;
+
+    const blob = await getBlob(storageKey);
+    if (!blob) return;
+
+    // Use stable URL; the getBlob call above ensures presence and backfills persistent cache.
+    setSelectedImageUrl(makeBinaryUrl(storageKey));
+    setImageModalOpen(true);
+  }, []);
+
   const showControlsWithAutoHide = useCallback((messageId: string) => {
     setActiveMessageId(messageId);
     if (hideControlsTimeoutRef.current) {
@@ -216,6 +288,16 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
   const itemContent = (i: number, msg: MessageType) => {
     const prevMsg = messages[i - 1];
     const isMe = msg.authorId === currentUserId; // Derive isMe
+
+    const showTimestamp = (() => {
+      const nextMsg = messages[i + 1];
+      if (!nextMsg) return true;
+      if (nextMsg.authorId !== msg.authorId) return true;
+      const nextDate = new Date(nextMsg.createdAt);
+      const currentDate = new Date(msg.createdAt);
+      return nextDate.getHours() !== currentDate.getHours() ||
+        nextDate.getMinutes() !== currentDate.getMinutes();
+    })();
 
     const showDateSeparator = (() => {
       if (!prevMsg) return true;
@@ -304,22 +386,24 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
         const stickerData = msg.sticker;
         const isExpanded = expandedStickers.has(msg.id.toString());
         const sizeClass = isExpanded ? 'max-w-64' : 'max-w-48';
-
-        const imgSrc = stickerData.data;
         const stickerName = stickerData.name || t('main.message.sticker.defaultName');
 
         return (
-          <div className="space-x-1 inline-block cursor-pointer transition-all duration-300" onClick={() => toggleStickerSize(msg.id.toString())}>
-            <img src={imgSrc} alt={stickerName} className={`${sizeClass} rounded-2xl object-contain transition-all duration-500`} />
-          </div>
+          <StickerMessageContent
+            messageId={msg.id.toString()}
+            sticker={stickerData}
+            sizeClass={sizeClass}
+            stickerName={stickerName}
+            onToggle={toggleStickerSize}
+          />
         );
-      } else if ((msg.type === 'IMAGE' || msg.type === 'AUDIO' || msg.type === 'VIDEO' || msg.type === 'FILE') && msg.file?.dataUrl) {
+      } else if ((msg.type === 'IMAGE' || msg.type === 'AUDIO' || msg.type === 'VIDEO' || msg.type === 'FILE') && msg.file) {
         const isRegenerating = regeneratingImageIds.has(msg.id.toString());
         return (
           <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
             <div
               onClick={() => {
-                if (!(msg.type === 'IMAGE' && msg.file?.dataUrl) || isRegenerating) return;
+                if (!(msg.type === 'IMAGE' && msg.file) || isRegenerating) return;
                 // Mobile(coarse pointer): single tap shows controls, double-tap opens modal
                 if (isCoarsePointer) {
                   // First tap: show controls; second tap on same image: open modal
@@ -327,18 +411,16 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                     showControlsWithAutoHide(msg.id.toString());
                     return;
                   }
-                  setSelectedImageUrl(msg.file.dataUrl);
-                  setImageModalOpen(true);
+                  void openImageModalForMessage(msg);
                   setActiveMessageId(null);
                   return;
                 }
                 // Desktop: open modal on single click
-                setSelectedImageUrl(msg.file.dataUrl);
-                setImageModalOpen(true);
+                void openImageModalForMessage(msg);
               }}
               className={`relative ${msg.type === 'IMAGE' && !isRegenerating ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
             >
-              {renderFile(msg.file, false, t)}
+              <FilePreview file={msg.file} preview={false} t={t} />
               {isRegenerating && (
                 <div className="absolute inset-0 bg-[var(--color-bg-shadow)]/50 flex items-center justify-center rounded-lg">
                   <div className="flex flex-col items-center text-[var(--color-text-accent)]">
@@ -445,178 +527,185 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                   {/* Message controls - inline (wrap with message to keep hover) */}
                   {/* min-w-17 <- This is necessary to ensure that at least 2 Message control buttons exist on each line. (8*2) */}
                   {editingMessageId !== msg.id && (
-                    <div
-                      className={`flex flex-wrap ${msg.type == 'TEXT' ? 'min-w-17' : ''} items-end gap-1 self-end transition-all duration-500
+                    <div className="flex flex-col">
+                      <div
+                        className={`flex flex-wrap ${msg.type == 'TEXT' ? 'min-w-17' : ''} items-end gap-1 self-end transition-all duration-500
                         ${isCoarsePointer
-                          ? (activeMessageId === msg.id.toString() ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
-                          : 'opacity-0 pointer-events-none group-hover/message:opacity-100 group-hover/message:pointer-events-auto'
-                        }
+                            ? (activeMessageId === msg.id.toString() ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
+                            : 'opacity-0 pointer-events-none group-hover/message:opacity-100 group-hover/message:pointer-events-auto'
+                          }
                       `}
-                    >
-                      {msg.type === 'TEXT' && (
+                      >
+                        {msg.type === 'TEXT' && (
+                          <button
+                            data-id={msg.id.toString()}
+                            onClick={() => { setEditingMessageId(msg.id) }}
+                            className="edit-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
+                            aria-label={t('main.message.actions.editAriaLabel')}
+                            title={t('main.message.actions.edit')}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
+
                         <button
                           data-id={msg.id.toString()}
-                          onClick={() => { setEditingMessageId(msg.id) }}
-                          className="edit-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
-                          aria-label={t('main.message.actions.editAriaLabel')}
-                          title={t('main.message.actions.edit')}
+                          onClick={() => { dispatch(messagesActions.removeOne(msg)); setActiveMessageId(null); }}
+                          className="delete-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-negative)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
+                          aria-label={t('main.message.actions.deleteAriaLabel')}
+                          title={t('main.message.actions.delete')}
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
 
-                      <button
-                        data-id={msg.id.toString()}
-                        onClick={() => { dispatch(messagesActions.removeOne(msg)); setActiveMessageId(null); }}
-                        className="delete-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-negative)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
-                        aria-label={t('main.message.actions.deleteAriaLabel')}
-                        title={t('main.message.actions.delete')}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        {!isMe && i === messages.length - 1 && !isWaitingForResponse && (
+                          <>
+                            <button
+                              data-id={msg.id.toString()}
+                              onClick={() => {
+                                console.log('Reroll message', msg.id)
+                                dispatch(messagesActions.removeMany(messages.slice(groupInfo.startIndex, groupInfo.endIndex + 1).map(m => m.id)))
+                                setIsWaitingForResponse(true);
+                                SendMessage(room, setTypingCharacterId, t)
+                                  .finally(() => {
+                                    setIsWaitingForResponse(false);
+                                  });
+                                setActiveMessageId(null);
+                              }}
+                              className="reroll-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180"
+                              aria-label={t('main.message.actions.rerollAriaLabel')}
+                              title={t('main.message.actions.reroll')}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              data-id={msg.id.toString()}
+                              onClick={() => {
+                                console.log('Continue response', msg.id)
+                                setIsWaitingForResponse(true);
+                                SendMessage(room, setTypingCharacterId, t, 'continuation')
+                                  .finally(() => {
+                                    setIsWaitingForResponse(false);
+                                  });
+                                setActiveMessageId(null);
+                              }}
+                              className="continue-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:translate-x-1"
+                              aria-label={t('main.message.actions.continueAriaLabel')}
+                              title={t('main.message.actions.continue')}
+                            >
+                              <StepForward className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
 
-                      {!isMe && i === messages.length - 1 && !isWaitingForResponse && (
-                        <>
-                          <button
-                            data-id={msg.id.toString()}
-                            onClick={() => {
-                              console.log('Reroll message', msg.id)
-                              dispatch(messagesActions.removeMany(messages.slice(groupInfo.startIndex, groupInfo.endIndex + 1).map(m => m.id)))
-                              setIsWaitingForResponse(true);
-                              SendMessage(room, setTypingCharacterId, t)
-                                .finally(() => {
-                                  setIsWaitingForResponse(false);
-                                });
-                              setActiveMessageId(null);
-                            }}
-                            className="reroll-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180"
-                            aria-label={t('main.message.actions.rerollAriaLabel')}
-                            title={t('main.message.actions.reroll')}
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                          <button
-                            data-id={msg.id.toString()}
-                            onClick={() => {
-                              console.log('Continue response', msg.id)
-                              setIsWaitingForResponse(true);
-                              SendMessage(room, setTypingCharacterId, t, 'continuation')
-                                .finally(() => {
-                                  setIsWaitingForResponse(false);
-                                });
-                              setActiveMessageId(null);
-                            }}
-                            className="continue-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:translate-x-1"
-                            aria-label={t('main.message.actions.continueAriaLabel')}
-                            title={t('main.message.actions.continue')}
-                          >
-                            <StepForward className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-
-                      {!isMe && msg.type === 'IMAGE' && msg.imageGenerationSetting && (
-                        <>
-                          {/* isIncludingChar 토글 버튼 */}
-                          <button
-                            data-id={msg.id.toString()}
-                            onClick={() => {
-                              if (!msg.imageGenerationSetting) return;
-                              dispatch(messagesActions.updateOne({
-                                id: msg.id,
-                                changes: {
-                                  imageGenerationSetting: {
-                                    ...msg.imageGenerationSetting,
-                                    isIncludingChar: !msg.imageGenerationSetting.isIncludingChar,
+                        {!isMe && msg.type === 'IMAGE' && msg.imageGenerationSetting && (
+                          <>
+                            {/* isIncludingChar 토글 버튼 */}
+                            <button
+                              data-id={msg.id.toString()}
+                              onClick={() => {
+                                if (!msg.imageGenerationSetting) return;
+                                dispatch(messagesActions.updateOne({
+                                  id: msg.id,
+                                  changes: {
+                                    imageGenerationSetting: {
+                                      ...msg.imageGenerationSetting,
+                                      isIncludingChar: !msg.imageGenerationSetting.isIncludingChar,
+                                    },
                                   },
-                                },
-                              }));
-                            }}
-                            disabled={regeneratingImageIds.has(msg.id.toString())}
-                            className={`toggle-include-char-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform ${regeneratingImageIds.has(msg.id.toString())
-                              ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
-                              : (msg.imageGenerationSetting.isIncludingChar
-                                ? 'text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)]'
-                                : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]')
-                              }`}
-                            aria-label={t('main.message.actions.toggleIncludeCharAriaLabel')}
-                            title={msg.imageGenerationSetting.isIncludingChar
-                              ? t('main.message.actions.includeCharOn')
-                              : t('main.message.actions.includeCharOff')}
-                          >
-                            {msg.imageGenerationSetting.isIncludingChar ? (
-                              <UserCheck className="w-4 h-4" />
-                            ) : (
-                              <UserX className="w-4 h-4" />
-                            )}
-                          </button>
+                                }));
+                              }}
+                              disabled={regeneratingImageIds.has(msg.id.toString())}
+                              className={`toggle-include-char-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform ${regeneratingImageIds.has(msg.id.toString())
+                                ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
+                                : (msg.imageGenerationSetting.isIncludingChar
+                                  ? 'text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)]'
+                                  : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]')
+                                }`}
+                              aria-label={t('main.message.actions.toggleIncludeCharAriaLabel')}
+                              title={msg.imageGenerationSetting.isIncludingChar
+                                ? t('main.message.actions.includeCharOn')
+                                : t('main.message.actions.includeCharOff')}
+                            >
+                              {msg.imageGenerationSetting.isIncludingChar ? (
+                                <UserCheck className="w-4 h-4" />
+                              ) : (
+                                <UserX className="w-4 h-4" />
+                              )}
+                            </button>
 
-                          {/* 이미지 재생성 버튼 */}
-                          <button
-                            data-id={msg.id.toString()}
-                            onClick={async () => {
-                              const char = allCharacters.find(c => c.id === msg.authorId);
-                              if (!char) return;
+                            {/* 이미지 재생성 버튼 */}
+                            <button
+                              data-id={msg.id.toString()}
+                              onClick={async () => {
+                                const char = allCharacters.find(c => c.id === msg.authorId);
+                                if (!char) return;
 
-                              const messageId = msg.id.toString();
-                              setRegeneratingImageIds(prev => new Set([...prev, messageId]));
+                                const messageId = msg.id.toString();
+                                setRegeneratingImageIds(prev => new Set([...prev, messageId]));
 
-                              try {
-                                const imageResponse = await callImageGeneration(msg.imageGenerationSetting!, char);
-                                const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
-                                if (inlineDataBody) {
-                                  const newDataUrl = `data:${inlineDataBody.mimeType};base64,${inlineDataBody.data}`;
-                                  dispatch(messagesActions.updateOne({
-                                    id: msg.id,
-                                    changes: {
-                                      file: {
-                                        ...msg.file,
-                                        dataUrl: newDataUrl,
-                                        mimeType: inlineDataBody.mimeType
-                                      },
-                                      thoughtSignature: imageResponse.candidates[0].content.parts[0].thoughtSignature
-                                    }
-                                  }));
+                                try {
+                                  const imageResponse = await callImageGeneration(msg.imageGenerationSetting!, char);
+                                  const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
+                                  if (inlineDataBody) {
+                                    const storageKey = makeMessageBinaryKey(msg.id);
+                                    await saveBase64(storageKey, inlineDataBody.data, inlineDataBody.mimeType);
+                                    dispatch(messagesActions.updateOne({
+                                      id: msg.id,
+                                      changes: {
+                                        file: {
+                                          storageKey,
+                                          mimeType: inlineDataBody.mimeType,
+                                          name: (msg.file as any).name
+                                        },
+                                        thoughtSignature: imageResponse.candidates[0].content.parts[0].thoughtSignature
+                                      }
+                                    }));
+                                  }
+                                } catch (error) {
+                                  console.error('Image reroll failed:', error);
+                                } finally {
+                                  setRegeneratingImageIds(prev => {
+                                    const newSet = new Set(prev);
+                                    newSet.delete(messageId);
+                                    return newSet;
+                                  });
                                 }
-                              } catch (error) {
-                                console.error('Image reroll failed:', error);
-                              } finally {
-                                setRegeneratingImageIds(prev => {
-                                  const newSet = new Set(prev);
-                                  newSet.delete(messageId);
-                                  return newSet;
-                                });
-                              }
-                            }}
-                            disabled={regeneratingImageIds.has(msg.id.toString())}
-                            className={`reroll-image-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180 ${regeneratingImageIds.has(msg.id.toString())
-                              ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
-                              : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]'
-                              }`}
-                            aria-label={t('main.message.actions.imageRerollAriaLabel')}
-                            title={regeneratingImageIds.has(msg.id.toString()) ? t('main.message.actions.imageRerolling') : t('main.message.actions.imageReroll')}
-                          >
-                            {regeneratingImageIds.has(msg.id.toString()) ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <RotateCwSquare className="w-4 h-4" />
-                            )}
-                          </button>
-                        </>
+                              }}
+                              disabled={regeneratingImageIds.has(msg.id.toString())}
+                              className={`reroll-image-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180 ${regeneratingImageIds.has(msg.id.toString())
+                                ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
+                                : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]'
+                                }`}
+                              aria-label={t('main.message.actions.imageRerollAriaLabel')}
+                              title={regeneratingImageIds.has(msg.id.toString()) ? t('main.message.actions.imageRerolling') : t('main.message.actions.imageReroll')}
+                            >
+                              {regeneratingImageIds.has(msg.id.toString()) ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RotateCwSquare className="w-4 h-4" />
+                              )}
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Timestamp */}
+                      {showTimestamp && (
+                        <div
+                          className={`flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'} ${isCoarsePointer ? (activeMessageId === msg.id.toString() ? 'hidden' : '') : 'group-hover/message:hidden block'}`}>
+                          <span className="text-sm text-[var(--color-text-informative-secondary)] whitespace-nowrap">
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
-
-                {/* Timestamp and read status */}
-                {(i === groupInfo.endIndex || (i < messages.length - 1 && messages[i + 1].authorId !== msg.authorId)) && (
-                  <div className={`flex items-center mt-1 md:mt-2 ${isMe ? 'flex-row-reverse' : ''} gap-2 animate-fadeIn`}>
-                    <p className="text-sm text-[var(--color-text-informative-secondary)]">
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    {showUnread && (
-                      <span className="text-sm text-[var(--color-button-primary)] animate-pulse">{t('main.message.sent')}</span>
-                    )}
+                {/* Unread */}
+                {showUnread && (
+                  <div className={`flex items-center gap-1 mb-1 animate-fadeIn ${isMe ? 'justify-end' : 'justify-start'} opacity-100`}>
+                    <span className="text-sm text-[var(--color-button-primary)] animate-pulse whitespace-nowrap">{t('main.message.sent')}</span>
                   </div>
                 )}
               </div>

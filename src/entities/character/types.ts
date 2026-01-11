@@ -1,17 +1,19 @@
 import type { Lore } from "../lorebook/types";
+import type { StoredBinaryRef } from "../../services/binaryStore";
 
-export interface Sticker {
+export interface Sticker extends StoredBinaryRef {
     id: string;
     name: string;
-    data: string;
-    type: string;
 }
+
+// Avatar is stored only as a binary reference.
+export type AvatarRef = StoredBinaryRef | null;
 
 export interface Character {
     id: number
     name: string
     prompt: string
-    avatar: string | null
+    avatar: AvatarRef
     responseTime: number
     thinkingTime: number
     reactivity: number

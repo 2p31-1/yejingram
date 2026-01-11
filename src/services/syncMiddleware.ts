@@ -5,6 +5,7 @@ import { getPatch } from "../utils/diff";
 import { syncService } from "./syncService";
 import { nanoid } from "@reduxjs/toolkit";
 import type { Patch } from "../entities/sync/types";
+import { collectBinaryStorageKeysFromState } from "../utils/binaryKeys";
 
 let applying = true;
 let messagePrevState: RootState = {} as RootState;
@@ -42,12 +43,20 @@ export const syncMiddleware: Middleware<{}, RootState> = store => next => (actio
 
         const diff = getPatch(prevRelevant, nextRelevant);
 
+        const prevBinary = new Set(collectBinaryStorageKeysFromState(prevRelevant));
+        const nextBinary = new Set(collectBinaryStorageKeysFromState(nextRelevant));
+        const binaryPut = Array.from(nextBinary).filter(k => !prevBinary.has(k));
+        const binaryDel = Array.from(prevBinary).filter(k => !nextBinary.has(k));
+
         if (diff) {
             const patch: Patch = {
                 id: nanoid(),
                 baseSnapshotSeq: nextState.sync.snapshotSeq,
                 seq: nextState.sync.patchSeq + nextState.sync.patchQueue.length,
                 diff: diff,
+                binary: (binaryPut.length || binaryDel.length)
+                    ? { put: binaryPut.length ? binaryPut : undefined, del: binaryDel.length ? binaryDel : undefined }
+                    : undefined,
                 timestamp: Date.now()
             };
             store.dispatch(syncActions.enqueuePatch(patch));
