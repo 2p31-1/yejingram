@@ -361,6 +361,14 @@ const ja = {
                 label: "画像応答を許可",
                 help: "会話コンテキストに応じて画像の応答を許可します。",
             },
+            thoughtSignature: {
+                label: "思考署名を含める",
+                help: "Geminiの思考署名を含めます。",
+            },
+            usePayloadImage: {
+                label: "ペイロード画像を含める",
+                help: "コンテキストに以前のメッセージの画像を含めます。",
+            },
             vertex: {
                 projectIdLabel: "Project ID",
                 projectIdPlaceholder: "Vertex AI プロジェクトID",
@@ -377,8 +385,6 @@ const ja = {
                 selectTokenizer: "トークナイザーを選択してください",
                 payloadTemplateLabel: "ペイロードテンプレート",
                 selectPayloadTemplate: "ペイロードテンプレートを選択してください",
-                includeImagesLabel: "画像を含める",
-                includeImagesDescription: "モデルのコンテキストに画像を含めます。",
                 maxRetriesLabel: "最大リトライ回数",
                 maxRetriesDescription: "APIリクエスト失敗時のリトライ回数です。",
             },

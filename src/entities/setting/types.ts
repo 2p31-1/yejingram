@@ -20,7 +20,6 @@ export interface ApiConfig {
     providerAllowFallbacks?: boolean;
     // Custom endpoint payload template (for 'custom' provider)
     payloadTemplate?: string;
-    includeImages?: boolean;
     // Maximum number of retry attempts (for 'custom' provider)
     maxRetries?: number;
 }
@@ -80,8 +79,10 @@ export interface SettingsState {
     randomMessageFrequencyMax: number;
     prompts: Prompts;
     useStructuredOutput: boolean;
-    useResponseFormat?: boolean;
-    useImageResponse?: boolean | undefined;
+    useResponseFormat: boolean;
+    useImageResponse: boolean;
+    useThoughtSignature: boolean;
+    usePayloadImage: boolean;
     speedup: number;
     personas: Persona[];
     selectedPersonaId: string | null;

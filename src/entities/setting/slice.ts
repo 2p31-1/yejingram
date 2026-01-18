@@ -70,6 +70,9 @@ export const initialState: SettingsState = {
     randomMessageFrequencyMax: 60,
     useStructuredOutput: true,
     useResponseFormat: true,
+    useThoughtSignature: false,
+    useImageResponse: false,
+    usePayloadImage: false,
     speedup: 2,
     personas: [],
     selectedPersonaId: null,
@@ -117,6 +120,12 @@ const settingsSlice = createSlice({
         },
         setUseResponseFormat: (state, action: PayloadAction<boolean>) => {
             state.useResponseFormat = action.payload;
+        },
+        setUseThoughtSignature: (state, action: PayloadAction<boolean>) => {
+            state.useThoughtSignature = action.payload;
+        },
+        setUsePayloadImage: (state, action: PayloadAction<boolean>) => {
+            state.usePayloadImage = action.payload;
         },
         setPrompts: (state, action: PayloadAction<Prompts>) => {
             state.prompts = action.payload;

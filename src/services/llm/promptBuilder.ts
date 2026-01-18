@@ -239,7 +239,7 @@ function buildSystemPrompt(persona?: Persona | null, character?: Character, extr
     return lines.join('\n\n');
 }
 
-async function buildGeminiContents(messages: Message[], isProactive: boolean, persona: Persona, character: Character, room: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, useThoughtSignature?: boolean, apiConfig?: ApiConfig) {
+async function buildGeminiContents(messages: Message[], isProactive: boolean, persona: Persona, character: Character, room: Room, useStructuredOutput: boolean, useImageResponse: boolean, usePayloadImage: boolean, useThoughtSignature: boolean, apiConfig: ApiConfig) {
     const state = store.getState();
     const activeRoomId = getActiveRoomId();
     const currentRoom = room || (activeRoomId ? selectRoomById(state, activeRoomId) : null);
@@ -278,7 +278,8 @@ async function buildGeminiContents(messages: Message[], isProactive: boolean, pe
                 lastThoughtSignature = undefined;
             }
 
-            const parts: ({ text: string } | { inline_data: { mime_type: string; data: string } } | { file_data: { file_uri: string } } & { thought_signature?: string })[] = [{ text: baseText, thought_signature: thoughtSignatureToSend }];
+            const parts: ({ text: string } | { inline_data: { mime_type: string; data: string } } | { file_data: { file_uri: string } } & { thought_signature?: string })[]
+                = [{ text: baseText, thought_signature: useThoughtSignature ? thoughtSignatureToSend : undefined }];
 
             if (msg.file) {
                 const mimeType = msg.file.mimeType;
@@ -289,7 +290,7 @@ async function buildGeminiContents(messages: Message[], isProactive: boolean, pe
                 base64Data = res?.base64 || null;
 
                 if (base64Data) {
-                    if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
+                    if (!apiConfig || usePayloadImage) {
                         parts.push({
                             inline_data: {
                                 mime_type: mimeType,
@@ -323,7 +324,7 @@ async function buildGeminiContents(messages: Message[], isProactive: boolean, pe
             const next = msgs[i + 1];
             if (msgs[i].type != 'TEXT' && next && next.type === 'TEXT') {
                 if (next.content) {
-                    parts[0] = { text: next.content, thought_signature: thoughtSignatureToSend };
+                    parts[0] = { text: next.content, thought_signature: useThoughtSignature ? thoughtSignatureToSend : undefined };
                 }
                 i++; // Skip the next message by advancing the loop index one extra time
             }
@@ -379,7 +380,8 @@ export async function buildGeminiApiPayload(
     messages: Message[],
     isProactive: boolean,
     useStructuredOutput: boolean,
-    useImageResponse: boolean | undefined,
+    useImageResponse: boolean,
+    usePayloadImage: boolean,
     useThoughtSignature: boolean,
     apiConfig: ApiConfig,
     extraSystemInstruction?: string
@@ -388,7 +390,7 @@ export async function buildGeminiApiPayload(
     let trimmedMessages = [...messages];
 
     const systemPrompt = buildSystemPrompt(persona, character, extraSystemInstruction, room, trimmedMessages, useStructuredOutput, useImageResponse);
-    const contentOnlyPrompt = await buildGeminiContents([], isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
+    const contentOnlyPrompt = await buildGeminiContents([], isProactive, persona, character, room, useStructuredOutput, useImageResponse, usePayloadImage, useThoughtSignature, apiConfig);
 
     const generationConfig: GeminiGenerationConfig = {
         temperature: selectPrompts(store.getState()).temperature,
@@ -438,7 +440,7 @@ export async function buildGeminiApiPayload(
     console.debug("Total tokens for system prompt only:", tokenCountForPromptOnly);
 
     while (true) {
-        const contents = await buildGeminiContents(trimmedMessages, isProactive, persona, character, room, useStructuredOutput, useImageResponse, useThoughtSignature, apiConfig);
+        const contents = await buildGeminiContents(trimmedMessages, isProactive, persona, character, room, useStructuredOutput, useImageResponse, usePayloadImage, useThoughtSignature, apiConfig);
 
         const payload: GeminiApiPayload = {
             contents: contents,
@@ -471,7 +473,7 @@ export async function buildGeminiApiPayload(
     }
 }
 
-async function buildClaudeContents(messages: Message[], isProactive: boolean, persona?: Persona, model?: string, character?: Character, extraSystemInstruction?: string, room?: Room, useStructuredOutput?: boolean, useImageResponse?: boolean, apiConfig?: ApiConfig) {
+async function buildClaudeContents(messages: Message[], isProactive: boolean, persona: Persona, model: string, character: Character, extraSystemInstruction: string | undefined, room: Room, useStructuredOutput: boolean, useImageResponse: boolean, usePayloadImage: boolean, apiConfig: ApiConfig) {
     const state = store.getState();
     const activeRoomId = getActiveRoomId();
     const currentRoom = room || (activeRoomId ? selectRoomById(state, activeRoomId) : null);
@@ -501,7 +503,7 @@ async function buildClaudeContents(messages: Message[], isProactive: boolean, pe
                             base64Data = res?.base64 || null;
                         }
                         if (mimeType && base64Data) {
-                            if (!apiConfig || !apiConfig.payloadTemplate || apiConfig.includeImages) {
+                            if (!apiConfig || usePayloadImage) {
                                 content.push({
                                     type: 'image',
                                     source: {
@@ -578,7 +580,8 @@ export async function buildClaudeApiPayload(
     messages: Message[],
     isProactive: boolean,
     useStructuredOutput: boolean,
-    useImageResponse: boolean | undefined,
+    useImageResponse: boolean,
+    usePayloadImage: boolean,
     apiConfig: ApiConfig,
     extraSystemInstruction?: string
 ): Promise<ClaudeApiPayload> {
@@ -586,7 +589,7 @@ export async function buildClaudeApiPayload(
     let trimmedMessages = [...messages];
 
     const systemPrompt = buildSystemPrompt(persona, character, extraSystemInstruction, room, trimmedMessages, useStructuredOutput, useImageResponse);
-    const contentOnlyPrompt = await buildClaudeContents([], isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
+    const contentOnlyPrompt = await buildClaudeContents([], isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, usePayloadImage, apiConfig);
 
     const payload_promptOnly: ClaudeApiPayload = {
         model: apiConfig.model,
@@ -605,7 +608,7 @@ export async function buildClaudeApiPayload(
     console.debug("Total tokens for system prompt only:", tokenCountForPromptOnly);
 
     while (true) {
-        const contents = await buildClaudeContents(trimmedMessages, isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, apiConfig);
+        const contents = await buildClaudeContents(trimmedMessages, isProactive, persona, apiConfig.model, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse, usePayloadImage, apiConfig);
 
         const payload: ClaudeApiPayload = {
             model: apiConfig.model,
@@ -638,7 +641,7 @@ export async function buildClaudeApiPayload(
 }
 
 // OpenAI (Chat Completions) payload builders
-async function buildOpenAIContents(messages: Message[], isProactive: boolean, provider: ApiProvider, apiConfig: ApiConfig, persona?: Persona | null, character?: Character, extraSystemInstruction?: string, room?: Room, useStructuredOutput?: boolean, useImageResponse?: boolean) {
+async function buildOpenAIContents(messages: Message[], isProactive: boolean, provider: ApiProvider, apiConfig: ApiConfig, persona: Persona | null, character: Character, extraSystemInstruction: string | undefined, room: Room, useStructuredOutput: boolean, useImageResponse: boolean, usePayloadImage: boolean) {
     const state = store.getState();
     const activeRoomId = getActiveRoomId();
     const currentRoom = room || (activeRoomId ? selectRoomById(state, activeRoomId) : null);
@@ -666,7 +669,7 @@ async function buildOpenAIContents(messages: Message[], isProactive: boolean, pr
                         const storageKey = (msg.file as any).storageKey as string | undefined;
                         const dataUrl = storageKey ? await getDataUrl(storageKey) : null;
                         if (dataUrl) {
-                            if (provider !== 'custom' || apiConfig.includeImages) {
+                            if (provider !== 'custom' || usePayloadImage) {
                                 parts.push({ type: 'image_url', image_url: { url: dataUrl } });
                             } else {
                                 parts.push({ type: 'text', text: `[${_speaker}: Sent an image]` });
@@ -740,6 +743,7 @@ export async function buildOpenAIApiPayload(
     isProactive: boolean,
     useStructuredOutput: boolean,
     useImageResponse: boolean | undefined,
+    usePayloadImage: boolean,
     apiConfig: ApiConfig,
     extraSystemInstruction?: string,
     useResponseFormat: boolean = true
@@ -748,7 +752,7 @@ export async function buildOpenAIApiPayload(
     let trimmedMessages = [...messages];
 
     while (true) {
-        const history = await buildOpenAIContents(trimmedMessages, isProactive, provider, apiConfig, persona, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse);
+        const history = await buildOpenAIContents(trimmedMessages, isProactive, provider, apiConfig, persona, character, extraSystemInstruction, room, useStructuredOutput, useImageResponse || false, usePayloadImage);
         const JSONSchema = structuredClone(OpenAIStructuredOutputSchema);
 
         if (useImageResponse) {

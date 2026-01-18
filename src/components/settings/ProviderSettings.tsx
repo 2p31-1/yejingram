@@ -264,6 +264,22 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                     onChange={checked => setSettings(prev => ({ ...prev, useImageResponse: checked }))}
                 />
             )}
+            <Toggle
+                id="include-images-toggle"
+                label={t('settings.ai.usePayloadImage.label')}
+                description={t('settings.ai.usePayloadImage.help')}
+                checked={settings.usePayloadImage ?? true}
+                onChange={checked => setSettings(prev => ({ ...prev, usePayloadImage: checked }))}
+            />
+            {config.model.startsWith('gemini-3') && (
+                <Toggle
+                    id="thought-signature-toggle"
+                    label={t('settings.ai.thoughtSignature.label')}
+                    description={t('settings.ai.thoughtSignature.help')}
+                    checked={settings.useThoughtSignature || false}
+                    onChange={checked => setSettings(prev => ({ ...prev, useThoughtSignature: checked }))}
+                />
+            )}
             {provider !== 'vertexai' && (
                 <div>
                     <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Key className="w-4 h-4 mr-2" />{t('settings.ai.apiKeyLabel')}</label>
@@ -506,14 +522,6 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                             );
                         })()}
                     </div>
-
-                    <Toggle
-                        id="include-images-toggle"
-                        label={t('settings.ai.custom.includeImagesLabel')}
-                        description={t('settings.ai.custom.includeImagesDescription')}
-                        checked={config.includeImages ?? false}
-                        onChange={(checked) => handleConfigChange('includeImages', checked)}
-                    />
 
                     {/* Max retries for custom provider */}
                     <div>

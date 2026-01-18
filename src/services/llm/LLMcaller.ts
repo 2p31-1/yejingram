@@ -177,31 +177,31 @@ async function callApi(
     const { apiProvider } = settings;
     let payload: string | object = '';
 
-    const useThoughtSignature = apiConfig.model.startsWith('gemini-3');
+    const useThoughtSignature = apiConfig.model.startsWith('gemini-3') && settings.useThoughtSignature;
     switch (apiProvider) {
         case 'gemini':
         case 'vertexai':
-            payload = await buildGeminiApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, useThoughtSignature, apiConfig, extraSystemInstruction);
+            payload = await buildGeminiApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, useThoughtSignature, apiConfig, extraSystemInstruction);
             break;
         case 'claude':
         case 'grok':
-            payload = await buildClaudeApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction);
+            payload = await buildClaudeApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction);
             break;
         case 'openai':
         case 'deepseek':
         case 'openrouter':
-            payload = await buildOpenAIApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
+            payload = await buildOpenAIApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
             break;
         case 'custom':
             switch (apiConfig.payloadTemplate) {
                 case 'gemini':
-                    payload = await buildGeminiApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, useThoughtSignature, apiConfig, extraSystemInstruction);
+                    payload = await buildGeminiApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, useThoughtSignature, apiConfig, extraSystemInstruction);
                     break;
                 case 'anthropic':
-                    payload = await buildClaudeApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction);
+                    payload = await buildClaudeApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction);
                     break;
                 case 'openai':
-                    payload = await buildOpenAIApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
+                    payload = await buildOpenAIApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
                     break;
             }
             break;

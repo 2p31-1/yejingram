@@ -361,6 +361,14 @@ const en = {
                 label: "Allow image responses",
                 help: "Allow image responses depending on conversation context.",
             },
+            thoughtSignature: {
+                label: "Include thought signature",
+                help: "Include Gemini thought signatures.",
+            },
+            usePayloadImage: {
+                label: "Include payload images",
+                help: "Include images from previous messages in the context.",
+            },
             vertex: {
                 projectIdLabel: "Project ID",
                 projectIdPlaceholder: "Vertex AI Project ID",
@@ -377,8 +385,6 @@ const en = {
                 selectTokenizer: "Select a tokenizer",
                 payloadTemplateLabel: "Payload template",
                 selectPayloadTemplate: "Select a payload template",
-                includeImagesLabel: "Include images",
-                includeImagesDescription: "Include images in the model context.",
                 maxRetriesLabel: "Max retries",
                 maxRetriesDescription: "Number of retry attempts when API request fails.",
             },
