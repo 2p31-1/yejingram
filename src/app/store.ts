@@ -17,7 +17,7 @@ import {
 import characterReducer from '../entities/character/slice';
 import roomReducer from '../entities/room/slice';
 import messageReducer from '../entities/message/slice';
-import settingsReducer, { initialSyncSettings, initialState as settingsInitialState, initialApiConfigs as settingsInitialApiConfigs, initialProactiveSettings } from '../entities/setting/slice';
+import settingsReducer, { initialSyncSettings, initialState as settingsInitialState, initialApiConfigs as settingsInitialApiConfigs, initialProactiveSettings, initialState } from '../entities/setting/slice';
 import { initialState as imageSettingsInitialState } from '../entities/setting/image/slice';
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
@@ -364,13 +364,28 @@ export const migrations = {
             return state;
         })();
     },
+    8: (state: any) => {
+        state = applyRules(state, {
+            delete: [{
+                path: 'settings.apiConfigs.custom',
+                keys: ['includeImagesDescription']
+            }],
+            add: [{
+                path: 'settings',
+                keys: ['useThoughtSignature', 'usePayloadImage'],
+                defaults: { useThoughtSignature: initialState.useThoughtSignature, usePayloadImage: initialState.usePayloadImage }
+            }]
+        });
+
+        return state;
+    }
 } as MigrationManifest;
 
 
 export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
-    version: 7,
+    version: 8,
     whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved', 'sync'],
     migrate: createMigrate(migrations, { debug: true }),
 };
