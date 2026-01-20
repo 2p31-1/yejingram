@@ -15,7 +15,7 @@ import type { Room } from '../../entities/room/types';
 import { inviteCharacter } from '../../utils/inviteCharacter';
 import { UrlPreview } from './chatcontents/UrlPreviewProps';
 import { callImageGeneration } from '../../services/image/ImageCaller';
-import { getBlob, makeBinaryUrl, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
+import { deleteBlob, getBlob, makeBinaryUrl, makeMessageBinaryKey, saveBase64 } from '../../services/binaryStore';
 import type { Sticker } from '../../entities/character/types';
 import { FilePreview } from './FilePreview';
 
@@ -648,15 +648,17 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                   const imageResponse = await callImageGeneration(msg.imageGenerationSetting!, char);
                                   const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
                                   if (inlineDataBody) {
-                                    const storageKey = makeMessageBinaryKey(msg.id);
+                                    const storageKey = `${makeMessageBinaryKey(msg.id)}_reroll_${Date.now()}`;
                                     await saveBase64(storageKey, inlineDataBody.data, inlineDataBody.mimeType);
+                                    await deleteBlob(msg.file.storageKey);
+
                                     dispatch(messagesActions.updateOne({
                                       id: msg.id,
                                       changes: {
                                         file: {
                                           storageKey,
                                           mimeType: inlineDataBody.mimeType,
-                                          name: (msg.file as any).name
+                                          name: msg.file.name
                                         },
                                         thoughtSignature: imageResponse.candidates[0].content.parts[0].thoughtSignature
                                       }
