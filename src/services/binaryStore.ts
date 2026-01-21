@@ -1,5 +1,6 @@
 import localforage from 'localforage';
-import { isBrowser } from '../app/store';
+
+const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
 const memoryStore = new Map<string, Blob>();
 
