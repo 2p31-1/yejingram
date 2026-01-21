@@ -3,7 +3,8 @@ import express from 'express';
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import sharp from 'sharp';
-import { store } from '../../src/app/store';
+import { getBlob } from '../../src/services/binaryStore';
+import { RootState, store } from '../../src/app/store';
 import { selectAllRooms } from '../../src/entities/room/selectors';
 import { selectMessagesByRoomId } from '../../src/entities/message/selectors';
 import type { Message } from '../../src/entities/message/types';
@@ -63,6 +64,34 @@ function sanitizeClientId(input: string): string {
         throw new Error('Invalid clientId format');
     }
     return input;
+}
+
+const avatarCache = new Map<string, Buffer>();
+
+async function prepareAvatarCache(state: RootState, clientId: string, authorId: number) {
+    try {
+        const character = selectCharacterById(state, authorId);
+        if (!character?.avatar) return;
+
+        const blob = await getBlob(character.avatar.storageKey);
+        if (!blob) return;
+
+        const buffer = await blob.arrayBuffer();
+        const resizedPng = await sharp(buffer)
+            .resize(192, 192, { fit: 'cover' })
+            .png()
+            .toBuffer();
+
+        const key = `${clientId}:${authorId}`;
+        avatarCache.set(key, resizedPng);
+
+        // 10분 후 캐시 삭제
+        setTimeout(() => {
+            avatarCache.delete(key);
+        }, 10 * 60 * 1000);
+    } catch (err) {
+        console.error(`[${clientId}] Failed to cache avatar for ${authorId}:`, err);
+    }
 }
 
 const SUBSCRIPTION_DIR = path.resolve(process.cwd(), 'data');
@@ -148,34 +177,20 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
 
     app.get('/api/:clientId/push/icon/:authorId', async (req, res) => {
         try {
+            const clientId = sanitizeClientId(req.params.clientId);
             const authorId = Number(req.params.authorId);
             if (Number.isNaN(authorId)) {
                 return res.status(400).json({ error: 'Invalid authorId' });
             }
 
-            const state = store.getState();
-            const character = selectCharacterById(state, authorId as number);
-
-            if (!character) {
-                return res.status(404).json({ error: 'Character not found' });
+            const cacheKey = `${clientId}:${authorId}`;
+            if (avatarCache.has(cacheKey)) {
+                res.setHeader('Content-Type', 'image/png');
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                return res.end(avatarCache.get(cacheKey));
+            } else {
+                res.status(404).json({ error: 'Not found' });
             }
-
-            const avatar = character.avatar;
-
-            if (!avatar) {
-                return res.status(404).json({ error: 'Avatar not found' });
-            }
-
-            const base64Data = avatar.includes(',') ? avatar.split(',')[1] : avatar;
-            const imageBuffer = Buffer.from(base64Data, 'base64');
-            const resizedPng = await sharp(imageBuffer)
-                .resize(192, 192, { fit: 'cover' })
-                .png()
-                .toBuffer();
-
-            res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.end(resizedPng);
         } catch (err: any) {
             console.error('[Icon API Error]', err);
             res.status(500).json({ error: 'Internal server error' });
@@ -395,6 +410,9 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
 
                         const characterName = selectCharacterById(state, newlyAdded.authorId)?.name ?? 'Unknown';
                         printMessages([newlyAdded]);
+
+                        await prepareAvatarCache(state, clientId, newlyAdded.authorId);
+
                         try {
                             await webpush.sendNotification(
                                 push,
