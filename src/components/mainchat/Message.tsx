@@ -100,7 +100,7 @@ const renderTextWithLinks = (text: string, isMe: boolean) => {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className={`underline hover:opacity-80 ${isMe ? 'text-[var(--color-message-url-self)] hover:text-[var(--color-message-url-self-hover)]' : 'text-[var(--color-message-url-other)] hover:text-[var(--color-message-url-other-hover)]'
+          className={`underline hover:opacity-80 ${isMe ? 'text-(--color-message-url-self) hover:text-(--color-message-url-self-hover)' : 'text-(--color-message-url-other) hover:text-(--color-message-url-other-hover)'
             }`}
         >
           {part}
@@ -343,24 +343,24 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
             <div className="relative w-full">
               <textarea
                 data-id={msg.id.toString()}
-                className="edit-message-textarea w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-2xl border border-[var(--color-border-strong)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-base resize-y min-h-40 md:min-h-48 transition-all duration-300 shadow-lg hover:shadow-xl placeholder-[var(--color-text-informative-secondary)]"
+                className="edit-message-textarea w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-2xl border border-(--color-border-strong) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-base resize-y min-h-40 md:min-h-48 transition-all duration-300 shadow-lg hover:shadow-xl placeholder-(--color-text-informative-secondary)"
                 rows={5}
                 defaultValue={msg.content || ''}
                 placeholder={t('main.message.edit.placeholder')}
                 autoFocus
               ></textarea>
-              <div className="absolute bottom-3 right-3 text-xs text-[var(--color-text-informative-secondary)]">
+              <div className="absolute bottom-3 right-3 text-xs text-(--color-text-informative-secondary)">
                 {t('main.message.edit.linebreakHint')}
               </div>
             </div>
             <div className="flex items-center justify-between w-full">
-              <div className="text-xs text-[var(--color-text-informative-secondary)]">
+              <div className="text-xs text-(--color-text-informative-secondary)">
                 {t('main.message.edit.editing')}
               </div>
               <div className="flex items-center space-x-3">
                 <button onClick={() => {
                   setEditingMessageId(null);
-                }} data-id={msg.id.toString()} className="cancel-edit-btn text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-interface)] bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] px-5 py-2.5 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 border border-[var(--color-border)]">
+                }} data-id={msg.id.toString()} className="cancel-edit-btn text-sm text-(--color-text-secondary) hover:text-(--color-text-interface) bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) px-5 py-2.5 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 border border-(--color-border)">
                   {t('common.cancel')}
                 </button>
                 <button onClick={() => {
@@ -373,7 +373,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                     }));
                     setEditingMessageId(null);
                   }
-                }} data-id={msg.id.toString()} className="save-edit-btn text-sm text-[var(--color-text-accent)] bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] px-6 py-2.5 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg">
+                }} data-id={msg.id.toString()} className="save-edit-btn text-sm text-(--color-text-accent) bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) px-6 py-2.5 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg">
                   {t('common.save')}
                 </button>
               </div>
@@ -422,8 +422,8 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
             >
               <FilePreview file={msg.file} preview={false} t={t} />
               {isRegenerating && (
-                <div className="absolute inset-0 bg-[var(--color-bg-shadow)]/50 flex items-center justify-center rounded-lg">
-                  <div className="flex flex-col items-center text-[var(--color-text-accent)]">
+                <div className="absolute inset-0 bg-(--color-bg-shadow)/50 flex items-center justify-center rounded-lg">
+                  <div className="flex flex-col items-center text-(--color-text-accent)">
                     <Loader2 className="w-8 h-8 animate-spin mb-2" />
                     <span className="text-sm font-medium">{t('main.message.actions.imageRerolling')}</span>
                   </div>
@@ -438,10 +438,10 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
         return (
           <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-2`}>
             <div className={`px-4 py-3 rounded-2xl text-base leading-relaxed max-w-md transition-transform duration-200 ${isMe
-              ? 'bg-[var(--color-message-self)] text-[var(--color-text-accent)]'
-              : 'bg-[var(--color-message-other)] text-[var(--color-text-primary)]'
+              ? 'bg-(--color-message-self) text-(--color-text-accent)'
+              : 'bg-(--color-message-other) text-(--color-text-primary)'
               } ${cornerClass}`}>
-              <div className="break-words">{renderTextWithLinks(msg.content || '', isMe)}</div>
+              <div className="wrap-break-word">{renderTextWithLinks(msg.content || '', isMe)}</div>
             </div>
             {hasUrls && <UrlPreview url={urls[0]} />}
           </div>
@@ -461,19 +461,19 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
       <div className="px-6 py-0.5">
         {showDateSeparator && (
           <div className="flex justify-center my-6">
-            <div className="flex items-center text-sm text-[var(--color-icon-tertiary)] bg-[var(--color-bg-input-primary)] px-4 py-2 rounded-full transition-all duration-300 hover:bg-[var(--color-bg-secondary-accent)] hover:scale-105">
-              <Calendar className="w-4 h-4 mr-2 text-[var(--color-icon-secondary)]" />
+            <div className="flex items-center text-sm text-(--color-icon-tertiary) bg-(--color-bg-input-primary) px-4 py-2 rounded-full transition-all duration-300 hover:bg-(--color-bg-secondary-accent) hover:scale-105">
+              <Calendar className="w-4 h-4 mr-2 text-(--color-icon-secondary)" />
               {formatDateSeparator(new Date(msg.createdAt), i18n.resolvedLanguage)}
             </div>
           </div>
         )}
         {msg.type === 'SYSTEM' && (
           <div className="flex justify-center my-4">
-            <div className="flex flex-col items-center text-sm text-[var(--color-icon-tertiary)] bg-[var(--color-button-secondary)] px-4 py-2 rounded-full animate-fadeIn">
+            <div className="flex flex-col items-center text-sm text-(--color-icon-tertiary) bg-(--color-button-secondary) px-4 py-2 rounded-full animate-fadeIn">
               {msg.content}
               {msg.leaveCharId && (
                 <span
-                  className=" text-[var(--color-text-informative-secondary)] underline items-center"
+                  className=" text-(--color-text-informative-secondary) underline items-center"
                   onClick={() => inviteCharacter(
                     msg.leaveCharId ?? null,
                     room,
@@ -507,7 +507,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
               <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${editingMessageId === msg.id ? 'flex-1 w-full' : ''}`}>
                 {/* Sender name for group messages */}
                 {showSenderName && !isMe && (
-                  <p className="text-sm text-[var(--color-icon-tertiary)] mb-1 px-1 animate-fadeIn">
+                  <p className="text-sm text-(--color-icon-tertiary) mb-1 px-1 animate-fadeIn">
                     <SenderName authorId={msg.authorId} />
                   </p>
                 )}
@@ -540,7 +540,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                           <button
                             data-id={msg.id.toString()}
                             onClick={() => { setEditingMessageId(msg.id) }}
-                            className="edit-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
+                            className="edit-msg-btn p-2 text-(--color-icon-secondary) hover:text-(--color-icon-primary) bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
                             aria-label={t('main.message.actions.editAriaLabel')}
                             title={t('main.message.actions.edit')}
                           >
@@ -551,7 +551,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                         <button
                           data-id={msg.id.toString()}
                           onClick={() => { dispatch(messagesActions.removeOne(msg)); setActiveMessageId(null); }}
-                          className="delete-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-negative)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
+                          className="delete-msg-btn p-2 text-(--color-icon-secondary) hover:text-(--color-button-negative) bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform"
                           aria-label={t('main.message.actions.deleteAriaLabel')}
                           title={t('main.message.actions.delete')}
                         >
@@ -572,7 +572,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                   });
                                 setActiveMessageId(null);
                               }}
-                              className="reroll-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180"
+                              className="reroll-msg-btn p-2 text-(--color-icon-secondary) hover:text-(--color-button-primary) bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180"
                               aria-label={t('main.message.actions.rerollAriaLabel')}
                               title={t('main.message.actions.reroll')}
                             >
@@ -589,7 +589,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                   });
                                 setActiveMessageId(null);
                               }}
-                              className="continue-msg-btn p-2 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)] bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:translate-x-1"
+                              className="continue-msg-btn p-2 text-(--color-icon-secondary) hover:text-(--color-button-primary) bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:translate-x-1"
                               aria-label={t('main.message.actions.continueAriaLabel')}
                               title={t('main.message.actions.continue')}
                             >
@@ -616,11 +616,11 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                 }));
                               }}
                               disabled={regeneratingImageIds.has(msg.id.toString())}
-                              className={`toggle-include-char-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform ${regeneratingImageIds.has(msg.id.toString())
-                                ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
+                              className={`toggle-include-char-btn p-2 bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform ${regeneratingImageIds.has(msg.id.toString())
+                                ? 'opacity-60 cursor-not-allowed text-(--color-icon-tertiary)'
                                 : (msg.imageGenerationSetting.isIncludingChar
-                                  ? 'text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)]'
-                                  : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]')
+                                  ? 'text-(--color-button-primary) hover:text-(--color-button-primary-accent)'
+                                  : 'text-(--color-icon-secondary) hover:text-(--color-button-primary)')
                                 }`}
                               aria-label={t('main.message.actions.toggleIncludeCharAriaLabel')}
                               title={msg.imageGenerationSetting.isIncludingChar
@@ -675,9 +675,9 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                                 }
                               }}
                               disabled={regeneratingImageIds.has(msg.id.toString())}
-                              className={`reroll-image-btn p-2 bg-[var(--color-bg-main)] rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180 ${regeneratingImageIds.has(msg.id.toString())
-                                ? 'opacity-60 cursor-not-allowed text-[var(--color-icon-tertiary)]'
-                                : 'text-[var(--color-icon-secondary)] hover:text-[var(--color-button-primary)]'
+                              className={`reroll-image-btn p-2 bg-(--color-bg-main) rounded-full shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 transform hover:rotate-180 ${regeneratingImageIds.has(msg.id.toString())
+                                ? 'opacity-60 cursor-not-allowed text-(--color-icon-tertiary)'
+                                : 'text-(--color-icon-secondary) hover:text-(--color-button-primary)'
                                 }`}
                               aria-label={t('main.message.actions.imageRerollAriaLabel')}
                               title={regeneratingImageIds.has(msg.id.toString()) ? t('main.message.actions.imageRerolling') : t('main.message.actions.imageReroll')}
@@ -696,7 +696,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                       {showTimestamp && (
                         <div
                           className={`flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'} ${isCoarsePointer ? (activeMessageId === msg.id.toString() ? 'hidden' : '') : 'group-hover/message:hidden block'}`}>
-                          <span className="text-sm text-[var(--color-text-informative-secondary)] whitespace-nowrap">
+                          <span className="text-sm text-(--color-text-informative-secondary) whitespace-nowrap">
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
@@ -707,7 +707,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
                 {/* Unread */}
                 {showUnread && (
                   <div className={`flex items-center gap-1 mb-1 animate-fadeIn ${isMe ? 'justify-end' : 'justify-start'} opacity-100`}>
-                    <span className="text-sm text-[var(--color-button-primary)] animate-pulse whitespace-nowrap">{t('main.message.sent')}</span>
+                    <span className="text-sm text-(--color-button-primary) animate-pulse whitespace-nowrap">{t('main.message.sent')}</span>
                   </div>
                 )}
               </div>
@@ -728,11 +728,11 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
             return typingChar ? <Avatar char={typingChar} size="sm" /> : null;
           })()}
         </div>
-        <div className="px-4 py-4 rounded-2xl bg-[var(--color-message-other)] rounded-bl-md min-h-[3rem]">
+        <div className="px-4 py-4 rounded-2xl bg-(--color-message-other) rounded-bl-md min-h-12">
           <div className="flex items-center justify-center gap-2 h-full">
-            <span className="w-2.5 h-2.5 bg-[var(--color-text-informative-secondary)] rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.4s' }}></span>
-            <span className="w-2.5 h-2.5 bg-[var(--color-text-informative-secondary)] rounded-full animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '1.4s' }}></span>
-            <span className="w-2.5 h-2.5 bg-[var(--color-text-informative-secondary)] rounded-full animate-bounce" style={{ animationDelay: '0.4s', animationDuration: '1.4s' }}></span>
+            <span className="w-2.5 h-2.5 bg-(--color-text-informative-secondary) rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.4s' }}></span>
+            <span className="w-2.5 h-2.5 bg-(--color-text-informative-secondary) rounded-full animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '1.4s' }}></span>
+            <span className="w-2.5 h-2.5 bg-(--color-text-informative-secondary) rounded-full animate-bounce" style={{ animationDelay: '0.4s', animationDuration: '1.4s' }}></span>
           </div>
         </div>
       </div>
@@ -762,7 +762,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
       {/* Image Modal */}
       {imageModalOpen && selectedImageUrl && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg-shadow)]/80 animate-fadeIn"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-(--color-bg-shadow)/80 animate-fadeIn"
           onClick={() => setImageModalOpen(false)}
         >
           <div className="flex items-center justify-center">
@@ -777,7 +777,7 @@ const MessageList = forwardRef<VirtuosoHandle, MessageListProps>(({
               />
               <button
                 onClick={() => setImageModalOpen(false)}
-                className="absolute top-2 right-2 p-2 bg-[var(--color-bg-shadow)]/60 text-[var(--color-text-accent)] rounded-full hover:bg-[var(--color-bg-shadow)]/70 transition-all duration-200"
+                className="absolute top-2 right-2 p-2 bg-(--color-bg-shadow)/60 text-(--color-text-accent) rounded-full hover:bg-(--color-bg-shadow)/70 transition-all duration-200"
                 aria-label={t('main.message.imageModal.closeAria')}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -40,7 +40,7 @@ export const Avatar = ({ char, size = 'md' }: { char: Character; size?: 'md' | '
 
     const initial = char.name[0] || <Bot />;
     return (
-        <div className={`${sizeClasses} aspect-square bg-gradient-to-br from-[var(--color-avatar-from)] to-[var(--color-avatar-to)] rounded-full flex items-center justify-center text-[var(--color-text-accent)] font-medium overflow-hidden`}>
+        <div className={`${sizeClasses} aspect-square bg-linear-to-br from-(--color-avatar-from) to-(--color-avatar-to) rounded-full flex items-center justify-center text-(--color-text-accent) font-medium overflow-hidden`}>
             {initial}
         </div>
     );
@@ -53,8 +53,8 @@ export const GroupChatAvatar = ({ participants }: { participants: (Character | u
         const count = avatarParticipants.length;
         if (count === 0) {
             return (
-                <div className="w-12 h-12 bg-gradient-to-br from-[var(--color-group-from)] to-[var(--color-group-to)] rounded-full flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-[var(--color-text-accent)]" />
+                <div className="w-12 h-12 bg-linear-to-br from-(--color-group-from) to-(--color-group-to) rounded-full flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-(--color-text-accent)" />
                 </div>
             );
         }

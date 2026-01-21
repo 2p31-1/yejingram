@@ -67,20 +67,20 @@ export function ArtStyleModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-[var(--color-bg-shadow)]/50">
-            <div className="bg-[var(--color-bg-main)] border-[var(--color-border)] rounded-lg p-6 w-full max-w-md mx-4 shadow-xl border">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-(--color-bg-shadow)/50">
+            <div className="bg-(--color-bg-main) border-(--color-border) rounded-lg p-6 w-full max-w-md mx-4 shadow-xl border">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                    <h3 className="text-lg font-semibold text-(--color-text-primary)">
                         {editingArtStyle?.id ? t('settings.image.artStyle.modal.titleEdit') : t('settings.image.artStyle.modal.titleAdd')}
                     </h3>
-                    <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-full">
-                        <X className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                    <button onClick={onClose} className="p-1 hover:bg-(--color-bg-hover) rounded-full">
+                        <X className="w-5 h-5 text-(--color-icon-tertiary)" />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="flex items-center text-sm font-medium mb-2 text-[var(--color-text-interface)]">
+                        <label className="flex items-center text-sm font-medium mb-2 text-(--color-text-interface)">
                             <Palette className="w-4 h-4 mr-2" />
                             {t('settings.image.artStyle.modal.fields.name')}
                         </label>
@@ -89,13 +89,13 @@ export function ArtStyleModal({
                             value={formData.name}
                             onChange={handleInputChange('name')}
                             placeholder={t('settings.image.artStyle.modal.fields.namePlaceholder')}
-                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-all duration-200 text-sm bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)]"
+                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-all duration-200 text-sm bg-(--color-bg-input-secondary) text-(--color-text-primary) border-(--color-border)"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="flex items-center text-sm font-medium mb-2 text-[var(--color-text-interface)]">
+                        <label className="flex items-center text-sm font-medium mb-2 text-(--color-text-interface)">
                             <BrainCircuit className="w-4 h-4 mr-2" />
                             {t('settings.image.artStyle.modal.fields.description')}
                         </label>
@@ -104,12 +104,12 @@ export function ArtStyleModal({
                             onChange={handleInputChange('description')}
                             placeholder={t('settings.image.artStyle.modal.fields.descriptionPlaceholder')}
                             rows={3}
-                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-all duration-200 text-sm bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)]"
+                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-all duration-200 text-sm bg-(--color-bg-input-secondary) text-(--color-text-primary) border-(--color-border)"
                         />
                     </div>
 
                     <div>
-                        <label className="flex items-center text-sm font-medium mb-2 text-[var(--color-text-interface)]">
+                        <label className="flex items-center text-sm font-medium mb-2 text-(--color-text-interface)">
                             <Code className="w-4 h-4 mr-2" />
                             {t('settings.image.artStyle.modal.fields.prompt')}
                         </label>
@@ -118,16 +118,16 @@ export function ArtStyleModal({
                             onChange={handleInputChange('prompt')}
                             placeholder={t('settings.image.artStyle.modal.fields.promptPlaceholder')}
                             rows={4}
-                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-all duration-200 text-sm font-mono bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)]"
+                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-all duration-200 text-sm font-mono bg-(--color-bg-input-secondary) text-(--color-text-primary) border-(--color-border)"
                             required
                         />
-                        <p className="text-xs mt-1 text-[var(--color-text-informative-primary)]">
+                        <p className="text-xs mt-1 text-(--color-text-informative-primary)">
                             {t('settings.image.artStyle.modal.fields.promptHelp')}
                         </p>
                     </div>
 
                     <div>
-                        <label className="flex items-center text-sm font-medium mb-2 text-[var(--color-text-interface)]">
+                        <label className="flex items-center text-sm font-medium mb-2 text-(--color-text-interface)">
                             <Minus className="w-4 h-4 mr-2" />
                             {t('settings.image.artStyle.modal.fields.negativePrompt')}
                         </label>
@@ -136,9 +136,9 @@ export function ArtStyleModal({
                             onChange={handleInputChange('negativePrompt')}
                             placeholder={t('settings.image.artStyle.modal.fields.negativePromptPlaceholder')}
                             rows={4}
-                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-all duration-200 text-sm font-mono bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] border-[var(--color-border)]"
+                            className="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-all duration-200 text-sm font-mono bg-(--color-bg-input-secondary) text-(--color-text-primary) border-(--color-border)"
                         />
-                        <p className="text-xs mt-1 text-[var(--color-text-informative-primary)]">
+                        <p className="text-xs mt-1 text-(--color-text-informative-primary)">
                             {t('settings.image.artStyle.modal.fields.negativePromptHelp')}
                         </p>
                     </div>
@@ -147,13 +147,13 @@ export function ArtStyleModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 py-2.5 px-4 rounded-lg transition-colors bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] border border-[var(--color-border)]"
+                            className="flex-1 py-2.5 px-4 rounded-lg transition-colors bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) border border-(--color-border)"
                         >
                             {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 py-2.5 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors"
+                            className="flex-1 py-2.5 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors"
                         >
                             {editingArtStyle?.id ? t('settings.image.artStyle.modal.actions.edit') : t('settings.image.artStyle.modal.actions.add')}
                         </button>
@@ -216,8 +216,8 @@ export default function ArtStyleList() {
 
             <div className="space-y-4">
                 {!selected && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--color-alert-border)] bg-[var(--color-alert-bg)] text-[var(--color-alert-text)]">
-                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start gap-3 p-3 rounded-lg border border-(--color-alert-border) bg-(--color-alert-bg) text-(--color-alert-text)">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                         <div className="text-sm leading-5">
                             {t('settings.image.artStyle.list.noneSelected')}
                         </div>
@@ -225,10 +225,10 @@ export default function ArtStyleList() {
                 )}
 
                 <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('settings.image.artStyle.list.title')}</h4>
+                    <h4 className="text-sm font-medium text-(--color-text-interface)">{t('settings.image.artStyle.list.title')}</h4>
                     <button
                         onClick={openAdd}
-                        className="px-3 py-1.5 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg text-xs flex items-center gap-1 transition-colors"
+                        className="px-3 py-1.5 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg text-xs flex items-center gap-1 transition-colors"
                     >
                         <Plus className="w-3 h-3" /> {t('settings.image.artStyle.list.add')}
                     </button>
@@ -240,35 +240,35 @@ export default function ArtStyleList() {
                             <div
                                 key={artStyle.id}
                                 className={`p-3 rounded-lg border transition-colors cursor-pointer max-h-32 overflow-hidden ${selectedId === artStyle.id
-                                    ? 'border-[var(--color-preview-accent-to)] bg-[var(--color-preview-to)]'
-                                    : 'border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]'
+                                    ? 'border-(--color-preview-accent-to) bg-(--color-preview-to)'
+                                    : 'border-(--color-border) hover:bg-(--color-bg-hover)'
                                     }`}
                                 onClick={() => selectArtStyle(artStyle.id)}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <h5 className="font-medium text-sm text-[var(--color-text-primary)]">
+                                            <h5 className="font-medium text-sm text-(--color-text-primary)">
                                                 {artStyle.name || t('settings.image.artStyle.list.noname')}
                                             </h5>
                                             {selectedId === artStyle.id && (
-                                                <span className="px-2 py-0.5 bg-[var(--color-preview-accent-to)]/20 text-[var(--color-preview-accent-to)] text-xs rounded-full">
+                                                <span className="px-2 py-0.5 bg-(--color-preview-accent-to)/20 text-(--color-preview-accent-to) text-xs rounded-full">
                                                     {t('settings.image.artStyle.list.selected')}
                                                 </span>
                                             )}
                                         </div>
                                         {artStyle.description && (
-                                            <p className="text-xs mt-1 line-clamp-2 text-[var(--color-text-informative-primary)]">
+                                            <p className="text-xs mt-1 line-clamp-2 text-(--color-text-informative-primary)">
                                                 {artStyle.description}
                                             </p>
                                         )}
                                         {artStyle.positivePrompt && (
-                                            <p className="text-xs mt-1 line-clamp-1 text-[var(--color-text-informative-secondary)]">
+                                            <p className="text-xs mt-1 line-clamp-1 text-(--color-text-informative-secondary)">
                                                 {artStyle.positivePrompt}
                                             </p>
                                         )}
                                         {artStyle.negativePrompt && (
-                                            <p className="text-xs mt-1 line-clamp-1 text-[var(--color-textual-button-negative)]">
+                                            <p className="text-xs mt-1 line-clamp-1 text-(--color-textual-button-negative)">
                                                 Neg: {artStyle.negativePrompt}
                                             </p>
                                         )}
@@ -279,25 +279,25 @@ export default function ArtStyleList() {
                                                 e.stopPropagation();
                                                 openEdit(artStyle);
                                             }}
-                                            className="p-1 rounded transition-colors hover:bg-[var(--color-bg-hover)]"
+                                            className="p-1 rounded transition-colors hover:bg-(--color-bg-hover)"
                                         >
-                                            <Edit3 className="w-3 h-3 text-[var(--color-icon-tertiary)]" />
+                                            <Edit3 className="w-3 h-3 text-(--color-icon-tertiary)" />
                                         </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 deleteArtStyle(artStyle.id);
                                             }}
-                                            className="p-1 rounded transition-colors hover:bg-[var(--color-textual-button-negative)]/10"
+                                            className="p-1 rounded transition-colors hover:bg-(--color-textual-button-negative)/10"
                                         >
-                                            <Trash2 className="w-3 h-3 text-[var(--color-textual-button-negative)]" />
+                                            <Trash2 className="w-3 h-3 text-(--color-textual-button-negative)" />
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         ))
                     ) : (
-                        <div className="text-[var(--color-text-informative-primary)] text-center py-8">
+                        <div className="text-(--color-text-informative-primary) text-center py-8">
                             <Palette className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">{t('settings.image.artStyle.list.empty')}</p>
                         </div>

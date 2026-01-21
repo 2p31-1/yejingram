@@ -148,19 +148,19 @@ function ThemeSettings() {
         <>
             <details className="group/themecustom" >
                 <summary className="flex items-center justify-between cursor-pointer list-none">
-                    <span className="text-base font-medium text-[var(--color-text-primary)] flex items-center"><Paintbrush className="w-4 h-4 mr-2" />{t('themeSettings.title')}</span>
-                    <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/themecustom:rotate-180" />
+                    <span className="text-base font-medium text-(--color-text-primary) flex items-center"><Paintbrush className="w-4 h-4 mr-2" />{t('themeSettings.title')}</span>
+                    <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/themecustom:rotate-180" />
                 </summary>
                 <div className="mt-4 space-y-4">
-                    <p className="text-xs text-[var(--color-text-secondary)]">{t('themeSettings.info')}</p>
+                    <p className="text-xs text-(--color-text-secondary)">{t('themeSettings.info')}</p>
                     <div>
-                        <label className="text-sm font-medium text-[var(--color-text-interface)] mb-2 block">{t('themeSettings.basePalette')}</label>
+                        <label className="text-sm font-medium text-(--color-text-interface) mb-2 block">{t('themeSettings.basePalette')}</label>
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => dispatch(settingsActions.setCustomThemeBase('light'))}
                                 className={`py-2 px-4 rounded-lg text-xs font-medium border transition-colors ${settings.customThemeBase === 'light'
-                                    ? 'bg-[var(--color-button-primary)] text-[var(--color-text-accent)] border-[var(--color-button-primary-accent)]'
-                                    : 'bg-[var(--color-bg-input-secondary)] text-[var(--color-text-interface)] border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]'
+                                    ? 'bg-(--color-button-primary) text-(--color-text-accent) border-(--color-button-primary-accent)'
+                                    : 'bg-(--color-bg-input-secondary) text-(--color-text-interface) border-(--color-border) hover:bg-(--color-bg-hover)'
                                     }`}
                             >
                                 {t('themeSettings.lightTheme')}
@@ -168,8 +168,8 @@ function ThemeSettings() {
                             <button
                                 onClick={() => dispatch(settingsActions.setCustomThemeBase('dark'))}
                                 className={`py-2 px-4 rounded-lg text-xs font-medium border transition-colors ${settings.customThemeBase === 'dark'
-                                    ? 'bg-[var(--color-button-primary)] text-[var(--color-text-accent)] border-[var(--color-button-primary-accent)]'
-                                    : 'bg-[var(--color-bg-input-secondary)] text-[var(--color-text-interface)] border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]'
+                                    ? 'bg-(--color-button-primary) text-(--color-text-accent) border-(--color-button-primary-accent)'
+                                    : 'bg-(--color-bg-input-secondary) text-(--color-text-interface) border-(--color-border) hover:bg-(--color-bg-hover)'
                                     }`}
                             >
                                 {t('themeSettings.darkTheme')}
@@ -178,7 +178,7 @@ function ThemeSettings() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         {varList.length === 0 && (
-                            <div className="col-span-2 text-xs text-[var(--color-text-secondary)]">{t('themeSettings.loadingVariables')}</div>
+                            <div className="col-span-2 text-xs text-(--color-text-secondary)">{t('themeSettings.loadingVariables')}</div>
                         )}
                         {varList.map(name => {
                             const defaultVal = defaultsForBase[name] ?? '';
@@ -187,11 +187,11 @@ function ThemeSettings() {
                             const isOverridden = overrideVal !== undefined;
                             const previewHex = toPreviewHex6(effectiveVal) ?? '#000000';
                             return (
-                                <div key={name} className="flex flex-col gap-1 p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-input-secondary)]">
+                                <div key={name} className="flex flex-col gap-1 p-3 rounded-lg border border-(--color-border) bg-(--color-bg-input-secondary)">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-[10px] text-[var(--color-text-secondary)] break-words">{name.split('--color-')[1]}</span>
+                                        <span className="text-[10px] text-(--color-text-secondary) wrap-break-word">{name.split('--color-')[1]}</span>
                                         {isOverridden && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-button-primary)] text-[var(--color-text-accent)]">{t('themeSettings.applied')}</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-(--color-button-primary) text-(--color-text-accent)">{t('themeSettings.applied')}</span>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -203,20 +203,20 @@ function ThemeSettings() {
                                             onChange={(e) => setOverride(name, e.target.value)}
                                             onBlur={saveOverride}
                                             placeholder={defaultVal}
-                                            className="flex-1 px-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg-main)] text-[var(--color-text-primary)] focus:ring-2 focus:ring-[var(--color-focus-border)]/40 focus:border-[var(--color-focus-border)]"
+                                            className="flex-1 px-1 text-xs rounded border border-(--color-border) bg-(--color-bg-main) text-(--color-text-primary) focus:ring-2 focus:ring-(--color-focus-border)/40 focus:border-(--color-focus-border)"
                                             title={isOKLCH(effectiveVal) ? `${effectiveVal} → ${previewHex}` : effectiveVal}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => resetOverride(name)}
                                             disabled={!isOverridden}
-                                            className={`text-xs px-2 py-1 rounded border transition-colors ${isOverridden ? 'text-[var(--color-text-interface)] bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] border-[var(--color-border)]' : 'opacity-50 cursor-not-allowed border-[var(--color-border)]'}`}
+                                            className={`text-xs px-2 py-1 rounded border transition-colors ${isOverridden ? 'text-(--color-text-interface) bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) border-(--color-border)' : 'opacity-50 cursor-not-allowed border-(--color-border)'}`}
                                         >
                                             {t('themeSettings.reset')}
                                         </button>
                                     </div>
                                     {!isOverridden && defaultVal && (
-                                        <div className="text-[10px] text-[var(--color-text-secondary)]">{t('themeSettings.defaultValue')}: <span className="font-mono">{defaultVal}</span> {isOKLCH(defaultVal) && (<span className="ml-1 text-[var(--color-text-informative-secondary)]">→ {toPreviewHex6(defaultVal)}</span>)}</div>
+                                        <div className="text-[10px] text-(--color-text-secondary)">{t('themeSettings.defaultValue')}: <span className="font-mono">{defaultVal}</span> {isOKLCH(defaultVal) && (<span className="ml-1 text-(--color-text-informative-secondary)">→ {toPreviewHex6(defaultVal)}</span>)}</div>
                                     )}
                                 </div>
                             );

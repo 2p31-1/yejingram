@@ -13,12 +13,12 @@ function SyncCornerIndicator() {
 
     return (
         <div className="fixed right-3 bottom-3 z-40 select-none">
-            <div className="flex items-center gap-2 bg-[var(--color-bg-main)]/90 backdrop-blur-sm border border-[var(--color-border)] rounded-xl px-3 py-2 shadow-md">
+            <div className="flex items-center gap-2 bg-(--color-bg-main)/90 backdrop-blur-sm border border-(--color-border) rounded-xl px-3 py-2 shadow-md">
                 <div className="w-28">
-                    <div className="h-1.5 rounded-full bg-[var(--color-bg-input-secondary)] overflow-hidden">
-                        <div className="h-full bg-[var(--color-button-primary)] transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-1.5 rounded-full bg-(--color-bg-input-secondary) overflow-hidden">
+                        <div className="h-full bg-(--color-button-primary) transition-[width] duration-200" style={{ width: `${uploadProgress}%` }} />
                     </div>
-                    <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-interface)]">
+                    <div className="mt-1 flex justify-between text-[10px] text-(--color-text-interface)">
                         <span>{t('common.syncing')}</span>
                         <span>{uploadProgress}%</span>
                     </div>

@@ -239,7 +239,7 @@ function App() {
 
   return (
     <>
-      <div id="app" className="relative flex overflow-hidden bg-[var(--color-bg-main)] w-full h-dvh">
+      <div id="app" className="relative flex overflow-hidden bg-(--color-bg-main) w-full h-dvh">
 
         <Sidebar
           roomId={roomId}
@@ -266,7 +266,7 @@ function App() {
               onClose={() => setIsAnnouncementsPanelOpen(false)}
             />
             {/* Announcements Panel Backdrop (mobile only) */}
-            <Backdrop onClick={() => setIsAnnouncementsPanelOpen(false)} className="z-30 bg-[var(--color-bg-shadow)]/20 backdrop-blur-sm md:hidden" />
+            <Backdrop onClick={() => setIsAnnouncementsPanelOpen(false)} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
           </>
         )}
 
@@ -278,7 +278,7 @@ function App() {
               onClose={() => setIsSettingsPanelOpen(false)}
             />
             {/* Settings Panel Backdrop (mobile only) */}
-            <Backdrop onClick={() => setIsSettingsPanelOpen(false)} className="z-30 bg-[var(--color-bg-shadow)]/20 backdrop-blur-sm md:hidden" />
+            <Backdrop onClick={() => setIsSettingsPanelOpen(false)} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
           </>
         )}
 
@@ -323,7 +323,7 @@ function App() {
 
         {/* Mobile Sidebar Backdrop */}
         {isMobileSidebarOpen && (
-          <Backdrop onClick={() => setIsMobileSidebarOpen(false)} className="z-20 bg-[var(--color-bg-shadow)]/50 md:hidden" />
+          <Backdrop onClick={() => setIsMobileSidebarOpen(false)} className="z-20 bg-(--color-bg-shadow)/50 md:hidden" />
         )}
       </div>
       <Toaster

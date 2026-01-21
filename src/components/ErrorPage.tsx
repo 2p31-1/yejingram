@@ -107,7 +107,7 @@ const ErrorPage: React.FC<ErrorPageProps> = ({ error, onResetOptions, onReset, o
         return <ErrorPage_EVA error={error} onResetOptions={onResetOptions} onReset={onReset} onBackup={onBackup} onRestore={onRestore} bgmSrc='/Serat - Breaking Rules.opus' />;
     } else {
         return (
-            <div className="h-dvh bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+            <div className="h-dvh bg-linear-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
                 {/* Background decoration */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl"></div>
@@ -128,7 +128,7 @@ const ErrorPage: React.FC<ErrorPageProps> = ({ error, onResetOptions, onReset, o
                         ></div>
 
                         {/* Header */}
-                        <div className="relative px-8 pt-8 pb-6 bg-gradient-to-r from-red-500/5 to-orange-500/5">
+                        <div className="relative px-8 pt-8 pb-6 bg-linear-to-r from-red-500/5 to-orange-500/5">
                             <div className="flex items-center space-x-4">
                                 <div className="p-3 bg-red-500/10 rounded-2xl">
                                     <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -230,7 +230,7 @@ const ErrorPage: React.FC<ErrorPageProps> = ({ error, onResetOptions, onReset, o
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={onBackup}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-linear-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                                     >
                                         <Download className="w-4 h-4" />
                                         <span>{t('errorPage.backup')}</span>
@@ -238,7 +238,7 @@ const ErrorPage: React.FC<ErrorPageProps> = ({ error, onResetOptions, onReset, o
 
                                     <button
                                         onClick={onRestore}
-                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                        className="flex items-center justify-center space-x-2 px-4 py-3 bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                                     >
                                         <Upload className="w-4 h-4" />
                                         <span>{t('errorPage.restore')}</span>
@@ -247,7 +247,7 @@ const ErrorPage: React.FC<ErrorPageProps> = ({ error, onResetOptions, onReset, o
 
                                 <button
                                     onClick={onReset}
-                                    className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                    className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                                 >
                                     <RefreshCw className="w-5 h-5" />
                                     <span>{t('errorPage.resetAndReload')}</span>

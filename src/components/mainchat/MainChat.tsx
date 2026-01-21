@@ -377,13 +377,13 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
 
   if (!room || (!character && room?.type !== 'Group')) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--color-bg-secondary)]">
+      <div className="flex-1 flex items-center justify-center bg-(--color-bg-secondary)">
         <button
           id="mobile-sidebar-toggle"
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-[var(--color-bg-hover)] md:hidden"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-(--color-bg-hover) md:hidden"
           onClick={onToggleMobileSidebar}
         >
-          <Menu className="h-5 w-5 text-[var(--color-icon-primary)]" />
+          <Menu className="h-5 w-5 text-(--color-icon-primary)" />
         </button>
         <iframe
           ref={iframeRef}
@@ -395,7 +395,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   }
   else {
     return (
-      <div className={`flex-1 flex flex-col bg-[var(--color-bg-main)] ${isMobileSidebarOpen ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col bg-(--color-bg-main) ${isMobileSidebarOpen ? 'hidden md:flex' : 'flex'}`}>
         <AuthorNoteModal
           open={isAuthorNoteOpen}
           onClose={() => setIsAuthorNoteOpen(false)}
@@ -436,7 +436,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         />
 
         {/* Messages Container*/}
-        <div id="messages-container" className="flex-1 w-full bg-[var(--color-bg-main)]">
+        <div id="messages-container" className="flex-1 w-full bg-(--color-bg-main)">
           <MessageList
             ref={messagesContainerRef}
             messages={messages}
@@ -450,7 +450,7 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         </div>
 
         {/* Input Area*/}
-        <div className="px-6 py-4 bg-[var(--color-bg-main)] border-t border-[var(--color-border)]">
+        <div className="px-6 py-4 bg-(--color-bg-main) border-t border-(--color-border)">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="*/*" className="hidden" />
           <InputArea
             room={room}
@@ -540,7 +540,7 @@ function ChatHeader({
       return (
         <>
           <Avatar char={character} size="md" />
-          <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${onlineStatus ? 'bg-[var(--color-indicator-online)]' : 'bg-[var(--color-indicator-offline)]'} border-2 border-[var(--color-bg-main)] rounded-full`}></div>
+          <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${onlineStatus ? 'bg-(--color-indicator-online)' : 'bg-(--color-indicator-offline)'} border-2 border-(--color-bg-main) rounded-full`}></div>
         </>
       );
     }
@@ -600,9 +600,9 @@ function ChatHeader({
 
   const getRoomNameEditSize = () => {
     if (room.type === 'Direct') {
-      return "bg-[var(--color-bg-input-primary)] text-[var(--color-text-primary)] text-sm rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]";
+      return "bg-(--color-bg-input-primary) text-(--color-text-primary) text-sm rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)";
     }
-    return "bg-[var(--color-bg-input-primary)] text-[var(--color-text-primary)] text-lg font-semibold rounded-lg px-3 py-1 w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]";
+    return "bg-(--color-bg-input-primary) text-(--color-text-primary) text-lg font-semibold rounded-lg px-3 py-1 w-full focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)";
   };
 
   const getEditButtonSize = () => {
@@ -620,14 +620,14 @@ function ChatHeader({
   };
 
   return (
-    <header ref={headerRef} className="px-6 py-4 bg-[var(--color-bg-main)] border-b border-[var(--color-border)] flex items-center justify-between">
+    <header ref={headerRef} className="px-6 py-4 bg-(--color-bg-main) border-b border-(--color-border) flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <button
           id="mobile-sidebar-toggle"
-          className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-hover)] md:hidden"
+          className="p-2 -ml-2 rounded-full hover:bg-(--color-bg-hover) md:hidden"
           onClick={onToggleMobileSidebar}
         >
-          <Menu className="h-5 w-5 text-[var(--color-icon-primary)]" />
+          <Menu className="h-5 w-5 text-(--color-icon-primary)" />
         </button>
         <div ref={avatarDivRef} className="relative">
           {getHeaderAvatar()}
@@ -649,10 +649,10 @@ function ChatHeader({
                   if (e.key === 'Escape') onCancelEditRoomName();
                 }}
               />
-              <button onClick={onSaveRoomName} className="p-1 text-[var(--color-button-positive)] hover:text-[var(--color-button-positive-accent)]">
+              <button onClick={onSaveRoomName} className="p-1 text-(--color-button-positive) hover:text-(--color-button-positive-accent)">
                 <Check className={getEditButtonSize()} />
               </button>
-              <button onClick={onCancelEditRoomName} className="p-1 text-[var(--color-textual-button-negative)] hover:text-[var(--color-textual-button-negative-accent)]">
+              <button onClick={onCancelEditRoomName} className="p-1 text-(--color-textual-button-negative) hover:text-(--color-textual-button-negative-accent)">
                 <XCircle className={getEditButtonSize()} />
               </button>
             </div>
@@ -660,12 +660,12 @@ function ChatHeader({
             <>
               {room.type === 'Direct' ? (
                 <>
-                  <h2 className="font-bold text-[var(--color-text-primary)] text-lg">{getHeaderTitle()}</h2>
+                  <h2 className="font-bold text-(--color-text-primary) text-lg">{getHeaderTitle()}</h2>
                   <div className={`group flex items-center space-x-2 ${getEditPosition()}`}>
-                    <p className="text-sm text-[var(--color-icon-tertiary)]">{getHeaderSubtitle()}</p>
+                    <p className="text-sm text-(--color-icon-tertiary)">{getHeaderSubtitle()}</p>
                     <button
                       onClick={onEditRoomName}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
                     >
                       <Edit2 className={getEditButtonSize()} />
                     </button>
@@ -674,16 +674,16 @@ function ChatHeader({
               ) : (
                 <>
                   <div className="group flex items-center space-x-2">
-                    <h2 className="font-bold text-[var(--color-text-primary)] text-lg">{getHeaderTitle()}</h2>
+                    <h2 className="font-bold text-(--color-text-primary) text-lg">{getHeaderTitle()}</h2>
                     <button
                       onClick={onEditRoomName}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
                     >
                       <Edit2 className={getEditButtonSize()} />
                     </button>
                   </div>
                   <span ref={textSampleSpanRef} className="text-sm opacity-0 absolute">{t('main.hiddenRefText')}</span>
-                  <p className="text-sm text-[var(--color-text-secondary)] flex items-center mt-1">
+                  <p className="text-sm text-(--color-text-secondary) flex items-center mt-1">
                     {getHeaderSubtitle()}
                   </p>
                 </>
@@ -693,16 +693,16 @@ function ChatHeader({
         </div>
       </div>
       <div ref={buttonsDivRef} className="flex items-center space-x-2">
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.authorNote')} onClick={onOpenAuthorNote}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.authorNote')} onClick={onOpenAuthorNote}>
           <StickyNote className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.roomMemory')} onClick={onOpenRoomMemory}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.roomMemory')} onClick={onOpenRoomMemory}>
           <Brain className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.activeLorebook')} onClick={onOpenLoreBook}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.activeLorebook')} onClick={onOpenLoreBook}>
           <BookOpen className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={room.type === 'Direct' ? t('main.tooltips.characterSettings') : t('main.tooltips.roomSettings')} onClick={() => {
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={room.type === 'Direct' ? t('main.tooltips.characterSettings') : t('main.tooltips.roomSettings')} onClick={() => {
           if (room.type === 'Group') {
             dispatch(settingsActions.setEditingRoomId(room.id));
             onOpenGroupchatSettings();
@@ -820,7 +820,7 @@ function InputArea({
     <div className="input-area-container relative">
       {/* File Preview*/}
       {hasFile && fileToSend?.previewSrc && (
-        <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl">
+        <div className="mb-3 p-3 bg-(--color-bg-secondary) rounded-xl">
           <div className="relative inline-block">
             <div className="rounded-lg overflow-hidden">
               <FilePreview
@@ -833,7 +833,7 @@ function InputArea({
             <button
               type="button"
               onClick={onCancelFilePreview}
-              className="absolute -top-2 -right-2 p-1 bg-[var(--color-button-tertiary)] rounded-full text-[var(--color-text-accent)] hover:bg-[var(--color-button-negative)] transition-colors"
+              className="absolute -top-2 -right-2 p-1 bg-(--color-button-tertiary) rounded-full text-(--color-text-accent) hover:bg-(--color-button-negative) transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
@@ -843,7 +843,7 @@ function InputArea({
 
       {/* Selected Sticker Display*/}
       {stickerToSend && (
-        <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl flex items-center gap-3 text-sm text-[var(--color-icon-primary)]">
+        <div className="mb-3 p-3 bg-(--color-bg-secondary) rounded-xl flex items-center gap-3 text-sm text-(--color-icon-primary)">
           <img
             src={stickerPreviewUrl ?? ''}
             alt={stickerToSend.name}
@@ -853,7 +853,7 @@ function InputArea({
           <button
             type="button"
             onClick={onStickerClear}
-            className="text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+            className="text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
           >
             <X className="w-4 h-4" />
           </button>
@@ -862,14 +862,14 @@ function InputArea({
 
       {/* Input Options Popover*/}
       {showInputOptions && (
-        <div className="absolute bottom-full left-4 mb-2 w-48 bg-[var(--color-bg-main)] rounded-2xl shadow-lg border border-[var(--color-border)] p-2 animate-fadeIn">
+        <div className="absolute bottom-full left-4 mb-2 w-48 bg-(--color-bg-main) rounded-2xl shadow-lg border border-(--color-border) p-2 animate-fadeIn">
           <button
             type="button"
             onClick={() => {
               onOpenFileUpload?.();
               setInputOptions((prev) => !prev);
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]"
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) text-(--color-text-secondary)"
           >
             <Paperclip className="w-4 h-4" /> {t('main.input.file')}
           </button>
@@ -880,7 +880,7 @@ function InputArea({
                 handleRequestProactiveChat();
                 setInputOptions((prev) => !prev);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) text-(--color-text-secondary)"
             >
               <Zap className="w-4 h-4" /> {t('main.input.proactiveChat')}
             </button>
@@ -892,7 +892,7 @@ function InputArea({
                 onToggleProactive?.(!room.proactiveEnabled);
                 setInputOptions((prev) => !prev);
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-[var(--color-bg-secondary)] ${room.proactiveEnabled ? 'text-[var(--color-button-primary)]' : 'text-[var(--color-text-secondary)]'}`}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) ${room.proactiveEnabled ? 'text-(--color-button-primary)' : 'text-(--color-text-secondary)'}`}
             >
               <BellRing className="w-4 h-4" /> {room.proactiveEnabled ? t('main.input.proactiveEnabled') : t('main.input.proactiveDisabled')}
             </button>
@@ -908,7 +908,7 @@ function InputArea({
             id="open-input-options-btn"
             type="button"
             onClick={() => setInputOptions((prev) => !prev)}
-            className="p-2 text-[var(--color-icon-tertiary)] hover:[var(--color-text-secondary)] rounded-full hover:bg-[var(--color-bg-hover)] transition-all duration-200 flex-shrink-0"
+            className="p-2 text-(--color-icon-tertiary) hover:[var(--color-text-secondary)] rounded-full hover:bg-(--color-bg-hover) transition-all duration-200 shrink-0"
             disabled={isWaitingForResponse}
           >
             <Plus className="w-5 h-5" />
@@ -917,12 +917,12 @@ function InputArea({
 
         {/* Input Field Container */}
         <div className="flex-1 relative">
-          <div className="flex items-end bg-[var(--color-bg-input-primary)] rounded-3xl px-4 py-2">
+          <div className="flex items-end bg-(--color-bg-input-primary) rounded-3xl px-4 py-2">
             <textarea
               id="new-message-input"
               ref={inputRef}
               placeholder={placeholder}
-              className="flex-1 bg-transparent text-[var(--color-text-primary)] resize-none border-none outline-none text-sm placeholder-[var(--color-text-secondary)] max-h-20"
+              className="flex-1 bg-transparent text-(--color-text-primary) resize-none border-none outline-none text-sm placeholder-(--color-text-secondary) max-h-20"
               rows={1}
               disabled={isWaitingForResponse}
               value={text}
@@ -950,7 +950,7 @@ function InputArea({
                 id="sticker-btn"
                 type="button"
                 onClick={onToggleUserStickerPanel}
-                className="p-1 text-[var(--color-icon-tertiary)] hover:[var(--color-button-primary-accent)] transition-all duration-200"
+                className="p-1 text-(--color-icon-tertiary) hover:[var(--color-button-primary-accent)] transition-all duration-200"
                 disabled={isWaitingForResponse}
               >
                 <Smile className="w-5 h-5" />
@@ -961,7 +961,7 @@ function InputArea({
                   id="send-message-btn"
                   type="button"
                   onClick={handleSend}
-                  className="p-1 text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)] transition-all duration-200 font-semibold text-sm"
+                  className="p-1 text-(--color-button-primary) hover:text-(--color-button-primary-accent) transition-all duration-200 font-semibold text-sm"
                   disabled={isWaitingForResponse}
                   title={t('main.input.send')}
                 >
@@ -983,25 +983,25 @@ function AuthorNoteModal({ open, onClose, value, onChange, onSave }: { open: boo
   const { t } = useTranslation();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-lg mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-lg mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <StickyNote className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.authorNoteModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <StickyNote className="w-5 h-5 text-(--color-button-primary)" /> {t('main.authorNoteModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
         <textarea
-          className="w-full h-48 p-4 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] resize-none"
+          className="w-full h-48 p-4 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) resize-none"
           placeholder={t('main.authorNoteModal.placeholder')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
         <div className="mt-4 flex justify-end gap-3">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-button-secondary-accent)] transition-colors font-medium" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onSave}>{t('common.save')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-secondary) text-(--color-text-secondary) hover:bg-(--color-button-secondary-accent) transition-colors font-medium" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onSave}>{t('common.save')}</button>
         </div>
       </div>
     </div>
@@ -1012,20 +1012,20 @@ function RoomMemoryModal({ open, onClose, roomId }: { open: boolean; onClose: ()
   const { t } = useTranslation();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-2xl mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-2xl mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <Brain className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.roomMemoryModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <Brain className="w-5 h-5 text-(--color-button-primary)" /> {t('main.roomMemoryModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-3">{t('main.roomMemoryModal.description')}</p>
+        <p className="text-sm text-(--color-text-secondary) mb-3">{t('main.roomMemoryModal.description')}</p>
         <MemoryManager roomId={roomId} />
         <div className="mt-4 flex justify-end">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onClose}>{t('main.roomMemoryModal.close')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onClose}>{t('main.roomMemoryModal.close')}</button>
         </div>
       </div>
     </div>
@@ -1037,22 +1037,22 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-4xl mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6 max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-4xl mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <BookOpen className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.lorebookModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <BookOpen className="w-5 h-5 text-(--color-button-primary)" /> {t('main.lorebookModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-3">{t('main.lorebookModal.description')}</p>
+        <p className="text-sm text-(--color-text-secondary) mb-3">{t('main.lorebookModal.description')}</p>
         {(roomType === 'Group') && roomLorebook && (
           <details className="mb-6">
-            <summary className="flex items-center justify-between text-lg font-semibold text-[var(--color-text-primary)] mb-2 cursor-pointer hover:text-[var(--color-icon-primary)] transition-colors">
+            <summary className="flex items-center justify-between text-lg font-semibold text-(--color-text-primary) mb-2 cursor-pointer hover:text-(--color-icon-primary) transition-colors">
               <span>{t('main.lorebookModal.groupSection')}</span>
-              <ChevronDown className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+              <ChevronDown className="w-5 h-5 text-(--color-icon-tertiary)" />
             </summary>
             <LorebookEditor roomId={roomId} roomLorebook={roomLorebook} />
           </details>
@@ -1060,9 +1060,9 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
         {memberChars && memberChars.length > 0 ? (
           memberChars.map(char => (
             <details key={char.id} className="mb-6">
-              <summary className="flex items-center justify-between text-lg font-semibold text-[var(--color-text-primary)] mb-2 cursor-pointer hover:text-[var(--color-icon-primary)] transition-colors">
+              <summary className="flex items-center justify-between text-lg font-semibold text-(--color-text-primary) mb-2 cursor-pointer hover:text-(--color-icon-primary) transition-colors">
                 <span>{t('main.lorebookModal.charSection', { name: char.name })}</span>
-                <ChevronDown className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                <ChevronDown className="w-5 h-5 text-(--color-icon-tertiary)" />
               </summary>
               <LorebookEditor characterId={char.id} />
             </details>
@@ -1073,7 +1073,7 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
           )
         )}
         <div className="mt-4 flex justify-end">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onClose}>{t('main.lorebookModal.close')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onClose}>{t('main.lorebookModal.close')}</button>
         </div>
       </div>
     </div>

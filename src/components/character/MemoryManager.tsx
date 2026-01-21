@@ -141,9 +141,9 @@ export function MemoryManager({ roomId }: MemoryManagerProps) {
             <div className="content-inner pt-4 space-y-3 h-96 flex flex-col">
                 <div id="memory-container" className="space-y-3 flex-1 overflow-y-auto pr-2">
                     {memories.map((mem, index) => (
-                        <div key={index} className="memory-item flex items-start gap-3 p-3 bg-[var(--color-bg-input-secondary)] rounded-lg border border-[var(--color-border)]">
+                        <div key={index} className="memory-item flex items-start gap-3 p-3 bg-(--color-bg-input-secondary) rounded-lg border border-(--color-border)">
                             <textarea
-                                className="memory-input flex-1 px-3 py-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm leading-relaxed resize-y min-h-[44px] max-h-[300px] whitespace-pre-wrap"
+                                className="memory-input flex-1 px-3 py-2 bg-(--color-bg-main) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm leading-relaxed resize-y min-h-11 max-h-75 whitespace-pre-wrap"
                                 value={mem}
                                 rows={2}
                                 ref={(el) => {
@@ -160,35 +160,35 @@ export function MemoryManager({ roomId }: MemoryManagerProps) {
                                 placeholder={t('main.roomMemory.placeholder')}
                                 aria-label={t('main.roomMemory.memoryAriaLabel', { index: index + 1 })}
                             />
-                            <button onClick={() => deleteMemory(index)} className="p-2 mt-1 text-[var(--color-icon-secondary)] hover:text-[var(--color-button-negative)] rounded-full hover:bg-[var(--color-button-negative)]/10 transition-colors">
+                            <button onClick={() => deleteMemory(index)} className="p-2 mt-1 text-(--color-icon-secondary) hover:text-(--color-button-negative) rounded-full hover:bg-(--color-button-negative)/10 transition-colors">
                                 <Trash2 className="w-4 h-4 pointer-events-none" />
                             </button>
                         </div>
                     ))}
                 </div>
-                <div className="flex flex-shrink-0 pt-2 border-t border-[var(--color-border)]">
-                    <button onClick={clearMemory} id="clear-memories-btn" className="text-sm text-[var(--color-button-negative)] hover:text-[var(--color-button-negative-accent)] flex items-center gap-2 py-2 px-3 hover:bg-[var(--color-button-negative)]/10 rounded-lg transition-colors">
+                <div className="flex shrink-0 pt-2 border-t border-(--color-border)">
+                    <button onClick={clearMemory} id="clear-memories-btn" className="text-sm text-(--color-button-negative) hover:text-(--color-button-negative-accent) flex items-center gap-2 py-2 px-3 hover:bg-(--color-button-negative)/10 rounded-lg transition-colors">
                         <Trash2 className="w-4 h-4" /> {t('main.roomMemory.clearMemories')}
                     </button>
-                    <button onClick={transferMemory} id="transfer-memories-btn" className="text-sm text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)] flex items-center gap-2 py-2 px-3 hover:bg-[var(--color-button-primary)]/10 rounded-lg transition-colors">
+                    <button onClick={transferMemory} id="transfer-memories-btn" className="text-sm text-(--color-button-primary) hover:text-(--color-button-primary-accent) flex items-center gap-2 py-2 px-3 hover:bg-(--color-button-primary)/10 rounded-lg transition-colors">
                         <Forward className="w-4 h-4" /> {t('main.roomMemory.transferMemories')}
                     </button>
-                    <button onClick={addMemory} id="add-memory-btn" className="ml-auto text-sm text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)] flex items-center gap-2 py-2 px-3 hover:bg-[var(--color-button-primary)]/10 rounded-lg transition-colors">
+                    <button onClick={addMemory} id="add-memory-btn" className="ml-auto text-sm text-(--color-button-primary) hover:text-(--color-button-primary-accent) flex items-center gap-2 py-2 px-3 hover:bg-(--color-button-primary)/10 rounded-lg transition-colors">
                         <PlusCircle className="w-4 h-4" /> {t('main.roomMemory.addMemory')}
                     </button>
                 </div>
             </div>
             {isTransferMemoryModalOpen && (
-                <div className="fixed inset-0 bg-[var(--color-bg-shadow)]/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[var(--color-bg-main)] rounded-2xl w-full max-w-md mx-4 shadow-xl max-h-[80vh] flex flex-col">
-                        <div className="space-y-1 border-b border-[var(--color-border)] p-6">
+                <div className="fixed inset-0 bg-(--color-bg-shadow)/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-(--color-bg-main) rounded-2xl w-full max-w-md mx-4 shadow-xl max-h-[80vh] flex flex-col">
+                        <div className="space-y-1 border-b border-(--color-border) p-6">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('main.roomMemory.transferMemories')}</h3>
-                                <button onClick={handleTransferCancel} className="p-2 hover:bg-[var(--color-bg-hover)] rounded-full transition-colors">
-                                    <X className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                                <h3 className="text-lg font-semibold text-(--color-text-primary)">{t('main.roomMemory.transferMemories')}</h3>
+                                <button onClick={handleTransferCancel} className="p-2 hover:bg-(--color-bg-hover) rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-(--color-icon-tertiary)" />
                                 </button>
                             </div>
-                            <p className="text-sm text-[var(--color-text-secondary)]">{t('main.roomMemory.transferMemoryHelp')}</p>
+                            <p className="text-sm text-(--color-text-secondary)">{t('main.roomMemory.transferMemoryHelp')}</p>
                         </div>
                         <div className="p-6 space-y-2 overflow-y-auto flex-1">
                             {groupedSections.length > 0 ? (
@@ -199,19 +199,19 @@ export function MemoryManager({ roomId }: MemoryManagerProps) {
 
                                             <button
                                                 type="button"
-                                                className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-secondary)] bg-[var(--color-bg-input-secondary)] p-3 text-left font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-hover)]"
+                                                className="flex w-full items-center justify-between gap-3 rounded-xl border border-(--color-border-secondary) bg-(--color-bg-input-secondary) p-3 text-left font-medium text-(--color-text-primary) transition-colors hover:bg-(--color-bg-hover)"
                                                 onClick={() => toggleSection(section.key)}
                                                 aria-expanded={isExpanded}
                                             >
                                                 {section.key === 'group-chat' ? (
-                                                    <div className="w-8 h-8 bg-gradient-to-br from-[var(--color-group-from)] to-[var(--color-group-to)] rounded-full flex items-center justify-center">
-                                                        <Globe className='w-5 h-5 text-[var(--color-text-accent)]' />
+                                                    <div className="w-8 h-8 bg-linear-to-br from-(--color-group-from) to-(--color-group-to) rounded-full flex items-center justify-center">
+                                                        <Globe className='w-5 h-5 text-(--color-text-accent)' />
                                                     </div>
                                                 ) : (
                                                     <Avatar size='xs' char={characterEntities[section.rooms[0].memberIds[0]]} />
                                                 )}
                                                 <span>{section.label}</span>
-                                                <ChevronDown className={`ml-auto h-4 w-4 text-[var(--color-icon-tertiary)] transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                                                <ChevronDown className={`ml-auto h-4 w-4 text-(--color-icon-tertiary) transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
                                             </button>
                                             {isExpanded && (
                                                 <div className="space-y-2 pl-4">
@@ -219,11 +219,11 @@ export function MemoryManager({ roomId }: MemoryManagerProps) {
                                                         <>
                                                             <div
                                                                 key={targetRoom.id}
-                                                                className="flex min-w-0 items-center gap-3 rounded-xl border border-[var(--color-border-secondary)] bg-[var(--color-bg-input-secondary)] p-3 transition-colors hover:bg-[var(--color-bg-hover)] cursor-pointer"
+                                                                className="flex min-w-0 items-center gap-3 rounded-xl border border-(--color-border-secondary) bg-(--color-bg-input-secondary) p-3 transition-colors hover:bg-(--color-bg-hover) cursor-pointer"
                                                                 onClick={() => handleTransferMemory(targetRoom)}
                                                             >
                                                                 <span className="truncate">{targetRoom.name || t('main.room.untitledRoom')}</span>
-                                                                <span className="ml-auto max-w-[60%] pl-4 text-sm text-[var(--color-text-secondary)] truncate whitespace-nowrap">
+                                                                <span className="ml-auto max-w-[60%] pl-4 text-sm text-(--color-text-secondary) truncate whitespace-nowrap">
                                                                     {getLastMessagePreview(targetRoom.id)}
                                                                 </span>
                                                             </div>
@@ -234,7 +234,7 @@ export function MemoryManager({ roomId }: MemoryManagerProps) {
                                     );
                                 })
                             ) : (
-                                <p className="text-sm text-[var(--color-text-secondary)]">{t('main.roomMemory.noOtherRooms')}</p>
+                                <p className="text-sm text-(--color-text-secondary)">{t('main.roomMemory.noOtherRooms')}</p>
                             )}
                         </div>
                     </div>

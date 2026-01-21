@@ -17,18 +17,18 @@ function GroupChatList({ rooms, setRoomId, selectedRoomId, openCreateGroupChatMo
     if (rooms.length === 0) return null;
 
     return (
-        <div className="border-b border-[var(--color-border-secondary)]">
-            <div className="group flex items-center justify-between px-4 py-2 bg-[var(--color-bg-secondary)]">
+        <div className="border-b border-(--color-border-secondary)">
+            <div className="group flex items-center justify-between px-4 py-2 bg-(--color-bg-secondary)">
                 <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4 text-[var(--color-icon-tertiary)]" />
-                    <h3 className="text-sm font-semibold text-[var(--color-text-interface)]">{t('sidebar.groups.header')}</h3>
-                    <span className="text-xs bg-[var(--color-bg-secondary-accent)] text-[var(--color-text-tertiary)] px-2 py-0.5 rounded-full">
+                    <Users className="w-4 h-4 text-(--color-icon-tertiary)" />
+                    <h3 className="text-sm font-semibold text-(--color-text-interface)">{t('sidebar.groups.header')}</h3>
+                    <span className="text-xs bg-(--color-bg-secondary-accent) text-(--color-text-tertiary) px-2 py-0.5 rounded-full">
                         {rooms.length}
                     </span>
                 </div>
                 <button
                     onClick={openCreateGroupChatModal}
-                    className="opacity-0 group-hover:opacity-100 transition-all p-1 bg-[var(--color-button-primary)]/80 hover:bg-[var(--color-button-primary)]/90 rounded-full text-[var(--color-text-accent)]"
+                    className="opacity-0 group-hover:opacity-100 transition-all p-1 bg-(--color-button-primary)/80 hover:bg-(--color-button-primary)/90 rounded-full text-(--color-text-accent)"
                     title={t('sidebar.groups.newGroupTitle')}
                 >
                     <Plus className="w-3 h-3" />

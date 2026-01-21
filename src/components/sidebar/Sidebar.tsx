@@ -40,60 +40,60 @@ function Sidebar({ roomId, isMobileSidebarOpen, setRoomId, toggleAnnouncementsPa
     }
 
     return (
-        <div className={`flex h-full flex-col ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative inset-y-0 left-0 z-30 w-full md:w-96 lg:w-[400px] bg-[var(--color-bg-main)] border-r border-[var(--color-border)] flex flex-col transition-transform duration-300 ease-in-out`}>
+        <div className={`flex h-full flex-col ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative inset-y-0 left-0 z-30 w-full lg:w-110 bg-(--color-bg-main) border-r border-(--color-border) flex flex-col transition-transform duration-300 ease-in-out`}>
             {/* Instagram DM Style Header */}
-            <header className="p-4 border-b border-[var(--color-border-secondary)] bg-[var(--color-bg-main)]">
+            <header className="p-4 border-b border-(--color-border-secondary) bg-(--color-bg-main)">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         {/* Mobile close button */}
                         <button
                             id="close-sidebar-mobile"
                             onClick={onCloseMobile}
-                            className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-hover)] md:hidden"
+                            className="p-2 -ml-2 rounded-full hover:bg-(--color-bg-hover) md:hidden"
                             title={t('sidebar.tooltipClose')}
                         >
-                            <X className="w-5 h-5 text-[var(--color-icon-primary)]" />
+                            <X className="w-5 h-5 text-(--color-icon-primary)" />
                         </button>
-                        <h1 className="text-2xl font-light text-[var(--color-text-primary)] tracking-wide">{t('yejingram')}</h1>
+                        <h1 className="text-2xl font-light text-(--color-text-primary) tracking-wide">{t('yejingram')}</h1>
                     </div>
                     <div className="flex items-center space-x-2">
                         <button
                             id="open-new-character-modal"
                             onClick={handleNewCharacter}
-                            className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] transition-colors"
+                            className="p-2 rounded-full hover:bg-(--color-bg-hover) transition-colors"
                             title={t('sidebar.tooltipNewChat')}
                         >
-                            <Plus className="w-6 h-6 text-[var(--color-icon-primary)]" />
+                            <Plus className="w-6 h-6 text-(--color-icon-primary)" />
                         </button>
                         <button
                             id="open-announcements-modal"
                             onClick={toggleAnnouncementsPanel}
-                            className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] transition-colors"
+                            className="p-2 rounded-full hover:bg-(--color-bg-hover) transition-colors"
                             title={t('sidebar.tooltipAnnouncements')}
                         >
-                            <Megaphone className="w-6 h-6 text-[var(--color-icon-primary)]" />
+                            <Megaphone className="w-6 h-6 text-(--color-icon-primary)" />
                         </button>
                         <button
                             id="open-settings-modal"
                             onClick={toggleSettingsPanel}
-                            className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] transition-colors"
+                            className="p-2 rounded-full hover:bg-(--color-bg-hover) transition-colors"
                             title={t('sidebar.tooltipSettings')}
                         >
-                            <Settings className="w-6 h-6 text-[var(--color-icon-primary)]" />
+                            <Settings className="w-6 h-6 text-(--color-icon-primary)" />
                         </button>
                     </div>
                 </div>
 
                 {/* Search Bar */}
                 <div className="relative">
-                    <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-icon-secondary)] w-4 h-4" />
+                    <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--color-icon-secondary) w-4 h-4" />
                     <input
                         id="search-input"
                         type="text"
                         placeholder={t('sidebar.searchPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-[var(--color-bg-input-primary)] text-[var(--color-text-primary)] rounded-full border-0 focus:bg-[var(--color-bg-input-secondary)] focus:ring-2 focus:ring-[var(--color-focus-border)]/20 transition-transform duration-200 text-sm placeholder-[var(--color-text-secondary)]"
+                        className="w-full pl-10 pr-4 py-2 bg-(--color-bg-input-primary) text-(--color-text-primary) rounded-full border-0 focus:bg-(--color-bg-input-secondary) focus:ring-2 focus:ring-(--color-focus-border)/20 transition-transform duration-200 text-sm placeholder-(--color-text-secondary)"
                     />
                 </div>
             </header>
@@ -101,11 +101,11 @@ function Sidebar({ roomId, isMobileSidebarOpen, setRoomId, toggleAnnouncementsPa
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto">
                 {/* Quick Actions */}
-                <div className="px-4 py-2 border-b border-[var(--color-border-secondary)]">
+                <div className="px-4 py-2 border-b border-(--color-border-secondary)">
                     <div className="flex space-x-4">
                         <button
                             onClick={openCreateGroupChatModal}
-                            className="flex items-center text-sm text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)] font-medium"
+                            className="flex items-center text-sm text-(--color-button-primary) hover:text-(--color-button-primary-accent) font-medium"
                         >
                             {t('sidebar.createGroupChat')}
                         </button>
@@ -121,11 +121,11 @@ function Sidebar({ roomId, isMobileSidebarOpen, setRoomId, toggleAnnouncementsPa
                         openCreateGroupChatModal={openCreateGroupChatModal}
                         openEditGroupChatModal={openEditGroupChatModal}
                     />
-                    <div className="group flex items-center justify-between px-4 py-2 bg-[var(--color-bg-secondary)]">
+                    <div className="group flex items-center justify-between px-4 py-2 bg-(--color-bg-secondary)">
                         <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4 text-[var(--color-icon-tertiary)]" />
-                            <h3 className="text-sm font-semibold text-[var(--color-text-interface)]">{t('sidebar.contacts')}</h3>
-                            <span className="text-xs bg-[var(--color-bg-secondary-accent)] text-[var(--color-text-tertiary)] px-2 py-0.5 rounded-full">
+                            <User className="w-4 h-4 text-(--color-icon-tertiary)" />
+                            <h3 className="text-sm font-semibold text-(--color-text-interface)">{t('sidebar.contacts')}</h3>
+                            <span className="text-xs bg-(--color-bg-secondary-accent) text-(--color-text-tertiary) px-2 py-0.5 rounded-full">
                                 {filteredCharacters.length}
                             </span>
                         </div>

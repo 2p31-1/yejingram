@@ -27,27 +27,27 @@ function AnnouncementModal({ isOpen, title, date, content, onClose }: Announceme
     if (!isOpen) return null;
     return (
         <div
-            className="fixed inset-0 bg-[var(--color-bg-shadow)]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-(--color-bg-shadow)/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={(e) => {
                 // Close only when clicking the backdrop, not when clicking inside the dialog
                 if (e.target === e.currentTarget) onClose();
             }}
         >
             <div
-                className="bg-[var(--color-bg-main)] rounded-2xl w-full max-w-5xl mx-4 shadow-xl border border-[var(--color-border)]"
+                className="bg-(--color-bg-main) rounded-2xl w-full max-w-5xl mx-4 shadow-xl border border-(--color-border)"
                 style={{ maxHeight: '90vh' }}
                 role="dialog"
                 aria-modal="true"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-6 border-b border-[var(--color-border)]">
+                <div className="p-6 border-b border-(--color-border)">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h3>
-                            <div className="text-sm text-[var(--color-text-interface)] mt-1">{formatDate(date)}</div>
+                            <h3 className="text-lg font-semibold text-(--color-text-primary)">{title}</h3>
+                            <div className="text-sm text-(--color-text-interface) mt-1">{formatDate(date)}</div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-[var(--color-bg-hover)] rounded-full transition-colors" aria-label="Close">
-                            <X className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                        <button onClick={onClose} className="p-2 hover:bg-(--color-bg-hover) rounded-full transition-colors" aria-label="Close">
+                            <X className="w-5 h-5 text-(--color-icon-tertiary)" />
                         </button>
                     </div>
                 </div>
@@ -55,16 +55,16 @@ function AnnouncementModal({ isOpen, title, date, content, onClose }: Announceme
                     {(() => {
                         const components: Components = {
                             h1: (props) => (
-                                <h1 className="mt-0 mb-3 text-2xl font-bold text-[var(--color-text-primary)]" {...props} />
+                                <h1 className="mt-0 mb-3 text-2xl font-bold text-(--color-text-primary)" {...props} />
                             ),
                             h2: (props) => (
-                                <h2 className="mt-6 mb-3 text-xl font-semibold text-[var(--color-text-primary)]" {...props} />
+                                <h2 className="mt-6 mb-3 text-xl font-semibold text-(--color-text-primary)" {...props} />
                             ),
                             h3: (props) => (
-                                <h3 className="mt-5 mb-2 text-lg font-semibold text-[var(--color-text-primary)]" {...props} />
+                                <h3 className="mt-5 mb-2 text-lg font-semibold text-(--color-text-primary)" {...props} />
                             ),
                             h4: (props) => (
-                                <h4 className="mt-4 mb-2 text-base font-semibold text-[var(--color-text-primary)]" {...props} />
+                                <h4 className="mt-4 mb-2 text-base font-semibold text-(--color-text-primary)" {...props} />
                             ),
                             p: (props: HTMLAttributes<HTMLParagraphElement>) => {
                                 const { className, style, ...rest } = props;
@@ -73,18 +73,18 @@ function AnnouncementModal({ isOpen, title, date, content, onClose }: Announceme
                                 const styleAlign = style?.textAlign as string | undefined;
                                 const alignVal = legacyAlign || styleAlign;
                                 const alignClass = alignVal === 'center' ? 'text-center' : alignVal === 'right' ? 'text-right' : alignVal === 'justify' ? 'text-justify' : '';
-                                const cls = ["my-2 leading-7 text-[var(--color-text-primary)]", className, alignClass].filter(Boolean).join(' ');
+                                const cls = ["my-2 leading-7 text-(--color-text-primary)", className, alignClass].filter(Boolean).join(' ');
                                 return <p className={cls} style={style} {...rest} />;
                             },
                             strong: (props) => (
-                                <strong className="font-semibold text-[var(--color-text-primary)]" {...props} />
+                                <strong className="font-semibold text-(--color-text-primary)" {...props} />
                             ),
                             em: (props) => (
-                                <em className="italic text-[var(--color-text-primary)]" {...props} />
+                                <em className="italic text-(--color-text-primary)" {...props} />
                             ),
                             a: (props) => (
                                 <a
-                                    className="underline text-[var(--color-button-primary-accent)] hover:opacity-90"
+                                    className="underline text-(--color-button-primary-accent) hover:opacity-90"
                                     target="_blank"
                                     rel="noreferrer noopener"
                                     {...props}
@@ -97,37 +97,37 @@ function AnnouncementModal({ isOpen, title, date, content, onClose }: Announceme
                                 <ol className="my-3 list-decimal pl-6 space-y-1" {...props} />
                             ),
                             li: (props) => (
-                                <li className="text-[var(--color-text-primary)]" {...props} />
+                                <li className="text-(--color-text-primary)" {...props} />
                             ),
                             blockquote: (props) => (
-                                <blockquote className="my-4 pl-4 border-l-4 border-[var(--color-border-secondary)] italic text-[var(--color-text-interface)]" {...props} />
+                                <blockquote className="my-4 pl-4 border-l-4 border-(--color-border-secondary) italic text-(--color-text-interface)" {...props} />
                             ),
                             // Inline code only; block code is styled via the 'pre' component below
                             code: (props) => (
-                                <code className="px-1.5 py-0.5 rounded bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)]" {...props} />
+                                <code className="px-1.5 py-0.5 rounded bg-(--color-bg-input-secondary) text-(--color-text-primary)" {...props} />
                             ),
                             pre: (props) => (
-                                <pre className="my-3 overflow-auto rounded-xl bg-[var(--color-bg-input-secondary)] border border-[var(--color-border-secondary)] p-3 text-sm" {...props} />
+                                <pre className="my-3 overflow-auto rounded-xl bg-(--color-bg-input-secondary) border border-(--color-border-secondary) p-3 text-sm" {...props} />
                             ),
                             hr: (props) => (
-                                <hr className="my-6 border-[var(--color-border-secondary)]" {...props} />
+                                <hr className="my-6 border-(--color-border-secondary)" {...props} />
                             ),
                             img: (props) => (
-                                <img className="my-3 max-w-full h-auto rounded-xl border border-[var(--color-border-secondary)]" {...props} />
+                                <img className="my-3 max-w-full h-auto rounded-xl border border-(--color-border-secondary)" {...props} />
                             ),
                             table: (props) => (
-                                <div className="my-4 overflow-x-auto border border-[var(--color-border-secondary)] rounded-xl">
-                                    <table className="min-w-full text-sm text-[var(--color-text-primary)]" {...props} />
+                                <div className="my-4 overflow-x-auto border border-(--color-border-secondary) rounded-xl">
+                                    <table className="min-w-full text-sm text-(--color-text-primary)" {...props} />
                                 </div>
                             ),
                             thead: (props) => (
-                                <thead className="bg-[var(--color-bg-secondary)]" {...props} />
+                                <thead className="bg-(--color-bg-secondary)" {...props} />
                             ),
                             th: (props) => (
-                                <th className="px-3 py-2 text-left font-semibold border-b border-[var(--color-border-secondary)]" {...props} />
+                                <th className="px-3 py-2 text-left font-semibold border-b border-(--color-border-secondary)" {...props} />
                             ),
                             td: (props) => (
-                                <td className="px-3 py-2 align-top border-b border-[var(--color-border-secondary)]" {...props} />
+                                <td className="px-3 py-2 align-top border-b border-(--color-border-secondary)" {...props} />
                             ),
                         };
 

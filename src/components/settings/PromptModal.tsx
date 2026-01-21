@@ -195,38 +195,38 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-[var(--color-bg-shadow)]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[var(--color-bg-main)] rounded-2xl w-full max-w-2xl mx-4 flex flex-col shadow-2xl" style={{ maxHeight: '90vh' }}>
-                <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] shrink-0">
+        <div className="fixed inset-0 bg-(--color-bg-shadow)/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-(--color-bg-main) rounded-2xl w-full max-w-2xl mx-4 flex flex-col shadow-2xl" style={{ maxHeight: '90vh' }}>
+                <div className="flex items-center justify-between p-6 border-b border-(--color-border) shrink-0">
                     <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('settings.ai.editPrompts')}</h3>
+                        <h3 className="text-lg font-semibold text-(--color-text-primary)">{t('settings.ai.editPrompts')}</h3>
                         {missingTypes.length > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-[var(--color-alert-bg)] text-[var(--color-alert-text)] border border-[var(--color-alert-border)]" title={t('settings.prompts.missingTypesBadge', { count: missingTypes.length })}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-(--color-alert-bg) text-(--color-alert-text) border border-(--color-alert-border)" title={t('settings.prompts.missingTypesBadge', { count: missingTypes.length })}>
                                 <AlertTriangle className="w-3.5 h-3.5" /> {missingTypes.length}
                             </span>
                         )}
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-full transition-colors"><X className="w-5 h-5 text-[var(--color-icon-tertiary)]" /></button>
+                    <button onClick={onClose} className="p-1 hover:bg-(--color-bg-hover) rounded-full transition-colors"><X className="w-5 h-5 text-(--color-icon-tertiary)" /></button>
                 </div>
                 <div className="p-6 space-y-4 overflow-y-auto">
                     {missingTypes.length > 0 && (
-                        <div className="flex items-start gap-2 p-3 rounded-lg border text-[var(--color-alert-text)] bg-[var(--color-alert-bg)]/30 border-[var(--color-alert-border)]">
-                            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <div className="flex items-start gap-2 p-3 rounded-lg border text-(--color-alert-text) bg-(--color-alert-bg)/30 border-(--color-alert-border)">
+                            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                             <div className="text-sm">
                                 <div className="font-medium">{t('settings.prompts.missingTypes.title')}</div>
-                                <div className="mt-1 text-[var(--color-alert-text)]/90">{t('settings.prompts.missingTypes.desc')}</div>
+                                <div className="mt-1 text-(--color-alert-text)/90">{t('settings.prompts.missingTypes.desc')}</div>
                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                     {missingTypes.map((t) => (
-                                        <span key={t} className="px-2 py-0.5 rounded border border-[var(--color-alert-border)] bg-[var(--color-alert-bg)]/70 text-[var(--color-alert-text)] text-xs">{getTypeLabel(t)}</span>
+                                        <span key={t} className="px-2 py-0.5 rounded border border-(--color-alert-border) bg-(--color-alert-bg)/70 text-(--color-alert-text) text-xs">{getTypeLabel(t)}</span>
                                     ))}
                                 </div>
                             </div>
                         </div>
                     )}
-                    <div className="flex items-center justify-between border-b border-[var(--color-mainprompt)]/50 pb-2">
-                        <h4 className="text-base font-semibold text-[var(--color-mainprompt)]">{t('settings.prompts.main.title')}</h4>
+                    <div className="flex items-center justify-between border-b border-(--color-mainprompt)/50 pb-2">
+                        <h4 className="text-base font-semibold text-(--color-mainprompt)">{t('settings.prompts.main.title')}</h4>
                         <div className="flex items-center gap-2">
-                            <button type="button" onClick={resetOrder} className="py-1 px-2 text-xs bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] border border-[var(--color-border)] rounded">{t('themeSettings.reset')}</button>
+                            <button type="button" onClick={resetOrder} className="py-1 px-2 text-xs bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) border border-(--color-border) rounded">{t('themeSettings.reset')}</button>
                         </div>
                     </div>
                     {localPrompts.main.map((item, index) => {
@@ -235,18 +235,18 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                         return (
                             <details
                                 key={index}
-                                className="group bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)]"
+                                className="group bg-(--color-bg-secondary) rounded-lg border border-(--color-border)"
                             >
                                 <summary className="flex items-center justify-between cursor-pointer list-none p-4">
                                     <div className="flex items-center">
-                                        <span className="text-[var(--color-text-informative-primary)] w-6 text-center mr-2">{index + 1}.</span>
-                                        <span className="text-base font-medium text-[var(--color-text-primary)]">{title}</span>
+                                        <span className="text-(--color-text-informative-primary) w-6 text-center mr-2">{index + 1}.</span>
+                                        <span className="text-base font-medium text-(--color-text-primary)">{title}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <button
                                             type="button"
                                             onClick={(e) => { e.preventDefault(); moveIndex(index, -1); }}
-                                            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]"
+                                            className="p-1.5 rounded-md hover:bg-(--color-bg-hover) text-(--color-icon-primary)"
                                             title={t('settings.prompts.item.moveUp')}
                                             aria-label={t('settings.prompts.item.moveUp')}
                                         >
@@ -255,36 +255,36 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                         <button
                                             type="button"
                                             onClick={(e) => { e.preventDefault(); moveIndex(index, 1); }}
-                                            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]"
+                                            className="p-1.5 rounded-md hover:bg-(--color-bg-hover) text-(--color-icon-primary)"
                                             title={t('settings.prompts.item.moveDown')}
                                             aria-label={t('settings.prompts.item.moveDown')}
                                         >
                                             <ArrowDown className="w-4 h-4" />
                                         </button>
-                                        <button type="button" onClick={(e) => { e.preventDefault(); removeIndex(index); }} className="text-xs px-2 py-1 border rounded text-[var(--color-textual-button-negative)]">{t('settings.prompts.item.delete')}</button>
-                                        <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open:rotate-180" />
+                                        <button type="button" onClick={(e) => { e.preventDefault(); removeIndex(index); }} className="text-xs px-2 py-1 border rounded text-(--color-textual-button-negative)">{t('settings.prompts.item.delete')}</button>
+                                        <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open:rotate-180" />
                                     </div>
                                 </summary>
                                 <div className="content-wrapper">
-                                    <div className="content-inner p-4 border-t border-[var(--color-border)]">
+                                    <div className="content-inner p-4 border-t border-(--color-border)">
                                         <div className="flex items-center gap-2 mb-3">
-                                            <button onClick={() => setPromptToDefault(index)} className="py-1 px-3 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded text-xs flex items-center gap-1 border border-[var(--color-border)]">
+                                            <button onClick={() => setPromptToDefault(index)} className="py-1 px-3 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded text-xs flex items-center gap-1 border border-(--color-border)">
                                                 <RotateCcw className="w-3 h-3" /> {t('settings.prompts.resetToDefault')}
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
                                             <div className="flex flex-col">
-                                                <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1">{t('settings.prompts.fields.name')}</label>
+                                                <label className="text-xs font-medium text-(--color-text-tertiary) mb-1">{t('settings.prompts.fields.name')}</label>
                                                 <input value={item.name}
                                                     onChange={e => handleMainPromptChange(index, { name: e.target.value })}
-                                                    className="w-full p-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm" placeholder={t('settings.prompts.fields.namePlaceholder')} />
+                                                    className="w-full p-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm" placeholder={t('settings.prompts.fields.namePlaceholder')} />
                                             </div>
                                             <div className="flex flex-col">
-                                                <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1">{t('settings.prompts.fields.type')}</label>
+                                                <label className="text-xs font-medium text-(--color-text-tertiary) mb-1">{t('settings.prompts.fields.type')}</label>
                                                 <select
                                                     value={item.type}
                                                     onChange={e => handleMainPromptChange(index, { type: e.target.value as PromptType })}
-                                                    className="w-full p-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm"
+                                                    className="w-full p-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm"
                                                 >
                                                     {typeOptions.length === 0 && (
                                                         <option value="" disabled>{t('settings.prompts.fields.typeNone')}</option>
@@ -296,10 +296,10 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                             </div>
                                             {item.type !== 'chat' && item.type !== 'extraSystemInstruction' && (
                                                 <div className="flex flex-col">
-                                                    <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1">{t('settings.prompts.fields.role')}</label>
+                                                    <label className="text-xs font-medium text-(--color-text-tertiary) mb-1">{t('settings.prompts.fields.role')}</label>
                                                     <select value={item.role}
                                                         onChange={e => handleMainPromptChange(index, { role: e.target.value as PromptRole })}
-                                                        className="w-full p-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm">
+                                                        className="w-full p-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm">
                                                         <option value="system">system</option>
                                                         <option value="assistant">assistant</option>
                                                         <option value="user">user</option>
@@ -309,11 +309,11 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                         </div>
                                         {item.type !== 'chat' && item.type !== 'lorebook' && item.type !== 'authornote' && item.type !== 'memory' && item.type !== 'extraSystemInstruction' && item.type !== 'userDescription' && item.type !== 'characterPrompt' && (
                                             <div>
-                                                <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1 block">{t('settings.prompts.fields.content')}</label>
+                                                <label className="text-xs font-medium text-(--color-text-tertiary) mb-1 block">{t('settings.prompts.fields.content')}</label>
                                                 <textarea
                                                     value={item.content}
                                                     onChange={e => handleMainPromptChange(index, { content: e.target.value })}
-                                                    className="w-full h-64 p-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg text-sm font-mono border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)]" />
+                                                    className="w-full h-64 p-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg text-sm font-mono border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border)" />
                                             </div>
                                         )}
                                     </div>
@@ -323,38 +323,38 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                     })}
 
                     <div className="flex justify-center mt-4">
-                        <button type="button" onClick={addNewPrompt} className="py-2 px-4 text-sm bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] rounded-lg text-[var(--color-text-accent)]">+ {t('settings.prompts.addNew')}</button>
+                        <button type="button" onClick={addNewPrompt} className="py-2 px-4 text-sm bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) rounded-lg text-(--color-text-accent)">+ {t('settings.prompts.addNew')}</button>
                     </div>
 
-                    <h4 className="text-base font-semibold text-[var(--color-preview-accent-from)] border-b border-[var(--color-preview-border)]/40 pb-2 mt-6">{t('settings.prompts.tokens.title')}</h4>
+                    <h4 className="text-base font-semibold text-(--color-preview-accent-from) border-b border-(--color-preview-border)/40 pb-2 mt-6">{t('settings.prompts.tokens.title')}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div className="flex flex-col">
-                            <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1">{t('settings.prompts.tokens.maxContext')}</label>
+                            <label className="text-xs font-medium text-(--color-text-tertiary) mb-1">{t('settings.prompts.tokens.maxContext')}</label>
                             <input
                                 type="number"
                                 value={localPrompts.maxContextTokens}
                                 onChange={e => setLocalPrompts(prev => ({ ...prev, maxContextTokens: parseInt(e.target.value) || -1 }))}
-                                className="w-full p-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm"
+                                className="w-full p-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm"
                                 placeholder={t('settings.prompts.tokens.maxContext')}
                             />
                         </div>
                         <div className="flex flex-col">
-                            <label className="text-xs font-medium text-[var(--color-text-tertiary)] mb-1">{t('settings.prompts.tokens.maxResponse')}</label>
+                            <label className="text-xs font-medium text-(--color-text-tertiary) mb-1">{t('settings.prompts.tokens.maxResponse')}</label>
                             <input
                                 type="number"
                                 value={localPrompts.maxResponseTokens}
                                 onChange={e => setLocalPrompts(prev => ({ ...prev, maxResponseTokens: parseInt(e.target.value) || -1 }))}
-                                className="w-full p-2 bg-[var(--color-bg-main)] text-[var(--color-text-primary)] rounded border border-[var(--color-border)] text-sm"
+                                className="w-full p-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm"
                                 placeholder={t('settings.prompts.tokens.maxResponse')}
                             />
                         </div>
                     </div>
-                    <h4 className="text-base font-semibold text-[var(--color-preview-accent-to)] border-b border-[var(--color-preview-border)]/40 pb-2 mt-6">{t('settings.prompts.generation.title')}</h4>
+                    <h4 className="text-base font-semibold text-(--color-preview-accent-to) border-b border-(--color-preview-border)/40 pb-2 mt-6">{t('settings.prompts.generation.title')}</h4>
                     <div className="space-y-4 mt-4">
                         <div className="flex flex-col">
-                            <label className="flex items-center justify-between text-xs font-medium text-[var(--color-text-tertiary)] mb-2">
+                            <label className="flex items-center justify-between text-xs font-medium text-(--color-text-tertiary) mb-2">
                                 <span className="flex items-center gap-1"><Thermometer className="w-4 h-4" /> {t('settings.prompts.generation.temperature')}</span>
-                                <span className="text-[var(--color-preview-accent-to)] font-semibold">{localPrompts.temperature?.toFixed(2) ?? 'N/A'}</span>
+                                <span className="text-(--color-preview-accent-to) font-semibold">{localPrompts.temperature?.toFixed(2) ?? 'N/A'}</span>
                             </label>
                             <input
                                 type="range"
@@ -364,17 +364,17 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                 value={localPrompts.temperature || 1.25}
                                 onChange={e => setLocalPrompts(prev => ({ ...prev, temperature: parseFloat(parseFloat(e.target.value).toFixed(2)) ?? -1 }))}
 
-                                className="w-full accent-[var(--color-button-primary)]"
+                                className="w-full accent-(--color-button-primary)"
                             />
-                            <div className="flex justify-between text-xs text-[var(--color-text-informative-primary)] mt-1">
+                            <div className="flex justify-between text-xs text-(--color-text-informative-primary) mt-1">
                                 <span>0</span>
                                 <span>{currentApiProvider === 'claude' ? 1 : 2}</span>
                             </div>
                         </div>
                         <div className="flex flex-col">
-                            <label className="flex items-center justify-between text-xs font-medium text-[var(--color-text-tertiary)] mb-2">
+                            <label className="flex items-center justify-between text-xs font-medium text-(--color-text-tertiary) mb-2">
                                 <span className="flex items-center gap-1"><Percent className="w-4 h-4" /> {t('settings.prompts.generation.topP')}</span>
-                                <span className="text-[var(--color-preview-accent-to)] font-semibold">{localPrompts.topP?.toFixed(2) ?? 'N/A'}</span>
+                                <span className="text-(--color-preview-accent-to) font-semibold">{localPrompts.topP?.toFixed(2) ?? 'N/A'}</span>
                             </label>
                             <input
                                 type="range"
@@ -383,17 +383,17 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                 step="0.01"
                                 value={localPrompts.topP || 0.95}
                                 onChange={e => setLocalPrompts(prev => ({ ...prev, topP: parseFloat(parseFloat(e.target.value).toFixed(2)) ?? -1 }))}
-                                className="w-full accent-[var(--color-button-primary)]"
+                                className="w-full accent-(--color-button-primary)"
                             />
-                            <div className="flex justify-between text-xs text-[var(--color-text-informative-primary)] mt-1">
+                            <div className="flex justify-between text-xs text-(--color-text-informative-primary) mt-1">
                                 <span>0</span>
                                 <span>1</span>
                             </div>
                         </div>
                         <div className="flex flex-col">
-                            <label className="flex items-center justify-between text-xs font-medium text-[var(--color-text-tertiary)] mb-2">
+                            <label className="flex items-center justify-between text-xs font-medium text-(--color-text-tertiary) mb-2">
                                 <span className="flex items-center gap-1"><ArrowUpToLine className="w-4 h-4" /> {t('settings.prompts.generation.topK')}</span>
-                                <span className="text-[var(--color-preview-accent-to)] font-semibold">{localPrompts.topK ?? 'N/A'}</span>
+                                <span className="text-(--color-preview-accent-to) font-semibold">{localPrompts.topK ?? 'N/A'}</span>
                             </label>
                             <input
                                 type="range"
@@ -402,16 +402,16 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                                 step="1"
                                 value={localPrompts.topK || 40}
                                 onChange={e => setLocalPrompts(prev => ({ ...prev, topK: parseInt(e.target.value) ?? -1 }))}
-                                className="w-full accent-[var(--color-button-primary)]"
+                                className="w-full accent-(--color-button-primary)"
                             />
-                            <div className="flex justify-between text-xs text-[var(--color-text-informative-primary)] mt-1">
+                            <div className="flex justify-between text-xs text-(--color-text-informative-primary) mt-1">
                                 <span>1</span>
                                 <span>100</span>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="p-6 mt-auto border-t border-[var(--color-border)] shrink-0 flex flex-wrap justify-end gap-3">
+                <div className="p-6 mt-auto border-t border-(--color-border) shrink-0 flex flex-wrap justify-end gap-3">
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -419,15 +419,15 @@ function PromptModal({ isOpen, onClose }: PromptModalProps) {
                         className="hidden"
                         onChange={handleFileChange}
                     />
-                    <button onClick={handleBackup} className="py-2 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center gap-2 border border-[var(--color-border)]">
+                    <button onClick={handleBackup} className="py-2 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center gap-2 border border-(--color-border)">
                         <Upload className="w-4 h-4" /> {t('settings.prompts.actions.backup')}
                     </button>
-                    <button onClick={handleImportClick} className="py-2 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center gap-2 border border-[var(--color-border)]">
+                    <button onClick={handleImportClick} className="py-2 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center gap-2 border border-(--color-border)">
                         <Download className="w-4 h-4" /> {t('settings.prompts.actions.import')}
                     </button>
-                    <div className="flex-grow"></div>
-                    <button onClick={onClose} className="py-2.5 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors">{t('common.cancel')}</button>
-                    <button onClick={handleSave} className="py-2.5 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors">{t('common.save')}</button>
+                    <div className="grow"></div>
+                    <button onClick={onClose} className="py-2.5 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors">{t('common.cancel')}</button>
+                    <button onClick={handleSave} className="py-2.5 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors">{t('common.save')}</button>
                 </div>
             </div>
         </div>

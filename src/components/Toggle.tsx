@@ -22,12 +22,12 @@ interface ToggleProps {
     const content = (
         <>
             <div className="flex flex-col">
-                <label htmlFor={id} className="font-medium text-[var(--color-text-primary)] cursor-pointer flex items-center">
+                <label htmlFor={id} className="font-medium text-(--color-text-primary) cursor-pointer flex items-center">
                     {icon && <span className="mr-2">{icon}</span>}
                     {label}
                 </label>
                 {description && (
-                    <p className="text-xs text-[var(--color-text-secondary)]">{description}</p>
+                    <p className="text-xs text-(--color-text-secondary)">{description}</p>
                 )}
                 {additionalDescription}
             </div>
@@ -40,13 +40,13 @@ interface ToggleProps {
                     onChange={e => onChange(e.target.checked)}
                     disabled={disabled}
                 />
-                <div className="w-11 h-6 bg-[var(--color-toggle-off)] rounded-full peer peer-focus:ring-4 peer-focus:ring-[var(--color-toggle-on)]/30 peer-checked:after:translate-x-full peer-checked:after:border-[var(--color-border)] after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-[var(--color-bg-main)] after:border-[var(--color-border-strong)] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-toggle-on)] disabled:opacity-50 disabled:cursor-not-allowed"></div>
+                <div className="w-11 h-6 bg-(--color-toggle-off) rounded-full peer peer-focus:ring-4 peer-focus:ring-(--color-toggle-on)/30 peer-checked:after:translate-x-full peer-checked:after:border-(--color-border) after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-(--color-bg-main) after:border-(--color-border-strong) after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-toggle-on) disabled:opacity-50 disabled:cursor-not-allowed"></div>
             </label>
         </>
     );
 
     return (
-        <div className={`flex items-center justify-between p-3 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)]`}>
+        <div className={`flex items-center justify-between p-3 bg-(--color-bg-secondary) rounded-lg border border-(--color-border)`}>
             {content}
         </div>
     );

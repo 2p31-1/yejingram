@@ -214,25 +214,25 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
     };
 
     return (
-        <div className="fixed inset-y-0 right-0 z-40 w-96 max-w-full bg-[var(--color-bg-main)] border-l border-[var(--color-border)] shadow-xl flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] shrink-0">
-                <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{isNew ? t('characterPanel.titleAdd') : t('characterPanel.titleEdit')}</h3>
+        <div className="fixed inset-y-0 right-0 z-40 w-96 max-w-full bg-(--color-bg-main) border-l border-(--color-border) shadow-xl flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-(--color-border) shrink-0">
+                <h3 className="text-xl font-semibold text-(--color-text-primary)">{isNew ? t('characterPanel.titleAdd') : t('characterPanel.titleEdit')}</h3>
             </div>
-            <div className="flex border-b border-[var(--color-border)]">
+            <div className="flex border-b border-(--color-border)">
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'basicInfo' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'basicInfo' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('basicInfo')}
                 >
                     {t('characterPanel.tabs.basicInfo')}
                 </button>
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'lorebook' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'lorebook' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('lorebook')}
                 >
                     {t('characterPanel.tabs.lorebook')}
                 </button>
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'backup' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'backup' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('backup')}
                 >
                     {t('characterPanel.tabs.backup')}
@@ -242,27 +242,27 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 {activeTab === 'basicInfo' && (
                     <>
                         <div className="flex items-center space-x-4">
-                            <div className="w-20 h-20 rounded-full bg-[var(--color-bg-input-primary)] flex items-center justify-center overflow-hidden shrink-0 border-2 border-[var(--color-border)]">
-                                {avatarPreviewSrc ? <img src={avatarPreviewSrc} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
+                            <div className="w-20 h-20 rounded-full bg-(--color-bg-input-primary) flex items-center justify-center overflow-hidden shrink-0 border-2 border-(--color-border)">
+                                {avatarPreviewSrc ? <img src={avatarPreviewSrc} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-(--color-icon-secondary)" />}
                             </div>
                             <div className="flex flex-col gap-2">
-                                <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                                <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                     <Image className="w-4 h-4" /> {t('characterPanel.profileImage')}
                                 </button>
-                                <button onClick={importPersonaImage} className="py-2 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                                <button onClick={importPersonaImage} className="py-2 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                     <Upload className="w-4 h-4" /> {t('characterPanel.importContact')}
                                 </button>
                             </div>
                         </div>
                         <div>
-                            <label className="text-sm font-medium text-[var(--color-text-interface)] mb-2 block">{t('characterPanel.nameLabel')}</label>
-                            <input id="character-name" type="text" placeholder={t('characterPanel.namePlaceholder')} value={char.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm" />
+                            <label className="text-sm font-medium text-(--color-text-interface) mb-2 block">{t('characterPanel.nameLabel')}</label>
+                            <input id="character-name" type="text" placeholder={t('characterPanel.namePlaceholder')} value={char.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm" />
                         </div>
                         <div>
                             <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.personInfoLabel')}</label>
+                                <label className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.personInfoLabel')}</label>
                             </div>
-                            <textarea id="character-prompt" placeholder={t('characterPanel.personInfoPlaceholder')} value={char.prompt} onChange={e => handleInputChange('prompt', e.target.value)} className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm" rows={6}></textarea>
+                            <textarea id="character-prompt" placeholder={t('characterPanel.personInfoPlaceholder')} value={char.prompt} onChange={e => handleInputChange('prompt', e.target.value)} className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm" rows={6}></textarea>
                         </div>
                         {/* {proactiveChatEnabled && (
 
@@ -276,25 +276,25 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
 
                         )} */}
 
-                        <details className="group/additional border-t border-[var(--color-border)] pt-4">
+                        <details className="group/additional border-t border-(--color-border) pt-4">
                             <summary className="flex items-center justify-between cursor-pointer list-none">
-                                <span className="text-base font-medium text-[var(--color-text-primary)]">{t('characterPanel.additionalSettings')}</span>
-                                <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/additional:rotate-180" />
+                                <span className="text-base font-medium text-(--color-text-primary)">{t('characterPanel.additionalSettings')}</span>
+                                <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/additional:rotate-180" />
                             </summary>
                             <div className="content-wrapper">
                                 <div className="content-inner pt-6 space-y-6">
-                                    <details className="group/sticker border-t border-[var(--color-border)] pt-2">
+                                    <details className="group/sticker border-t border-(--color-border) pt-2">
                                         <summary className="flex items-center justify-between cursor-pointer list-none py-2">
-                                            <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.stickers')}</h4>
-                                            <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/sticker:rotate-180" />
+                                            <h4 className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.stickers')}</h4>
+                                            <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/sticker:rotate-180" />
                                         </summary>
                                         <StickerManager characterId={char.id} draft={char} onDraftChange={setChar} />
                                     </details>
                                     {/* 메모리는 별도 탭으로 이동 */}
-                                    <details className="group/attribute border-t border-[var(--color-border)] pt-2">
+                                    <details className="group/attribute border-t border-(--color-border) pt-2">
                                         <summary className="flex items-center justify-between cursor-pointer list-none py-2">
-                                            <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.messageReactivity')}</h4>
-                                            <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/attribute:rotate-180" />
+                                            <h4 className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.messageReactivity')}</h4>
+                                            <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/attribute:rotate-180" />
                                         </summary>
                                         <AttributeSliders characterId={char.id} draft={char} onDraftChange={setChar} />
                                     </details>
@@ -310,21 +310,21 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 )}
                 {activeTab === 'backup' && (
                     <div className="space-y-6">
-                        <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('characterPanel.backupSettings')}</h4>
+                        <h4 className="text-lg font-semibold text-(--color-text-primary)">{t('characterPanel.backupSettings')}</h4>
                         <div className="flex flex-col gap-3">
-                            <button onClick={() => exportPersonaImage("alpha-channel")} className="py-3 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2 border border-[var(--color-border)]">
+                            <button onClick={() => exportPersonaImage("alpha-channel")} className="py-3 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center justify-center gap-2 border border-(--color-border)">
                                 <Download className="w-4 h-4" /> {t('characterPanel.shareArisutalk')}
                             </button>
-                            <button onClick={() => exportPersonaImage("png-trailer")} className="py-3 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                            <button onClick={() => exportPersonaImage("png-trailer")} className="py-3 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                 <Download className="w-4 h-4" /> {t('characterPanel.shareYejingram')}
                             </button>
                         </div>
                     </div>
                 )}
             </div>
-            <div className="p-6 mt-auto border-t border-[var(--color-border)] shrink-0 flex justify-end space-x-3">
-                <button onClick={() => { dispatch(charactersActions.resetEditingCharacterId()); onClose(); }} className="flex-1 py-2.5 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors">{t('common.cancel')}</button>
-                <button onClick={handleSave} className="flex-1 py-2.5 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors">{t('characterPanel.save')}</button>
+            <div className="p-6 mt-auto border-t border-(--color-border) shrink-0 flex justify-end space-x-3">
+                <button onClick={() => { dispatch(charactersActions.resetEditingCharacterId()); onClose(); }} className="flex-1 py-2.5 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors">{t('common.cancel')}</button>
+                <button onClick={handleSave} className="flex-1 py-2.5 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors">{t('characterPanel.save')}</button>
             </div>
             {/* 숨겨진 파일 입력: 어디서든 아바타 업로드 버튼이 동작하도록 전역 배치 */}
             <input type="file" accept="image/png,image/jpeg" ref={avatarInputRef} onChange={handleAvatarChange} className="hidden" />
