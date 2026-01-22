@@ -204,7 +204,7 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
  * 제한 시간대라면 true 반환 (선톡 불가)
  */
 function isInRestrictedTime(timeRestriction: ProactiveTimeRestriction): boolean {
-    if (!timeRestriction.enabled) return false;
+    if (!timeRestriction.enabled || !timeRestriction.startHour || !timeRestriction.startMinute || !timeRestriction.endHour || !timeRestriction.endMinute) return false;
 
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -242,9 +242,7 @@ const probabilisticTriggerCounts: Map<string, ProbabilisticTriggerState> = new M
  * 카운트는 서버 측에서 관리
  */
 function shouldTriggerProbabilistic(clientId: string, settings: ProactiveProbabilisticSettings): boolean {
-    if (!settings.enabled) {
-        return false;
-    }
+    if (!settings.enabled || !settings.maxTriggersPerDay || !settings.probability) return false;
 
     const today = getTodayDateString();
     let triggerState = probabilisticTriggerCounts.get(clientId);
@@ -256,7 +254,7 @@ function shouldTriggerProbabilistic(clientId: string, settings: ProactiveProbabi
     }
 
     // 오늘 최대 횟수에 도달했다면 더 이상 트리거하지 않음
-    const maxTriggers = settings.maxTriggersPerDay ?? 1;
+    const maxTriggers = settings.maxTriggersPerDay;
     if (triggerState.count >= maxTriggers) {
         console.log(`[${clientId}] ${i18next.t('proactiveServer.probabilisticMaxReached', { max: maxTriggers, current: triggerState.count })}`);
         return false;
@@ -284,7 +282,7 @@ const lastPeriodicTriggerTime: Map<string, number> = new Map();
  * 주기적 선톡을 트리거할지 결정
  */
 function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSettings): boolean {
-    if (!settings.enabled) return false;
+    if (!settings.enabled || !settings.intervalMinutes) return false;
 
     const now = Date.now();
     const lastTrigger = lastPeriodicTriggerTime.get(clientId) ?? 0;

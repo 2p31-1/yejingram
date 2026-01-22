@@ -446,8 +446,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             type="number"
                                                             min="0"
                                                             max="23"
-                                                            value={localSettings.proactiveSettings.timeRestriction?.startHour ?? 23}
-                                                            onChange={e => updateTimeRestriction('startHour', parseInt(e.target.value) || 23)}
+                                                            value={localSettings.proactiveSettings.timeRestriction.startHour}
+                                                            onChange={e => updateTimeRestriction('startHour', e.target.value === '' ? '' : Number(e.target.value))}
                                                             className="w-full px-2 py-1 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm text-center"
                                                         />
                                                         <span className="text-(--color-text-secondary) self-center">:</span>
@@ -455,8 +455,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             type="number"
                                                             min="0"
                                                             max="59"
-                                                            value={localSettings.proactiveSettings.timeRestriction?.startMinute ?? 0}
-                                                            onChange={e => updateTimeRestriction('startMinute', parseInt(e.target.value) || 0)}
+                                                            value={localSettings.proactiveSettings.timeRestriction.startMinute}
+                                                            onChange={e => updateTimeRestriction("startMinute", e.target.value === '' ? '' : Number(e.target.value))}
                                                             className="w-full px-2 py-1 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm text-center"
                                                         />
                                                     </div>
@@ -468,8 +468,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             type="number"
                                                             min="0"
                                                             max="23"
-                                                            value={localSettings.proactiveSettings.timeRestriction?.endHour ?? 7}
-                                                            onChange={e => updateTimeRestriction('endHour', parseInt(e.target.value) || 7)}
+                                                            value={localSettings.proactiveSettings.timeRestriction.endHour}
+                                                            onChange={e => updateTimeRestriction('endHour', e.target.value === '' ? '' : Number(e.target.value))}
                                                             className="w-full px-2 py-1 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm text-center"
                                                         />
                                                         <span className="text-(--color-text-secondary) self-center">:</span>
@@ -477,8 +477,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                             type="number"
                                                             min="0"
                                                             max="59"
-                                                            value={localSettings.proactiveSettings.timeRestriction?.endMinute ?? 0}
-                                                            onChange={e => updateTimeRestriction('endMinute', parseInt(e.target.value) || 0)}
+                                                            value={localSettings.proactiveSettings.timeRestriction.endMinute}
+                                                            onChange={e => updateTimeRestriction('endMinute', e.target.value === '' ? '' : Number(e.target.value))}
                                                             className="w-full px-2 py-1 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm text-center"
                                                         />
                                                     </div>
@@ -503,8 +503,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                     type="number"
                                                     min="1"
                                                     max="1440"
-                                                    value={localSettings.proactiveSettings.periodicSettings?.intervalMinutes ?? 60}
-                                                    onChange={e => updatePeriodicSettings('intervalMinutes', parseInt(e.target.value) || 60)}
+                                                    value={localSettings.proactiveSettings.periodicSettings.intervalMinutes}
+                                                    onChange={e => updatePeriodicSettings('intervalMinutes', e.target.value === '' ? '' : Number(e.target.value))}
                                                     className="w-full px-3 py-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm"
                                                 />
                                             </div>
@@ -528,8 +528,8 @@ function SettingsPanel({ openPromptModal, onClose }: SettingsPanelProps) {
                                                         type="number"
                                                         min="1"
                                                         max="100"
-                                                        value={localSettings.proactiveSettings.probabilisticSettings?.maxTriggersPerDay ?? 1}
-                                                        onChange={e => updateProbabilisticSettings('maxTriggersPerDay', parseInt(e.target.value) || 1)}
+                                                        value={localSettings.proactiveSettings.probabilisticSettings.maxTriggersPerDay}
+                                                        onChange={e => updateProbabilisticSettings('maxTriggersPerDay', e.target.value === '' ? '' : Number(e.target.value))}
                                                         className="w-full px-3 py-2 bg-(--color-bg-main) text-(--color-text-primary) rounded border border-(--color-border) text-sm"
                                                     />
                                                 </div>
