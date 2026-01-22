@@ -4,12 +4,9 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import sharp from 'sharp';
 import { getBlob } from '../../src/services/binaryStore';
-import { RootState, store } from '../../src/app/store';
+import type { RootState } from '../../src/app/store';
 import { selectAllRooms } from '../../src/entities/room/selectors';
-import { selectMessagesByRoomId } from '../../src/entities/message/selectors';
-import type { Message } from '../../src/entities/message/types';
-import { restoreStateFromServer } from '../../src/utils/backup';
-import { SendMessage } from '../../src/services/llm/LLMcaller';
+import { headlessLoadState, headlessSendMessage, printMessages } from '../../src/lib/headlessUtils.ts';
 import webpush, { type PushSubscription } from 'web-push';
 import 'dotenv/config';
 import en from '../../src/i18n/locales/en.ts';
@@ -202,21 +199,6 @@ function startSubscriptionApi(port: number = Number(process.env.HEADLESS_PORT ??
     });
 }
 
-function printMessages(messages: Message[]) {
-    for (const m of messages) {
-        const baseInfo = `- [${m.type}] authorId=${m.authorId} at ${m.createdAt}`;
-        if (m.type === 'TEXT') {
-            console.log(baseInfo + `\n  ${m.content ?? ''}`);
-        } else if (m.type === 'STICKER') {
-            console.log(baseInfo + `\n  [Sticker] ${m.sticker?.name ?? m.sticker?.id ?? 'unknown'}`);
-        } else if (m.type === 'IMAGE') {
-            console.log(baseInfo + `\n  [Image] ${m.file?.name ?? m.file?.mimeType ?? 'image'}`);
-        } else {
-            console.log(baseInfo);
-        }
-    }
-}
-
 /**
  * 현재 시간이 제한 시간대에 해당하는지 확인
  * 제한 시간대라면 true 반환 (선톡 불가)
@@ -326,14 +308,12 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
             try {
                 console.log(`[${clientId}] ${i18next.t('proactiveServer.restoreStart')}`);
 
-                const isRestoreSuccessful = await restoreStateFromServer(clientId, process.env.SYNC_BASE_URL!, true);
-                if (isRestoreSuccessful !== true) {
-                    console.log(`[${clientId}] ${i18next.t('proactiveServer.restoreFailed',
-                        {
-                            cause: isRestoreSuccessful ? isRestoreSuccessful.cause : 'Unknown error'
-                        })}`);
-                    continue;
-                }
+                const store = await headlessLoadState({
+                    savetype: 'sync',
+                    baseUrl: process.env.SYNC_BASE_URL!,
+                    clientId
+                });
+
                 console.log(i18next.t('proactiveServer.restoreComplete'));
 
                 const state = store.getState();
@@ -394,24 +374,15 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
 
                 const randomRoom = proactiveEnabledRooms[Math.floor(Math.random() * proactiveEnabledRooms.length)];
 
-                const beforeMessages = selectMessagesByRoomId(store.getState(), randomRoom.id);
-                const beforeIds = new Set(beforeMessages.map(m => m.id));
-                printMessages(beforeMessages);
-
-                const sentNotificationIds = new Set<string>(); // 알림 보낸 메시지 ID 추적
-
-                // store.subscribe는 unsubscribe 함수를 반환함
-                const unsubscribe = store.subscribe(async () => {
-                    const allMessages = selectMessagesByRoomId(store.getState(), randomRoom.id);
-                    const newMessages = allMessages.filter(m => !beforeIds.has(m.id) && !sentNotificationIds.has(m.id));
-
-                    for (const newlyAdded of newMessages) {
-                        sentNotificationIds.add(newlyAdded.id);
-
+                await headlessSendMessage({
+                    store,
+                    room: randomRoom,
+                    onMessage: async (newlyAdded) => {
                         const characterName = selectCharacterById(state, newlyAdded.authorId)?.name ?? 'Unknown';
                         printMessages([newlyAdded]);
-
-                        await prepareAvatarCache(state, clientId, newlyAdded.authorId);
+                        if (!avatarCache.has(`${clientId}:${newlyAdded.authorId}`)) {
+                            await prepareAvatarCache(state, clientId, newlyAdded.authorId);
+                        }
 
                         try {
                             await webpush.sendNotification(
@@ -425,31 +396,18 @@ function shouldTriggerPeriodic(clientId: string, settings: ProactivePeriodicSett
                             );
                         } catch (err) {
                             console.error(`[${clientId}] ${i18next.t('proactiveServer.pushError')}`, err);
-                            unsubscribe();
-                            break;
                         }
-                    }
+                    },
+                    onStart: (id) => {
+                        if (id) {
+                            console.log(i18next.t('proactiveServer.messageGenerating'), id);
+                        } else {
+                            console.log(i18next.t('proactiveServer.messageComplete'));
+                        }
+                    },
+                    t: i18next.t,
+                    mode: 'proactive',
                 });
-
-                try {
-                    store.dispatch({ type: 'messages/writingStart' });
-                    await SendMessage(
-                        randomRoom,
-                        (id) => {
-                            if (id) {
-                                console.log(i18next.t('proactiveServer.messageGenerating'), id);
-                            } else {
-                                console.log(i18next.t('proactiveServer.messageComplete'));
-                            }
-                        },
-                        i18next.t,
-                        "proactive"
-                    );
-                } catch (err) {
-                    console.error(i18next.t('proactiveServer.sendError'), err);
-                } finally {
-                    unsubscribe();
-                }
             } catch (err) {
                 console.error(`[${clientId}] Unhandled error during proactive processing:`, err);
             }
