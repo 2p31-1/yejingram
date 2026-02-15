@@ -4,6 +4,7 @@ import { UserPlus, X, Sparkles, RefreshCw, CheckCircle2, AlertCircle, Phone, Mes
 import { useDispatch } from 'react-redux';
 import { charactersActions } from '../../entities/character/slice';
 import { importCharacterFromUrl } from '../../utils/importCharacter';
+import type { Character } from '../../entities/character/types';
 
 export interface RealmImportParams {
     realmId: string;
@@ -11,7 +12,7 @@ export interface RealmImportParams {
 }
 
 interface RealmImportModalProps extends RealmImportParams {
-    onClose: () => void;
+    onClose: (character: Character | null) => void;
 }
 
 function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps) {
@@ -21,6 +22,7 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
     const [errorMessage, setErrorMessage] = useState<string>('');
     const [imageLoaded, setImageLoaded] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [character, setCharacter] = useState<Character | null>(null);
 
     const downloadUrl = `https://d3rd8muqzoyvtk.cloudfront.net/realm/${realmId}/download`;
     const thumbnailUrl = `https://dt3lfi1tp9am3.cloudfront.net/${realmId}/${realmId}_thumb.webp`;
@@ -38,7 +40,8 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
             );
 
             if (result.success) {
-                dispatch(charactersActions.upsertOne(result.character));
+                const importResult = dispatch(charactersActions.upsertOne(result.character));
+                setCharacter(importResult.payload);
                 setStatus('success');
             } else {
                 const errorMessages: Record<typeof result.error, string> = {
@@ -62,7 +65,7 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
             >
                 {/* 닫기 버튼 - 플로팅 스타일 */}
                 <button
-                    onClick={onClose}
+                    onClick={() => onClose(null)}
                     className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm transition-all duration-200 group"
                     aria-label={t('common.close')}
                 >
@@ -125,7 +128,7 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
                             {/* 버튼 그룹 */}
                             <div className="flex gap-3">
                                 <button
-                                    onClick={onClose}
+                                    onClick={() => onClose(null)}
                                     className="flex-1 py-3 px-4 bg-(--color-bg-secondary) hover:bg-(--color-bg-hover) text-(--color-text-secondary) rounded-xl transition-all duration-200 font-medium border border-(--color-border)/50"
                                 >
                                     {t('realmImport.block')}
@@ -186,7 +189,7 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
                                 {t('realmImport.success')}
                             </p>
                             <button
-                                onClick={onClose}
+                                onClick={() => onClose(character)}
                                 className="w-full py-3 px-4 bg-linear-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl transition-all duration-200 font-medium hover:shadow-lg hover:shadow-green-500/25"
                             >
                                 {t('realmImport.startChat')}
@@ -215,7 +218,7 @@ function RealmImportModal({ realmId, charname, onClose }: RealmImportModalProps)
                             </div>
                             <div className="flex gap-3">
                                 <button
-                                    onClick={onClose}
+                                    onClick={() => onClose(null)}
                                     className="flex-1 py-3 px-4 bg-(--color-bg-secondary) hover:bg-(--color-bg-hover) text-(--color-text-secondary) rounded-xl transition-all duration-200 font-medium border border-(--color-border)/50"
                                 >
                                     {t('common.close')}

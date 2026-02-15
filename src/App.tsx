@@ -27,9 +27,14 @@ import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
 import { syncService } from './services/syncService'
 import { selectIsSyncConflict, selectIsSyncing } from './entities/sync/selectors'
+import { roomsActions } from './entities/room/slice'
+import type { Character } from './entities/character/types'
+import { useTranslation } from 'react-i18next';
 
 function App() {
   const dispatch = useDispatch();
+  const { t } = useTranslation();
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -68,7 +73,7 @@ function App() {
   });
 
   // realmId 처리 후 URL에서 파라미터 제거
-  const handleRealmImportClose = () => {
+  const handleRealmImportClose = (character: Character | null) => {
     setRealmImport(null);
     // URL에서 realmId, charname 파라미터 제거
     if (typeof window !== 'undefined') {
@@ -76,6 +81,18 @@ function App() {
       url.searchParams.delete('realmId');
       url.searchParams.delete('charname');
       window.history.replaceState({}, '', url.toString());
+    }
+
+    if (character) {
+      const roomResult = dispatch(roomsActions.upsertOne({
+        id: `${character.id}-${Date.now()}`,
+        name: t('sidebar.tooltipNewChat'),
+        memberIds: [character.id],
+        lastMessageId: null,
+        type: "Direct",
+        unreadCount: 0,
+      }));
+      setRoomId(roomResult.payload.id);
     }
   };
 
@@ -318,7 +335,7 @@ function App() {
 
         {/* Realm Import Modal */}
         {realmImport && (
-          <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={handleRealmImportClose} />
+          <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={(character: Character | null) => handleRealmImportClose(character)} />
         )}
 
         {/* Mobile Sidebar Backdrop */}
