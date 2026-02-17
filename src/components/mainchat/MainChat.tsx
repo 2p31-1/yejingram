@@ -355,6 +355,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const iframe = iframeRef.current;
     if (iframe) {
       iframe.addEventListener('load', sendCssVariables);
+      // If the iframe is already loaded (e.g. from service worker cache),
+      // the load event has already fired before the listener was registered.
+      // Send CSS variables immediately as a fallback.
+      sendCssVariables();
     }
 
     // Detect theme changes
