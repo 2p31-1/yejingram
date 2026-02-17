@@ -399,7 +399,7 @@ const ko = {
                 providerPriority: "프로바이더 우선순위",
                 endpointsLoading: "엔드포인트 불러오는 중…",
                 endpointsLoadFailed: "엔드포인트 목록을 불러오지 못했습니다.",
-                priorityHelp: "아래 목록에서 우선순위대로 선택하세요. 드래그 대신 클릭으로 추가/순서를 설정할 수 있습니다.",
+                priorityHelp: "아래 목록에서 우선순위대로 선택하세요. 클릭으로 추가/순서를 설정할 수 있습니다.",
                 selectedWithOrder: "선택됨 · 순위 {{order}}",
                 clickToAdd: "클릭하여 추가",
                 currentPriority: "현재 우선순위",

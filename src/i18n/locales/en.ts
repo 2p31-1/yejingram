@@ -399,7 +399,7 @@ const en = {
                 providerPriority: "Provider priority",
                 endpointsLoading: "Loading endpoints…",
                 endpointsLoadFailed: "Failed to load endpoint list.",
-                priorityHelp: "Select in order of priority below. Click to add/reorder instead of dragging.",
+                priorityHelp: "Select in order of priority below. Click to add/reorder.",
                 selectedWithOrder: "Selected · Order {{order}}",
                 clickToAdd: "Click to add",
                 currentPriority: "Current priority",

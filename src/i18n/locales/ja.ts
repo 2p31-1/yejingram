@@ -399,7 +399,7 @@ const ja = {
                 providerPriority: "プロバイダの優先順位",
                 endpointsLoading: "エンドポイントを読み込み中…",
                 endpointsLoadFailed: "エンドポイント一覧の読み込みに失敗しました。",
-                priorityHelp: "下のリストから優先順位の順に選択してください。ドラッグの代わりにクリックで追加/順序を設定できます。",
+                priorityHelp: "下のリストから優先順位の順に選択してください。クリックで追加/順序を設定できます。",
                 selectedWithOrder: "選択済み · 順位 {{order}}",
                 clickToAdd: "クリックして追加",
                 currentPriority: "現在の優先順位",
