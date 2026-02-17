@@ -39,7 +39,7 @@ export const initialProactiveSettings: Proactive = {
     },
     probabilisticSettings: {
         enabled: false,
-        probability: 30,
+        probability: 5,
         maxTriggersPerDay: 1,
         triggeredCountToday: 0,
         lastTriggeredDate: null,
