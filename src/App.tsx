@@ -15,7 +15,7 @@ import RealmImportModal, { type RealmImportParams } from './components/modals/Re
 import { useDispatch, useSelector } from 'react-redux'
 import { selectRoomById } from './entities/room/selectors'
 import { selectEditingCharacterId } from './entities/character/selectors'
-import { selectAllSettings, selectColorTheme, selectUILanguage } from './entities/setting/selectors'
+import { selectAllSettings, selectColorTheme, selectUILanguage, selectLastAnnouncementCommitTime } from './entities/setting/selectors'
 import { type RootState } from './app/store'
 import { setActiveRoomId } from './utils/activeRoomTracker'
 import { SpeedInsights } from '@vercel/speed-insights/react';
@@ -26,6 +26,7 @@ import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
 import { syncService } from './services/syncService'
+import { fetchLatestCommitTime } from './services/announcements'
 import { selectIsSyncConflict, selectIsSyncing } from './entities/sync/selectors'
 import { roomsActions } from './entities/room/slice'
 import type { Character } from './entities/character/types'
@@ -59,6 +60,10 @@ function App() {
   const editingCharacterId = useSelector(selectEditingCharacterId);
   const isConflict = useSelector(selectIsSyncConflict);
   const isSyncing = useSelector(selectIsSyncing);
+  const lastAnnouncementCommitTime = useSelector(selectLastAnnouncementCommitTime);
+  const [hasNewAnnouncement, setHasNewAnnouncement] = useState(false);
+  const latestCommitTimeRef = useRef<string | null>(null);
+  const prevAnnouncementCommitTimeRef = useRef<string | null>(null);
 
   const [realmImport, setRealmImport] = useState<RealmImportParams | null>(() => {
     if (typeof window !== 'undefined') {
@@ -152,6 +157,18 @@ function App() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [syncEnabled, isSyncing]);
+
+  // Check for new announcements on mount
+  useEffect(() => {
+    (async () => {
+      const commitTime = await fetchLatestCommitTime();
+      if (!commitTime) return;
+      latestCommitTimeRef.current = commitTime;
+      if (!lastAnnouncementCommitTime || new Date(commitTime) > new Date(lastAnnouncementCommitTime)) {
+        setHasNewAnnouncement(true);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -261,10 +278,16 @@ function App() {
         <Sidebar
           roomId={roomId}
           isMobileSidebarOpen={isMobileSidebarOpen}
+          hasNewAnnouncement={hasNewAnnouncement}
           setRoomId={(id) => { setRoomId(id); setIsMobileSidebarOpen(false); }}
           toggleAnnouncementsPanel={() => {
             toggleAnnouncementsPanel()
             if (isSettingsPanelOpen) toggleSettingsPanel()
+            // Capture the previous commit time before opening, so the panel can show dots for new items
+            if (!isAnnouncementsPanelOpen) {
+              prevAnnouncementCommitTimeRef.current = lastAnnouncementCommitTime;
+              setHasNewAnnouncement(false);
+            }
           }}
           toggleSettingsPanel={() => {
             toggleSettingsPanel()
@@ -280,10 +303,22 @@ function App() {
         {isAnnouncementsPanelOpen && (
           <>
             <AnnouncementsPanel
-              onClose={() => setIsAnnouncementsPanelOpen(false)}
+              onClose={() => {
+                setIsAnnouncementsPanelOpen(false);
+                // Persist the latest commit time when closing the panel
+                if (latestCommitTimeRef.current) {
+                  dispatch(settingsActions.setLastAnnouncementCommitTime(latestCommitTimeRef.current));
+                }
+              }}
+              lastAnnouncementCommitTime={prevAnnouncementCommitTimeRef.current}
             />
             {/* Announcements Panel Backdrop (mobile only) */}
-            <Backdrop onClick={() => setIsAnnouncementsPanelOpen(false)} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
+            <Backdrop onClick={() => {
+              setIsAnnouncementsPanelOpen(false);
+              if (latestCommitTimeRef.current) {
+                dispatch(settingsActions.setLastAnnouncementCommitTime(latestCommitTimeRef.current));
+              }
+            }} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
           </>
         )}
 

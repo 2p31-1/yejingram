@@ -78,7 +78,8 @@ export const initialState: SettingsState = {
     personas: [],
     selectedPersonaId: null,
     syncSettings: initialSyncSettings,
-    proactiveSettings: initialProactiveSettings
+    proactiveSettings: initialProactiveSettings,
+    lastAnnouncementCommitTime: null,
 };
 
 const settingsSlice = createSlice({
@@ -281,6 +282,9 @@ const settingsSlice = createSlice({
             if (styleExists) {
                 state.imageSettings.selectedArtStyleId = action.payload;
             }
+        },
+        setLastAnnouncementCommitTime: (state, action: PayloadAction<string>) => {
+            state.lastAnnouncementCommitTime = action.payload;
         },
     }
 });

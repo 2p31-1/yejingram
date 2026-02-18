@@ -89,6 +89,7 @@ export interface SettingsState {
     selectedPersonaId: string | null;
     syncSettings: Sync;
     proactiveSettings: Proactive;
+    lastAnnouncementCommitTime: string | null;
 }
 
 export interface Persona {

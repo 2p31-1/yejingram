@@ -12,6 +12,7 @@ import type { Room } from '../../entities/room/types';
 interface SidebarProps {
     roomId: string | null;
     isMobileSidebarOpen: boolean;
+    hasNewAnnouncement: boolean;
     setRoomId: (id: string | null) => void;
     toggleAnnouncementsPanel: () => void;
     toggleSettingsPanel: () => void;
@@ -21,7 +22,7 @@ interface SidebarProps {
     onCloseMobile?: () => void;
 }
 
-function Sidebar({ roomId, isMobileSidebarOpen, setRoomId, toggleAnnouncementsPanel, toggleSettingsPanel, toggleCharacterPanel, openCreateGroupChatModal, openEditGroupChatModal, onCloseMobile }: SidebarProps) {
+function Sidebar({ roomId, isMobileSidebarOpen, hasNewAnnouncement, setRoomId, toggleAnnouncementsPanel, toggleSettingsPanel, toggleCharacterPanel, openCreateGroupChatModal, openEditGroupChatModal, onCloseMobile }: SidebarProps) {
     const { t } = useTranslation();
     const dispatch = useDispatch();
     const characters = useSelector(selectAllCharacters);
@@ -68,10 +69,13 @@ function Sidebar({ roomId, isMobileSidebarOpen, setRoomId, toggleAnnouncementsPa
                         <button
                             id="open-announcements-modal"
                             onClick={toggleAnnouncementsPanel}
-                            className="p-2 rounded-full hover:bg-(--color-bg-hover) transition-colors"
+                            className="relative p-2 rounded-full hover:bg-(--color-bg-hover) transition-colors"
                             title={t('sidebar.tooltipAnnouncements')}
                         >
                             <Megaphone className="w-6 h-6 text-(--color-icon-primary)" />
+                            {hasNewAnnouncement && (
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-(--color-button-primary) rounded-full" />
+                            )}
                         </button>
                         <button
                             id="open-settings-modal"

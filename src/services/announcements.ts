@@ -130,3 +130,22 @@ export function paginate<T>(items: T[], page: number, pageSize: number): T[] {
   const start = (page - 1) * pageSize;
   return items.slice(start, start + pageSize);
 }
+
+/**
+ * Fetch the latest commit date (ISO 8601 string) on the main branch of the announcements repo.
+ * Returns null if the request fails.
+ */
+export async function fetchLatestCommitTime(): Promise<string | null> {
+  try {
+    const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/commits?sha=main&per_page=1`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.github+json' },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{ commit: { committer: { date: string } } }>;
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data[0].commit.committer.date; // ISO 8601 e.g. "2026-02-18T12:34:56Z"
+  } catch {
+    return null;
+  }
+}

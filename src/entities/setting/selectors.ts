@@ -95,3 +95,8 @@ export const selectUserDescription = createSelector(
     [selectSelectedPersona, selectSettingsState],
     (persona, settings) => persona?.description ?? settings.userDescription ?? ''
 );
+
+export const selectLastAnnouncementCommitTime = createSelector(
+    [selectSettingsState],
+    (settings) => settings.lastAnnouncementCommitTime ?? null
+);

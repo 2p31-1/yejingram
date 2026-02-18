@@ -378,6 +378,16 @@ export const migrations = {
         });
 
         return state;
+    },
+    9: (state: any) => {
+        state = applyRules(state, {
+            add: [{
+                path: 'settings',
+                keys: ['lastAnnouncementCommitTime'],
+                defaults: { lastAnnouncementCommitTime: null }
+            }]
+        });
+        return state;
     }
 } as MigrationManifest;
 
@@ -385,7 +395,7 @@ export const migrations = {
 export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
-    version: 8,
+    version: 9,
     whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved', 'sync'],
     migrate: createMigrate(migrations, { debug: true }),
 };

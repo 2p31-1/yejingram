@@ -8,9 +8,11 @@ import GitHubLogo from '../../assets/github-mark.svg';
 
 interface AnnouncementsPanelProps {
     onClose: () => void;
+    lastAnnouncementCommitTime: string | null;
 }
 
-function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
+function AnnouncementsPanel({ onClose, lastAnnouncementCommitTime }: AnnouncementsPanelProps) {
+    const lastReadMs = lastAnnouncementCommitTime ? new Date(lastAnnouncementCommitTime).getTime() : null;
     const { t } = useTranslation();
     const tabContainerRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -277,7 +279,12 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                                             <div className="flex gap-4">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="text-base font-semibold text-(--color-text-primary) truncate">{item.title}</div>
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            {lastReadMs !== null && item.date.getTime() > lastReadMs && (
+                                                                <span className="shrink-0 w-2 h-2 rounded-full bg-(--color-button-primary)" />
+                                                            )}
+                                                            <div className="text-base font-semibold text-(--color-text-primary) truncate">{item.title}</div>
+                                                        </div>
                                                         <div className="text-xs text-(--color-text-interface) ml-3 whitespace-nowrap">{formatDate(item.date)}</div>
                                                     </div>
                                                     <div className="mt-2 text-sm text-(--color-text-interface) line-clamp-3">
