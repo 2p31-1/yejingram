@@ -8,7 +8,6 @@ const ja = {
         save: "保存",
         unknown: "不明",
         syncing: "同期中…",
-        uploading: "アップロード中…",
     },
 
     units: {
@@ -27,6 +26,30 @@ const ja = {
 
     llm: {
         antiEchoFallback: "それは興味深いポイントですね。あなたはどう思いますか？",
+    },
+
+    proactiveServer: {
+        restoreStart: "バックアップ復元開始",
+        restoreFailed: "バックアップデータの読み込みに失敗: {{cause}}",
+        restoreComplete: "バックアップ読み込み完了",
+        featureDisabled: "話しかけ機能が設定で有効になっていません。",
+        restrictedTime: "現在は制限時間帯です。話しかけをスキップします。",
+        periodicTriggered: "定期的な話しかけがトリガーされました",
+        probabilisticTriggered: "確率的な話しかけがトリガーされました (確率: {{probability}}%)",
+        conditionNotMet: "話しかけ条件を満たしていません",
+        noRooms: "ルームがありません。",
+        noProactiveRooms: "話しかけが許可されたルームがありません。",
+        messageGenerating: "メッセージ生成中... id:",
+        messageComplete: "メッセージ生成が完了しました。",
+        sendError: "話しかけメッセージの送信中にエラーが発生:",
+        syncing: "同期中",
+        syncComplete: "同期完了",
+        syncFailed: "同期失敗:",
+        probabilisticMaxReached: "確率的話しかけ: 本日の最大回数({{max}})に達しました (現在: {{current}})",
+        probabilisticRoll: "確率的話しかけの判定: {{roll}} vs {{probability}}% (本日 {{current}}/{{max}}回)",
+        stickerOrImage: "[ステッカー/画像]",
+        missingEnv: "必要な環境変数がありません: {{var}}",
+        pushError: "プッシュ通知送信エラー",
     },
 
     sidebar: {
@@ -336,6 +359,14 @@ const ja = {
                 label: "画像応答を許可",
                 help: "会話コンテキストに応じて画像の応答を許可します。",
             },
+            thoughtSignature: {
+                label: "思考署名を含める",
+                help: "Geminiの思考署名を含めます。",
+            },
+            usePayloadImage: {
+                label: "ペイロード画像を含める",
+                help: "コンテキストに以前のメッセージの画像を含めます。",
+            },
             vertex: {
                 projectIdLabel: "Project ID",
                 projectIdPlaceholder: "Vertex AI プロジェクトID",
@@ -352,6 +383,8 @@ const ja = {
                 selectTokenizer: "トークナイザーを選択してください",
                 payloadTemplateLabel: "ペイロードテンプレート",
                 selectPayloadTemplate: "ペイロードテンプレートを選択してください",
+                maxRetriesLabel: "最大リトライ回数",
+                maxRetriesDescription: "APIリクエスト失敗時のリトライ回数です。",
             },
             openrouter: {
                 modelLabel: "OpenRouter モデル",
@@ -364,7 +397,7 @@ const ja = {
                 providerPriority: "プロバイダの優先順位",
                 endpointsLoading: "エンドポイントを読み込み中…",
                 endpointsLoadFailed: "エンドポイント一覧の読み込みに失敗しました。",
-                priorityHelp: "下のリストから優先順位の順に選択してください。ドラッグの代わりにクリックで追加/順序を設定できます。",
+                priorityHelp: "下のリストから優先順位の順に選択してください。クリックで追加/順序を設定できます。",
                 selectedWithOrder: "選択済み · 順位 {{order}}",
                 clickToAdd: "クリックして追加",
                 currentPriority: "現在の優先順位",
@@ -500,7 +533,16 @@ const ja = {
                 restoreRemote: "サーバーから復元",
                 failed: "同期に失敗しました。サーバーアドレスとネットワークを確認してください。",
                 restoreFailed: "復元に失敗しました。サーバーアドレスとネットワークを確認してください。",
-                conflict: "サーバーに既に新しいバージョンがアップロードされています。",
+                conflict: {
+                    title: "同期競合",
+                    message: "同期競合が発生しました。解決方法を選択してください：",
+                    local: "ローカル",
+                    server: "サーバー",
+                    serverTimestamp: "サーバータイムスタンプ",
+                    keepLocal: "ローカルの変更を保持",
+                    applyServer: "サーバーの変更を適用",
+                    backupLocal: "ローカルデータをバックアップ",
+                },
             },
             reset: {
                 title: "データを削除",
@@ -526,6 +568,33 @@ const ja = {
         applied: "適用中",
         reset: "リセット",
         defaultValue: "デフォルト:",
+    },
+
+    realmImport: {
+        title: "連絡先を追加",
+        contactPreview: "プロフィールプレビュー",
+        newContact: "新しい連絡先",
+        canChat: "チャット可能",
+        confirmMessage: "連絡先を追加しますか？",
+        confirmDescription: "この連絡先を追加しますか？",
+        confirmDescriptionWithName: "{{name}}さんを連絡先に追加しますか？",
+        addContact: "連絡先を追加",
+        block: "ブロック",
+        syncing: "連絡先を同期中...",
+        processing: "処理中...",
+        loading: "連絡先を追加中...",
+        successTitle: "連絡先を追加しました！",
+        success: "新しい連絡先が追加されました。",
+        startChat: "チャットを開始",
+        error: "連絡先の追加に失敗しました",
+        retry: "再試行",
+        errors: {
+            downloadFailed: "プロフィールの読み込みに失敗しました。",
+            invalidFormat: "無効な連絡先形式です。",
+            noCharacterData: "連絡先情報が見つかりません。",
+            importFailed: "連絡先の追加に失敗しました。",
+            unknown: "不明なエラーが発生しました。",
+        },
     },
 
     errorPage: {

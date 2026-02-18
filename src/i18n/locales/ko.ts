@@ -8,7 +8,6 @@ const ko = {
         save: "저장",
         unknown: "알 수 없음",
         syncing: "동기화 중…",
-        uploading: "업로드 중…",
     },
 
     units: {
@@ -27,6 +26,30 @@ const ko = {
 
     llm: {
         antiEchoFallback: "그 얘기 흥미로운데, 너는 어떻게 생각해?",
+    },
+
+    proactiveServer: {
+        restoreStart: "백업 복원 시작",
+        restoreFailed: "백업 데이터 불러오기 실패: {{cause}}",
+        restoreComplete: "백업 로드 완료",
+        featureDisabled: "Proactive Chat 기능이 설정에서 활성화되어 있지 않습니다.",
+        restrictedTime: "현재 제한 시간대입니다. 선톡을 건너뜁니다.",
+        periodicTriggered: "주기적 선톡 트리거됨",
+        probabilisticTriggered: "확률적 선톡 트리거됨 (확률: {{probability}}%)",
+        conditionNotMet: "선톡 조건을 만족하지 않음",
+        noRooms: "방이 하나도 없습니다.",
+        noProactiveRooms: "선톡 허용된 방이 없습니다.",
+        messageGenerating: "메시지 생성 중... id:",
+        messageComplete: "메시지 생성이 완료되었습니다.",
+        sendError: "선톡 메시지 전송 중 오류 발생:",
+        syncing: "동기화중",
+        syncComplete: "동기화 완료",
+        syncFailed: "동기화 실패:",
+        probabilisticMaxReached: "확률적 선톡: 오늘 최대 횟수({{max}})에 도달함 (현재: {{current}})",
+        probabilisticRoll: "확률적 선톡 주사위: {{roll}} vs {{probability}}% (오늘 {{current}}/{{max}}회)",
+        stickerOrImage: "[스티커/이미지]",
+        missingEnv: "필요한 환경 변수가 누락되었습니다: {{var}}",
+        pushError: "푸시 알림 전송 오류",
     },
 
     sidebar: {
@@ -198,6 +221,8 @@ const ko = {
             file: "파일",
             send: "전송",
             proactiveChat: "선톡 요청",
+            proactiveEnabled: "선톡 허용됨",
+            proactiveDisabled: "선톡 허용",
         },
         tooltips: {
             authorNote: "작가의 노트",
@@ -332,6 +357,14 @@ const ko = {
                 label: "이미지 응답 허용",
                 help: "대화 컨텍스트에 따라서 이미지 응답을 허용합니다.",
             },
+            thoughtSignature: {
+                label: "생각 서명 포함",
+                help: "Gemini 생각 서명을 포함합니다.",
+            },
+            usePayloadImage: {
+                label: "페이로드 이미지 포함",
+                help: "컨텍스트에 이전 메시지의 이미지를 포함합니다.",
+            },
             responseFormat: {
                 label: "response_format 사용",
                 help: "구조화된 출력이 켜져 있어도 response_format을 전송할지 선택합니다.",
@@ -352,6 +385,8 @@ const ko = {
                 selectTokenizer: "토크나이저를 선택하세요",
                 payloadTemplateLabel: "페이로드 템플릿",
                 selectPayloadTemplate: "페이로드 템플릿을 선택하세요",
+                maxRetriesLabel: "최대 재시도 횟수",
+                maxRetriesDescription: "API 요청 실패 시 재시도 횟수입니다.",
             },
             openrouter: {
                 modelLabel: "OpenRouter 모델",
@@ -364,7 +399,7 @@ const ko = {
                 providerPriority: "프로바이더 우선순위",
                 endpointsLoading: "엔드포인트 불러오는 중…",
                 endpointsLoadFailed: "엔드포인트 목록을 불러오지 못했습니다.",
-                priorityHelp: "아래 목록에서 우선순위대로 선택하세요. 드래그 대신 클릭으로 추가/순서를 설정할 수 있습니다.",
+                priorityHelp: "아래 목록에서 우선순위대로 선택하세요. 클릭으로 추가/순서를 설정할 수 있습니다.",
                 selectedWithOrder: "선택됨 · 순위 {{order}}",
                 clickToAdd: "클릭하여 추가",
                 currentPriority: "현재 우선순위",
@@ -500,7 +535,44 @@ const ko = {
                 restoreRemote: "서버로부터 복원",
                 failed: "동기화에 실패했습니다. 서버 주소와 네트워크를 확인하세요.",
                 restoreFailed: "복원에 실패했습니다. 서버 주소와 네트워크를 확인하세요.",
-                conflict: "서버에 이미 더 최신 버전이 업로드된 상태입니다.",
+                conflict: {
+                    title: "동기화 충돌",
+                    message: "동기화 충돌이 발생했습니다. 해결 방법을 선택하세요:",
+                    local: "로컬",
+                    server: "서버",
+                    serverTimestamp: "서버 타임스탬프",
+                    keepLocal: "로컬 변경사항 유지",
+                    applyServer: "서버 변경사항 적용",
+                    backupLocal: "로컬 데이터 백업",
+                },
+            },
+            proactiveChat: {
+                title: "선톡 설정",
+                description: "캐릭터가 먼저 말을 거는 선톡 기능을 관리합니다.",
+                serverUrl: "선톡 서버 주소",
+                serverUrlPlaceholder: "https://your-proactive-server.example.com",
+                timeRestriction: {
+                    title: "제한 시간대 설정",
+                    description: "특정 시간대에는 선톡을 보내지 않습니다",
+                    startTime: "시작 시간",
+                    endTime: "종료 시간",
+                },
+                periodic: {
+                    title: "주기적 선톡",
+                    description: "설정한 간격마다 선톡을 보냅니다",
+                    intervalLabel: "간격 (분)",
+                },
+                probabilistic: {
+                    title: "확률적 선톡",
+                    description: "설정한 확률로 하루에 최대 N번 선톡을 보냅니다",
+                    maxPerDay: "하루 최대 횟수",
+                    probability: "확률",
+                    low: "낮음",
+                    high: "높음",
+                },
+                subscribe: "구독",
+                unsubscribe: "구독 해제",
+                requiresSync: "자동 동기화 활성화 필요",
             },
             reset: {
                 title: "데이터 삭제",
@@ -526,6 +598,33 @@ const ko = {
         applied: "적용중",
         reset: "초기화",
         defaultValue: "기본값:",
+    },
+
+    realmImport: {
+        title: "연락처 추가",
+        contactPreview: "프로필 미리보기",
+        newContact: "새 연락처",
+        canChat: "대화 가능",
+        confirmMessage: "연락처를 추가하시겠습니까?",
+        confirmDescription: "이 연락처를 추가하시겠습니까?",
+        confirmDescriptionWithName: "{{name}}님을 연락처에 추가하시겠습니까?",
+        addContact: "연락처 추가",
+        block: "차단",
+        syncing: "연락처 동기화 중...",
+        processing: "처리 중...",
+        loading: "연락처를 추가하는 중...",
+        successTitle: "연락처 추가 완료!",
+        success: "새로운 연락처가 추가되었습니다.",
+        startChat: "대화 시작하기",
+        error: "연락처 추가 실패",
+        retry: "다시 시도",
+        errors: {
+            downloadFailed: "프로필을 불러오는데 실패했습니다.",
+            invalidFormat: "유효하지 않은 연락처 형식입니다.",
+            noCharacterData: "연락처 정보를 찾을 수 없습니다.",
+            importFailed: "연락처 추가에 실패했습니다.",
+            unknown: "알 수 없는 오류가 발생했습니다.",
+        },
     },
 
     errorPage: {

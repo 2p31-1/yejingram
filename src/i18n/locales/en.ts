@@ -7,7 +7,6 @@ const en = {
         cancel: "Cancel",
         save: "Save",
         unknown: "Unknown",
-        uploading: "Uploading…",
         syncing: "Syncing…",
     },
 
@@ -27,6 +26,30 @@ const en = {
 
     llm: {
         antiEchoFallback: "That's an interesting point. What do you think?",
+    },
+
+    proactiveServer: {
+        restoreStart: "Starting backup restore",
+        restoreFailed: "Failed to load backup data: {{cause}}",
+        restoreComplete: "Backup load complete",
+        featureDisabled: "Proactive Chat feature is not enabled in settings.",
+        restrictedTime: "Currently in restricted time period. Skipping proactive message.",
+        periodicTriggered: "Periodic proactive triggered",
+        probabilisticTriggered: "Probabilistic proactive triggered (probability: {{probability}}%)",
+        conditionNotMet: "Proactive condition not met",
+        noRooms: "No rooms available.",
+        noProactiveRooms: "No rooms with proactive enabled.",
+        messageGenerating: "Message generating... id:",
+        messageComplete: "Message generation completed.",
+        sendError: "Error occurred while sending proactive message:",
+        syncing: "Syncing",
+        syncComplete: "Sync complete",
+        syncFailed: "Sync failed:",
+        probabilisticMaxReached: "Probabilistic proactive: Max daily count ({{max}}) reached (current: {{current}})",
+        probabilisticRoll: "Probabilistic proactive roll: {{roll}} vs {{probability}}% (today {{current}}/{{max}})",
+        stickerOrImage: "[Sticker/Image]",
+        missingEnv: "Missing required environment variable: {{var}}",
+        pushError: "Push notification send error",
     },
 
     sidebar: {
@@ -336,6 +359,14 @@ const en = {
                 label: "Allow image responses",
                 help: "Allow image responses depending on conversation context.",
             },
+            thoughtSignature: {
+                label: "Include thought signature",
+                help: "Include Gemini thought signatures.",
+            },
+            usePayloadImage: {
+                label: "Include payload images",
+                help: "Include images from previous messages in the context.",
+            },
             vertex: {
                 projectIdLabel: "Project ID",
                 projectIdPlaceholder: "Vertex AI Project ID",
@@ -352,6 +383,8 @@ const en = {
                 selectTokenizer: "Select a tokenizer",
                 payloadTemplateLabel: "Payload template",
                 selectPayloadTemplate: "Select a payload template",
+                maxRetriesLabel: "Max retries",
+                maxRetriesDescription: "Number of retry attempts when API request fails.",
             },
             openrouter: {
                 modelLabel: "OpenRouter model",
@@ -364,7 +397,7 @@ const en = {
                 providerPriority: "Provider priority",
                 endpointsLoading: "Loading endpoints…",
                 endpointsLoadFailed: "Failed to load endpoint list.",
-                priorityHelp: "Select in order of priority below. Click to add/reorder instead of dragging.",
+                priorityHelp: "Select in order of priority below. Click to add/reorder.",
                 selectedWithOrder: "Selected · Order {{order}}",
                 clickToAdd: "Click to add",
                 currentPriority: "Current priority",
@@ -501,7 +534,41 @@ const en = {
                 syncing: "Syncing...",
                 failed: "Sync failed. Please check server address and network.",
                 restoreFailed: "Restore failed. Please check server address and network.",
-                conflict: "A newer version is already uploaded to the server.",
+                conflict: {
+                    title: "Sync Conflict",
+                    message: "A sync conflict has occurred. Choose how to resolve it:",
+                    local: "Local",
+                    server: "Server",
+                    serverTimestamp: "Server Timestamp",
+                    keepLocal: "Keep Local Changes",
+                    applyServer: "Apply Server Changes",
+                    backupLocal: "Backup Local Data",
+                },
+            },
+            proactiveChat: {
+                title: "Proactive Chat Settings",
+                description: "Manage the proactive chat feature where characters initiate conversations.",
+                serverUrl: "Proactive Server URL",
+                serverUrlPlaceholder: "https://your-proactive-server.example.com",
+                timeRestriction: {
+                    title: "Time Restriction",
+                    description: "Do not send proactive messages during specific times",
+                    startTime: "Start Time",
+                    endTime: "End Time",
+                },
+                periodic: {
+                    title: "Periodic Proactive",
+                    description: "Send proactive messages at set intervals",
+                    intervalLabel: "Interval (minutes)",
+                },
+                probabilistic: {
+                    title: "Probabilistic Proactive",
+                    description: "Send up to N proactive messages per day based on probability",
+                    maxPerDay: "Max per day",
+                    probability: "Probability",
+                    low: "Low",
+                    high: "High",
+                },
             },
             reset: {
                 title: "Delete data",
@@ -527,6 +594,33 @@ const en = {
         applied: "Applied",
         reset: "Reset",
         defaultValue: "Default:",
+    },
+
+    realmImport: {
+        title: "Add Contact",
+        contactPreview: "Profile preview",
+        newContact: "New contact",
+        canChat: "Can chat",
+        confirmMessage: "Add this contact?",
+        confirmDescription: "Would you like to add this contact?",
+        confirmDescriptionWithName: "Would you like to add {{name}} to your contacts?",
+        addContact: "Add Contact",
+        block: "Block",
+        syncing: "Syncing contact...",
+        processing: "Processing...",
+        loading: "Adding contact...",
+        successTitle: "Contact Added!",
+        success: "New contact has been added.",
+        startChat: "Start Chat",
+        error: "Failed to add contact",
+        retry: "Retry",
+        errors: {
+            downloadFailed: "Failed to load profile.",
+            invalidFormat: "Invalid contact format.",
+            noCharacterData: "Contact information not found.",
+            importFailed: "Failed to add contact.",
+            unknown: "An unknown error occurred.",
+        },
     },
 
     errorPage: {

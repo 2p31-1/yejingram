@@ -1,5 +1,69 @@
 import { Edit3, CheckCircle, Music, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { Sticker } from '../../entities/character/types';
+import { getBlob, makeBinaryUrl } from '../../services/binaryStore';
+
+function StickerMedia({ sticker }: { sticker: Sticker }) {
+    const isVideo = sticker.mimeType.startsWith('video/');
+    const isAudio = sticker.mimeType.startsWith('audio/');
+    const isImage = sticker.mimeType.startsWith('image/');
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let revokedUrl: string | null = null;
+        let cancelled = false;
+
+        void (async () => {
+            if (!sticker.storageKey) {
+                setObjectUrl(null);
+                return;
+            }
+            const blob = await getBlob(sticker.storageKey);
+            if (!blob || cancelled) {
+                setObjectUrl(null);
+                return;
+            }
+
+            if (isImage) {
+                setObjectUrl(makeBinaryUrl(sticker.storageKey));
+                return;
+            }
+
+            // Keep blob: URLs for non-image media to avoid fetch/range quirks.
+            revokedUrl = URL.createObjectURL(blob);
+            setObjectUrl(revokedUrl);
+        })();
+
+        return () => {
+            cancelled = true;
+            if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+        };
+    }, [sticker.storageKey, isImage]);
+
+    if (isAudio) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-(--color-bg-input-primary)">
+                <Music className="w-6 h-6 text-(--color-icon-secondary)" />
+            </div>
+        );
+    }
+
+    const src = objectUrl ?? '';
+
+    if (isVideo) {
+        return <video className="w-full h-full object-cover" muted src={src} />;
+    }
+
+    if (!src) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-(--color-bg-input-primary)">
+                <X className="w-6 h-6 text-(--color-icon-secondary)" />
+            </div>
+        );
+    }
+
+    return <img src={src} alt={sticker.name} className="w-full h-full object-cover" />;
+}
 
 interface StickerGridProps {
     stickers: Sticker[];
@@ -33,24 +97,6 @@ export function StickerGrid({
     className = '',
     maxHeight,
 }: StickerGridProps) {
-
-    const renderStickerContent = (sticker: Sticker) => {
-        const isVideo = sticker.type.startsWith('video/');
-        const isAudio = sticker.type.startsWith('audio/');
-
-        if (isAudio) {
-            return (
-                <div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-input-primary)]">
-                    <Music className="w-6 h-6 text-[var(--color-icon-secondary)]" />
-                </div>
-            );
-        } else if (isVideo) {
-            return <video className="w-full h-full object-cover" muted src={sticker.data} />;
-        } else {
-            return <img src={sticker.data} alt={sticker.name} className="w-full h-full object-cover" />;
-        }
-    };
-
     const handleContainerClick = (sticker: Sticker) => {
         if (mode === 'select' && onToggleSelection) {
             onToggleSelection(sticker.id);
@@ -71,11 +117,11 @@ export function StickerGrid({
                     <div
                         key={sticker.id}
                         className={`relative group aspect-square rounded-xl overflow-hidden transition-all duration-200 ${mode === 'manage'
-                            ? `bg-[var(--color-bg-shadow)]/20 border-2 ${isSelected
-                                ? 'border-[var(--color-button-primary)] shadow-lg scale-95'
-                                : 'border-transparent hover:border-[var(--color-button-primary)]/30 hover:shadow-md'
+                            ? `bg-(--color-bg-shadow)/20 border-2 ${isSelected
+                                ? 'border-(--color-button-primary) shadow-lg scale-95'
+                                : 'border-transparent hover:border-(--color-button-primary)/30 hover:shadow-md'
                             }`
-                            : 'bg-[var(--color-bg-secondary)] border border-[var(--color-border-secondary)] hover:bg-[var(--color-bg-hover)] shadow-sm hover:shadow-md'
+                            : 'bg-(--color-bg-secondary) border border-(--color-border-secondary) hover:bg-(--color-bg-hover) shadow-sm hover:shadow-md'
                             }`}
                     >
                         {/* Sticker content */}
@@ -84,7 +130,7 @@ export function StickerGrid({
                             className="w-full h-full"
                             disabled={mode === 'manage' && !mode}
                         >
-                            {renderStickerContent(sticker)}
+                            <StickerMedia sticker={sticker} />
                         </button>
 
                         {/* Checkbox for select mode */}
@@ -100,7 +146,7 @@ export function StickerGrid({
                                     }}
                                 >
                                     {isSelected && (
-                                        <CheckCircle className="w-4 h-4 text-[var(--color-text-accent)]" />
+                                        <CheckCircle className="w-4 h-4 text-(--color-text-accent)" />
                                     )}
                                 </button>
                             </div>
@@ -108,10 +154,10 @@ export function StickerGrid({
 
                         {/* Hover actions in manage mode (edit button) */}
                         {mode === 'manage' && !mode.includes('select') && (
-                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-shadow)]/80 via-[var(--color-bg-shadow)]/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-linear-to-t from-(--color-bg-shadow)/80 via-(--color-bg-shadow)/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center">
                                 <button
                                     onClick={() => onEdit?.(sticker.id, sticker.name)}
-                                    className="p-3 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] rounded-full text-[var(--color-text-accent)] transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110"
+                                    className="p-3 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) rounded-full text-(--color-text-accent) transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-110"
                                 >
                                     <Edit3 className="w-5 h-5" />
                                 </button>
@@ -127,7 +173,7 @@ export function StickerGrid({
                                             e.stopPropagation();
                                             onEdit(sticker.id, sticker.name);
                                         }}
-                                        className="w-6 h-6 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-full flex items-center justify-center transition-colors shadow-lg"
+                                        className="w-6 h-6 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-full flex items-center justify-center transition-colors shadow-lg"
                                     >
                                         <Edit3 className="w-3 h-3" />
                                     </button>
@@ -138,7 +184,7 @@ export function StickerGrid({
                                             e.stopPropagation();
                                             onDelete(sticker.id);
                                         }}
-                                        className="w-6 h-6 bg-[var(--color-button-negative)] hover:bg-[var(--color-button-negative-accent)] text-[var(--color-text-accent)] rounded-full flex items-center justify-center transition-colors shadow-lg"
+                                        className="w-6 h-6 bg-(--color-button-negative) hover:bg-(--color-button-negative-accent) text-(--color-text-accent) rounded-full flex items-center justify-center transition-colors shadow-lg"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
@@ -148,8 +194,8 @@ export function StickerGrid({
 
                         {/* Display sticker name */}
                         <div className={`absolute bottom-0 left-0 right-0 text-xs p-1 truncate ${mode === 'panel'
-                            ? 'bg-gradient-to-t from-[var(--color-bg-shadow)]/60 to-transparent text-[var(--color-text-accent)]'
-                            : 'bg-[var(--color-bg-shadow)]/60 text-[var(--color-text-accent)]'
+                            ? 'bg-linear-to-t from-(--color-bg-shadow)/60 to-transparent text-(--color-text-accent)'
+                            : 'bg-(--color-bg-shadow)/60 text-(--color-text-accent)'
                             }`}>
                             {sticker.name}
                         </div>

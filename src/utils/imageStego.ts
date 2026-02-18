@@ -1,3 +1,5 @@
+import { isBrowser } from "../app/store";
+
 const HEADER_PIXELS = 8; // 첫 8픽셀을 헤더로 사용
 const MARK = [0x50, 0x43, 0x41, 0x52] as const; // 'P','C','A','R'
 
@@ -66,34 +68,77 @@ export function decodeTextFromImage(imageData: ImageData): string | null {
 
 // 도우미: <img src|file>을 캔버스 ImageData로 변환
 export async function getImageDataFromSrc(src: string): Promise<ImageData> {
-    const img = await loadImage(src);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D 컨텍스트를 가져올 수 없습니다.");
-    ctx.drawImage(img, 0, 0);
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    if (isBrowser) {
+        const img = await loadImage(src) as HTMLImageElement;
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas 2D 컨텍스트를 가져올 수 없습니다.");
+        ctx.drawImage(img, 0, 0);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } else {
+        const sharp = (await import("sharp")).default;
+        const bytes = await fetchBytes(src);
+        const { data, info } = await sharp(bytes)
+            .ensureAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+
+        return {
+            width: info.width,
+            height: info.height,
+            data: new Uint8ClampedArray(data),
+            colorSpace: 'srgb'
+        } as unknown as ImageData;
+    }
 }
 
-export function imageDataToDataURL(imageData: ImageData, mime: string = "image/png"): string {
-    const canvas = document.createElement("canvas");
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D 컨텍스트를 가져올 수 없습니다.");
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL(mime);
+export async function imageDataToDataURL(imageData: ImageData, mime: string = "image/png"): Promise<string> {
+    if (isBrowser) {
+        const canvas = document.createElement("canvas");
+        canvas.width = imageData.width;
+        canvas.height = imageData.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas 2D 컨텍스트를 가져올 수 없습니다.");
+        ctx.putImageData(imageData, 0, 0);
+        return canvas.toDataURL(mime);
+    } else {
+        const sharp = (await import("sharp")).default;
+        const buffer = await sharp(imageData.data, {
+            raw: {
+                width: imageData.width,
+                height: imageData.height,
+                channels: 4
+            }
+        })
+            .toFormat(mime.split('/')[1] as any)
+            .toBuffer();
+        return `data:${mime};base64,${buffer.toString('base64')}`;
+    }
 }
 
-export function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        // 로컬 업로드 data URL이면 crossOrigin 불필요. 외부 URL이면 필요할 수 있음.
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
-        img.src = src;
-    });
+export type LoadedImage = HTMLImageElement | { width: number; height: number; buffer: Uint8Array };
+
+export async function loadImage(src: string): Promise<LoadedImage> {
+    if (isBrowser) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+            img.src = src;
+        });
+    } else {
+        const sharp = (await import("sharp")).default;
+        const bytes = await fetchBytes(src);
+        const metadata = await sharp(bytes).metadata();
+        return {
+            width: metadata.width!,
+            height: metadata.height!,
+            buffer: bytes
+        };
+    }
 }
 
 // ===== 신규(IEND 뒤 trailer) 방식: 기본 상수 =====
@@ -128,6 +173,10 @@ function beToU32(b0: number, b1: number, b2: number, b3: number): number {
 
 // ===== 유틸: DataURL/Blob/바이트 변환 =====
 async function fetchBytes(src: string): Promise<Uint8Array> {
+    if (!isBrowser && !src.startsWith('http') && !src.startsWith('data:')) {
+        const fs = await import('fs/promises');
+        return new Uint8Array(await fs.readFile(src));
+    }
     const res = await fetch(src);
     if (!res.ok) throw new Error("PNG 바이트를 가져오지 못했습니다.");
     const buf = await res.arrayBuffer();
@@ -151,13 +200,17 @@ function isPng(bytes: Uint8Array): boolean {
 }
 
 export async function bytesToDataURLPNGAsync(bytes: Uint8Array): Promise<string> {
-    const blob = new Blob([exactArrayBuffer(bytes)], { type: "image/png" });
-    return new Promise<string>((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result as string);
-        fr.onerror = () => reject(fr.error ?? new Error("DataURL 생성 실패"));
-        fr.readAsDataURL(blob);
-    });
+    if (isBrowser) {
+        const blob = new Blob([exactArrayBuffer(bytes)], { type: "image/png" });
+        return new Promise<string>((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result as string);
+            fr.onerror = () => reject(fr.error ?? new Error("DataURL 생성 실패"));
+            fr.readAsDataURL(blob);
+        });
+    } else {
+        return `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
+    }
 }
 
 export function appendTrailerToPng(pngBytes: Uint8Array, text: string): Uint8Array {
@@ -221,7 +274,7 @@ export async function encodeText(src: string, text: string, method: EncodeMethod
         // PNG가 아니면 먼저 PNG로 변환 (캔버스 -> PNG DataURL -> 바이트)
         if (!isPng(bytes)) {
             const imageData = await getImageDataFromSrc(src);
-            const pngDataUrl = imageDataToDataURL(imageData, "image/png");
+            const pngDataUrl = await imageDataToDataURL(imageData, "image/png");
             bytes = await fetchBytes(pngDataUrl);
         }
         const out = appendTrailerToPng(bytes, text);
@@ -229,7 +282,7 @@ export async function encodeText(src: string, text: string, method: EncodeMethod
     } else {
         const imageData = await getImageDataFromSrc(src);
         const encoded = encodeTextInImage(imageData, text);
-        return imageDataToDataURL(encoded, "image/png");
+        return await imageDataToDataURL(encoded, "image/png");
     }
 
 }

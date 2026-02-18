@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { callImageGeneration } from "../image/ImageCaller";
 import { LLMJSONParser } from 'ai-json-fixer';
 import { CLAUDE_API_BASE_URL, GEMINI_API_BASE_URL, GROK_API_BASE_URL, OPENAI_API_BASE_URL, VERTEX_AI_API_BASE_URL, OPENROUTER_API_BASE_URL, DEEPSEEK_API_BASE_URL } from "../URLs";
+import { makeMessageBinaryKey, saveBase64 } from '../binaryStore';
 
 const llmParser = new LLMJSONParser();
 
@@ -46,23 +47,6 @@ async function handleApiResponse(
     setTypingCharacterId: (id: number | null) => void,
     t: (key: string) => string
 ) {
-    // If structured output included a newMemory field, append it to the character
-    if (res && 'newMemory' in res) {
-        const mem = res.newMemory;
-        if (typeof mem === 'string') {
-            const trimmed = mem.trim();
-            if (trimmed.length > 0) {
-                const exists = room.memories?.some(m => m.trim().toLowerCase() === trimmed.toLowerCase());
-                if (!exists) {
-                    dispatch(roomsActions.addRoomMemory({ roomId: room.id, value: trimmed }));
-                    // Toast 알림으로 새로운 메모리 추가를 알림
-                    toast.success(`${t('main.newMemory')}:\n"${trimmed}"`, {
-                        duration: 5000,
-                    });
-                }
-            }
-        }
-    }
     if (res && res.messages && Array.isArray(res.messages) && res.messages.length > 0) {
         if (res.reactionDelay && res.reactionDelay > 10000) {
             console.warn("Capping reaction delay to 10 seconds.");
@@ -84,6 +68,23 @@ async function handleApiResponse(
 
             if (i === res.messages.length - 1) {
                 dispatch({ type: 'messages/writingEnd' });
+            }
+        }
+    }
+
+    if (res && 'newMemory' in res) {
+        const mem = res.newMemory;
+        if (typeof mem === 'string') {
+            const trimmed = mem.trim();
+            if (trimmed.length > 0) {
+                const exists = room.memories?.some(m => m.trim().toLowerCase() === trimmed.toLowerCase());
+                if (!exists) {
+                    dispatch(roomsActions.addRoomMemory({ roomId: room.id, value: trimmed }));
+                    // Toast 알림으로 새로운 메모리 추가를 알림
+                    toast.success(`${t('main.newMemory')}:\n"${trimmed}"`, {
+                        duration: 5000,
+                    });
+                }
             }
         }
     }
@@ -123,14 +124,17 @@ async function createMessageFromPart(messagePart: MessagePart, roomId: string, c
         const imageResponse = await callImageGeneration(messagePart.imageGenerationSetting, char);
         const inlineDataBody = imageResponse.candidates[0].content.parts[0].inlineData;
         if (inlineDataBody) {
+            const messageId = nanoid();
+            const storageKey = makeMessageBinaryKey(messageId);
+            await saveBase64(storageKey, inlineDataBody.data, inlineDataBody.mimeType);
             message.push({
-                id: nanoid(),
+                id: messageId,
                 roomId: roomId,
                 authorId: char.id,
                 createdAt: new Date().toISOString(),
                 type: 'IMAGE',
                 file: {
-                    dataUrl: `data:${inlineDataBody.mimeType};base64,${inlineDataBody.data}`,
+                    storageKey,
                     mimeType: inlineDataBody.mimeType,
                     name: `generated_image.${inlineDataBody.mimeType.split('/')[1] || 'png'}`
                 },
@@ -173,31 +177,31 @@ async function callApi(
     const { apiProvider } = settings;
     let payload: string | object = '';
 
-    const useThoughtSignature = apiConfig.model.startsWith('gemini-3');
+    const useThoughtSignature = apiConfig.model.startsWith('gemini-3') && settings.useThoughtSignature;
     switch (apiProvider) {
         case 'gemini':
         case 'vertexai':
-            payload = await buildGeminiApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, useThoughtSignature, apiConfig, extraSystemInstruction);
+            payload = await buildGeminiApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, useThoughtSignature, apiConfig, extraSystemInstruction);
             break;
         case 'claude':
         case 'grok':
-            payload = await buildClaudeApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction);
+            payload = await buildClaudeApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction);
             break;
         case 'openai':
         case 'deepseek':
         case 'openrouter':
-            payload = await buildOpenAIApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
+            payload = await buildOpenAIApiPayload(apiProvider, room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
             break;
         case 'custom':
             switch (apiConfig.payloadTemplate) {
                 case 'gemini':
-                    payload = await buildGeminiApiPayload('gemini', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, useThoughtSignature, apiConfig, extraSystemInstruction);
+                    payload = await buildGeminiApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, useThoughtSignature, apiConfig, extraSystemInstruction);
                     break;
                 case 'anthropic':
-                    payload = await buildClaudeApiPayload('claude', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction);
+                    payload = await buildClaudeApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction);
                     break;
                 case 'openai':
-                    payload = await buildOpenAIApiPayload('openai', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
+                    payload = await buildOpenAIApiPayload('custom', room, persona, character, messages, isProactive, settings.useStructuredOutput, settings.useImageResponse, settings.usePayloadImage, apiConfig, extraSystemInstruction, settings.useResponseFormat ?? true);
                     break;
             }
             break;
@@ -257,27 +261,42 @@ async function callApi(
         };
     }
 
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
-        });
+    const maxRetries = (apiProvider === 'custom' && apiConfig.maxRetries) ? apiConfig.maxRetries : 1;
+    let lastError: unknown = null;
 
-        const data = await response.json();
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
 
-        if (!response.ok) {
-            console.error("API Error:", data);
-            const errorMessage = (data as any)?.error?.message || `API request failed: ${response.statusText}`;
-            throw new Error(errorMessage);
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error("API Error:", data);
+                const errorMessage = (data as any)?.error?.message || `API request failed: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+
+            return parseApiResponse(data, settings, messages);
+
+        } catch (error: unknown) {
+            lastError = error;
+            console.error(`${apiProvider} error occurred while requesting (attempt ${attempt + 1}/${maxRetries}):`, error);
+
+            // If not the last attempt and custom provider, wait before retrying
+            if (attempt < maxRetries - 1 && apiProvider === 'custom') {
+                const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            throw error;
         }
-
-        return parseApiResponse(data, settings, messages);
-
-    } catch (error: unknown) {
-        console.error(`${apiProvider} error occured while requesting:`, error);
-        throw error;
     }
+
+    throw lastError;
 }
 
 function parseApiResponse(data: any, settings: SettingsState, messages: Message[]): ChatResponse {

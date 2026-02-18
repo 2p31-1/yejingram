@@ -8,29 +8,11 @@ import type { RootState } from '../../app/store';
 import { newCharacterDefault, type Character, type PersonaChatAppCharacterCard } from '../../entities/character/types';
 import { AttributeSliders } from './AttributeSliders';
 import { StickerManager } from './StickerManager';
-import { decodeText, encodeText } from '../../utils/imageStego';
+import { encodeText } from '../../utils/imageStego';
 import { LorebookEditor } from './LorebookEditor';
-import { extractBasicCharacterInfo } from '../../utils/risuai/risuCharacterCard';
-
-const personaCardToCharacter = (card: PersonaChatAppCharacterCard, imageUrl: string | null): Character => {
-    const { name, prompt, responseTime, thinkingTime, reactivity, tone, proactiveEnabled } = card;
-
-    return {
-        id: Date.now(),
-        name,
-        prompt,
-        responseTime: parseInt(responseTime, 10),
-        thinkingTime: parseInt(thinkingTime, 10),
-        reactivity: parseInt(reactivity, 10),
-        tone: parseInt(tone, 10),
-        proactiveEnabled,
-        // Fields not in PersonaChatAppCharacterCard are set to default values
-        avatar: imageUrl || null,
-        messageCountSinceLastSummary: 0,
-        media: [],
-        stickers: [],
-    };
-};
+import { importCharacterFromFile, sanitizeAvatarImageForStorage } from '../../utils/importCharacter';
+import { blobToDataUrl, deleteBlob, getBlob, getDataUrl, makeAvatarBinaryKey, makeBinaryUrl, resolveDataUrlFromRef, saveBlob } from '../../services/binaryStore';
+import { nanoid } from '@reduxjs/toolkit';
 
 const characterToPersonaCard = (character: Character): PersonaChatAppCharacterCard => {
     return {
@@ -59,6 +41,7 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
     const [char, setChar] = useState<Character>(newCharacterDefault);
     const [activeTab, setActiveTab] = useState<'basicInfo' | 'lorebook' | 'backup'>('basicInfo');
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarPreviewSrc, setAvatarPreviewSrc] = useState<string | null>(null);
 
     const isNew = !editingId;
 
@@ -70,29 +53,82 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
         }
     }, [editingCharacter]);
 
-    const handleSave = () => {
-        if (char.name) {
-            const charToSave = {
-                ...char,
-                id: editingId ?? Date.now()
+    useEffect(() => {
+        let cancelled = false;
+
+        void (async () => {
+            if (!char.avatar) {
+                setAvatarPreviewSrc(null);
+                return;
             }
-            dispatch(charactersActions.upsertOne(charToSave));
-            dispatch(charactersActions.resetEditingCharacterId());
-            onClose();
-        }
+
+            const blob = await getBlob(char.avatar.storageKey);
+            if (!blob || cancelled) {
+                setAvatarPreviewSrc(null);
+                return;
+            }
+            // Ensure presence/backfill, then use stable URL.
+            setAvatarPreviewSrc(makeBinaryUrl(char.avatar.storageKey));
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [char.avatar?.storageKey]);
+
+    const handleSave = async () => {
+        if (!char.name) return;
+
+        // Ensure stable id before persisting binaries.
+        const id = editingId ?? Date.now();
+
+        const nextAvatar = char.avatar;
+        const nextStickers = char.stickers ?? [];
+
+        const charToSave = {
+            ...char,
+            id,
+            avatar: nextAvatar,
+            stickers: nextStickers,
+        };
+
+        dispatch(charactersActions.upsertOne(charToSave));
+        dispatch(charactersActions.resetEditingCharacterId());
+        onClose();
     };
 
     const handleInputChange = (field: keyof Character, value: any) => {
         setChar(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setChar(prev => ({ ...prev, avatar: event.target?.result as string }));
-            };
-            reader.readAsDataURL(e.target.files[0]);
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Best-effort cleanup of previous stored avatar
+        if (char.avatar?.storageKey) {
+            void deleteBlob(char.avatar.storageKey);
+        }
+
+        const storageKey = makeAvatarBinaryKey(nanoid());
+        try {
+            const sanitized = await sanitizeAvatarImageForStorage(file);
+            const blobToSave = sanitized?.blob ?? file;
+            const nameToSave = sanitized?.suggestedName ?? file.name;
+            await saveBlob(storageKey, blobToSave);
+            setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: blobToSave.type || 'application/octet-stream', name: nameToSave } }));
+        } catch (e) {
+            console.warn('Failed to persist avatar blob; retrying with cloned Blob', e);
+            try {
+                const sanitized = await sanitizeAvatarImageForStorage(file);
+                const blobToSave = sanitized?.blob ?? file;
+                const nameToSave = sanitized?.suggestedName ?? file.name;
+                const cloned = new Blob([await blobToSave.arrayBuffer()], { type: blobToSave.type || 'application/octet-stream' });
+                await saveBlob(storageKey, cloned);
+                setChar(prev => ({ ...prev, avatar: { storageKey, mimeType: cloned.type || 'application/octet-stream', name: nameToSave } }));
+            } catch (e2) {
+                console.warn('Failed to persist avatar blob; aborting avatar update', e2);
+            }
         }
     };
 
@@ -106,73 +142,16 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             const file = target.files?.[0];
             if (!file) return;
 
-            // 1) 우선 extractBasicCharacterInfo로 시도 (PNG/JSON/CHARX/JPEG 지원)
-            try {
-                const info = await extractBasicCharacterInfo({ name: file.name, data: file });
-                if (info) {
-                    const promptParts: string[] = [];
-                    if (info.description) promptParts.push(info.description);
-                    if (info.personality) promptParts.push(`personality: ${info.personality}`);
-                    if (info.scenario) promptParts.push(`scenario: ${info.scenario}`);
-
-                    const characterFromCard: Character = {
-                        ...newCharacterDefault,
-                        id: Date.now(),
-                        name: info.name || '',
-                        prompt: promptParts.join('\n\n'),
-                        avatar: info.avatarDataUrl ?? null,
-                        lorebook: info.lorebook ?? [],
-                    } as Character;
-                    setChar(characterFromCard);
-                    return;
-                }
-            } catch (err) {
-                // 무시하고 기존 PNG 스테가노 경로로 폴백
-                console.warn('extractBasicCharacterInfo 실패, decodeText로 폴백:', err);
-            }
-
-            // 2) 폴백: 기존 PNG 스테가노 방식 (PersonaChatAppCharacterCard/예진그램 png-trailer)
-            if (file.type === 'image/png' || /\.png$/i.test(file.name)) {
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const src = String(ev.target?.result || "");
-                    try {
-                        const decodeResult = await decodeText(src);
-                        if (decodeResult.text) {
-                            try {
-                                let characterFromCard: Character;
-                                if (decodeResult.method === "png-trailer") {
-                                    characterFromCard = JSON.parse(decodeResult.text) as Character;
-                                } else {
-                                    const jsonData = JSON.parse(decodeResult.text) as PersonaChatAppCharacterCard;
-                                    if (jsonData.source !== 'PersonaChatAppCharacterCard') {
-                                        throw new Error("Invalid character card format.");
-                                    }
-                                    const imageUrl = await new Promise<string>((resolve, reject) => {
-                                        const reader = new FileReader();
-                                        reader.onload = () => resolve(reader.result as string);
-                                        reader.onerror = reject;
-                                        reader.readAsDataURL(file);
-                                    });
-                                    characterFromCard = personaCardToCharacter(jsonData, imageUrl);
-                                }
-                                console.log("불러온 연락처 데이터:", characterFromCard);
-                                setChar(characterFromCard);
-                            } catch (e) {
-                                console.error("Failed to parse character card:", e);
-                                alert(t('characterPanel.alerts.invalidCardFormat'));
-                            }
-                        } else {
-                            alert(t('characterPanel.alerts.noContactDataInImage'));
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        alert(t('characterPanel.alerts.importFailed'));
-                    }
-                };
-                reader.readAsDataURL(file);
+            const result = await importCharacterFromFile(file);
+            if (result.success) {
+                setChar(result.character);
             } else {
-                alert(t('characterPanel.alerts.unsupportedFileType'));
+                const errorMessages: Record<typeof result.error, string> = {
+                    invalidFormat: t('characterPanel.alerts.invalidCardFormat'),
+                    noCharacterData: t('characterPanel.alerts.noContactDataInImage'),
+                    importFailed: t('characterPanel.alerts.importFailed'),
+                };
+                alert(errorMessages[result.error]);
             }
         };
 
@@ -185,35 +164,75 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
             return;
         }
 
-        const dataURL = await encodeText(char.avatar, JSON.stringify(method === "png-trailer" ? char : characterToPersonaCard(char)), method);
-        const link = document.createElement("a");
-        link.href = dataURL;
-        link.download = `${char.name || 'character'}_persona.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const avatarBlob = await getBlob(char.avatar.storageKey);
+        let avatarDataUrl: string | null = null;
+        let avatarObjectUrl: string | null = null;
+
+        try {
+            if (avatarBlob) {
+                avatarObjectUrl = URL.createObjectURL(avatarBlob);
+                avatarDataUrl = await blobToDataUrl(avatarBlob, char.avatar.mimeType);
+            } else {
+                avatarDataUrl = await resolveDataUrlFromRef(char.avatar);
+            }
+
+            if (!avatarDataUrl) {
+                alert(t('characterPanel.alerts.missingAvatar'));
+                return;
+            }
+
+            const stickersForExport = await Promise.all((char.stickers ?? []).map(async (sticker) => {
+                const data = await getDataUrl(sticker.storageKey);
+                return {
+                    id: sticker.id,
+                    name: sticker.name,
+                    data,
+                    type: sticker.mimeType,
+                };
+            }));
+
+            const exportChar: any = {
+                ...char,
+                avatar: avatarDataUrl,
+                stickers: stickersForExport,
+            };
+
+            const dataURL = await encodeText(
+                avatarObjectUrl ?? avatarDataUrl,
+                JSON.stringify(method === "png-trailer" ? exportChar : characterToPersonaCard(exportChar)),
+                method
+            );
+            const link = document.createElement("a");
+            link.href = dataURL;
+            link.download = `${char.name || 'character'}_persona.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } finally {
+            if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
+        }
     };
 
     return (
-        <div className="fixed inset-y-0 right-0 z-40 w-96 max-w-full bg-[var(--color-bg-main)] border-l border-[var(--color-border)] shadow-xl flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] shrink-0">
-                <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">{isNew ? t('characterPanel.titleAdd') : t('characterPanel.titleEdit')}</h3>
+        <div className="fixed inset-y-0 right-0 z-40 w-96 max-w-full bg-(--color-bg-main) border-l border-(--color-border) shadow-xl flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-(--color-border) shrink-0">
+                <h3 className="text-xl font-semibold text-(--color-text-primary)">{isNew ? t('characterPanel.titleAdd') : t('characterPanel.titleEdit')}</h3>
             </div>
-            <div className="flex border-b border-[var(--color-border)]">
+            <div className="flex border-b border-(--color-border)">
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'basicInfo' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'basicInfo' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('basicInfo')}
                 >
                     {t('characterPanel.tabs.basicInfo')}
                 </button>
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'lorebook' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'lorebook' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('lorebook')}
                 >
                     {t('characterPanel.tabs.lorebook')}
                 </button>
                 <button
-                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'backup' ? 'text-[var(--color-button-primary-accent)] border-b-2 border-[var(--color-focus-border)]' : 'text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'}`}
+                    className={`py-3 px-6 text-sm font-medium transition-colors ${activeTab === 'backup' ? 'text-(--color-button-primary-accent) border-b-2 border-(--color-focus-border)' : 'text-(--color-icon-tertiary) hover:text-(--color-text-interface)'}`}
                     onClick={() => setActiveTab('backup')}
                 >
                     {t('characterPanel.tabs.backup')}
@@ -223,27 +242,27 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 {activeTab === 'basicInfo' && (
                     <>
                         <div className="flex items-center space-x-4">
-                            <div className="w-20 h-20 rounded-full bg-[var(--color-bg-input-primary)] flex items-center justify-center overflow-hidden shrink-0 border-2 border-[var(--color-border)]">
-                                {char.avatar ? <img src={char.avatar} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-[var(--color-icon-secondary)]" />}
+                            <div className="w-20 h-20 rounded-full bg-(--color-bg-input-primary) flex items-center justify-center overflow-hidden shrink-0 border-2 border-(--color-border)">
+                                {avatarPreviewSrc ? <img src={avatarPreviewSrc} alt="Avatar Preview" className="w-full h-full object-cover" /> : <Image className="w-8 h-8 text-(--color-icon-secondary)" />}
                             </div>
                             <div className="flex flex-col gap-2">
-                                <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                                <button onClick={() => avatarInputRef.current?.click()} className="py-2 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                     <Image className="w-4 h-4" /> {t('characterPanel.profileImage')}
                                 </button>
-                                <button onClick={importPersonaImage} className="py-2 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                                <button onClick={importPersonaImage} className="py-2 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                     <Upload className="w-4 h-4" /> {t('characterPanel.importContact')}
                                 </button>
                             </div>
                         </div>
                         <div>
-                            <label className="text-sm font-medium text-[var(--color-text-interface)] mb-2 block">{t('characterPanel.nameLabel')}</label>
-                            <input id="character-name" type="text" placeholder={t('characterPanel.namePlaceholder')} value={char.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm" />
+                            <label className="text-sm font-medium text-(--color-text-interface) mb-2 block">{t('characterPanel.nameLabel')}</label>
+                            <input id="character-name" type="text" placeholder={t('characterPanel.namePlaceholder')} value={char.name} onChange={e => handleInputChange('name', e.target.value)} className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm" />
                         </div>
                         <div>
                             <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.personInfoLabel')}</label>
+                                <label className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.personInfoLabel')}</label>
                             </div>
-                            <textarea id="character-prompt" placeholder={t('characterPanel.personInfoPlaceholder')} value={char.prompt} onChange={e => handleInputChange('prompt', e.target.value)} className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm" rows={6}></textarea>
+                            <textarea id="character-prompt" placeholder={t('characterPanel.personInfoPlaceholder')} value={char.prompt} onChange={e => handleInputChange('prompt', e.target.value)} className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm" rows={6}></textarea>
                         </div>
                         {/* {proactiveChatEnabled && (
 
@@ -257,25 +276,25 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
 
                         )} */}
 
-                        <details className="group/additional border-t border-[var(--color-border)] pt-4">
+                        <details className="group/additional border-t border-(--color-border) pt-4">
                             <summary className="flex items-center justify-between cursor-pointer list-none">
-                                <span className="text-base font-medium text-[var(--color-text-primary)]">{t('characterPanel.additionalSettings')}</span>
-                                <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/additional:rotate-180" />
+                                <span className="text-base font-medium text-(--color-text-primary)">{t('characterPanel.additionalSettings')}</span>
+                                <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/additional:rotate-180" />
                             </summary>
                             <div className="content-wrapper">
                                 <div className="content-inner pt-6 space-y-6">
-                                    <details className="group/sticker border-t border-[var(--color-border)] pt-2">
+                                    <details className="group/sticker border-t border-(--color-border) pt-2">
                                         <summary className="flex items-center justify-between cursor-pointer list-none py-2">
-                                            <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.stickers')}</h4>
-                                            <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/sticker:rotate-180" />
+                                            <h4 className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.stickers')}</h4>
+                                            <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/sticker:rotate-180" />
                                         </summary>
                                         <StickerManager characterId={char.id} draft={char} onDraftChange={setChar} />
                                     </details>
                                     {/* 메모리는 별도 탭으로 이동 */}
-                                    <details className="group/attribute border-t border-[var(--color-border)] pt-2">
+                                    <details className="group/attribute border-t border-(--color-border) pt-2">
                                         <summary className="flex items-center justify-between cursor-pointer list-none py-2">
-                                            <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('characterPanel.messageReactivity')}</h4>
-                                            <ChevronDown className="w-5 h-5 text-[var(--color-icon-secondary)] transition-transform duration-300 group-open/attribute:rotate-180" />
+                                            <h4 className="text-sm font-medium text-(--color-text-interface)">{t('characterPanel.messageReactivity')}</h4>
+                                            <ChevronDown className="w-5 h-5 text-(--color-icon-secondary) transition-transform duration-300 group-open/attribute:rotate-180" />
                                         </summary>
                                         <AttributeSliders characterId={char.id} draft={char} onDraftChange={setChar} />
                                     </details>
@@ -291,21 +310,21 @@ function CharacterPanel({ onClose }: CharacterPanelProps) {
                 )}
                 {activeTab === 'backup' && (
                     <div className="space-y-6">
-                        <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('characterPanel.backupSettings')}</h4>
+                        <h4 className="text-lg font-semibold text-(--color-text-primary)">{t('characterPanel.backupSettings')}</h4>
                         <div className="flex flex-col gap-3">
-                            <button onClick={() => exportPersonaImage("alpha-channel")} className="py-3 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2 border border-[var(--color-border)]">
+                            <button onClick={() => exportPersonaImage("alpha-channel")} className="py-3 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors text-sm flex items-center justify-center gap-2 border border-(--color-border)">
                                 <Download className="w-4 h-4" /> {t('characterPanel.shareArisutalk')}
                             </button>
-                            <button onClick={() => exportPersonaImage("png-trailer")} className="py-3 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                            <button onClick={() => exportPersonaImage("png-trailer")} className="py-3 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
                                 <Download className="w-4 h-4" /> {t('characterPanel.shareYejingram')}
                             </button>
                         </div>
                     </div>
                 )}
             </div>
-            <div className="p-6 mt-auto border-t border-[var(--color-border)] shrink-0 flex justify-end space-x-3">
-                <button onClick={() => { dispatch(charactersActions.resetEditingCharacterId()); onClose(); }} className="flex-1 py-2.5 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors">{t('common.cancel')}</button>
-                <button onClick={handleSave} className="flex-1 py-2.5 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors">{t('characterPanel.save')}</button>
+            <div className="p-6 mt-auto border-t border-(--color-border) shrink-0 flex justify-end space-x-3">
+                <button onClick={() => { dispatch(charactersActions.resetEditingCharacterId()); onClose(); }} className="flex-1 py-2.5 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors">{t('common.cancel')}</button>
+                <button onClick={handleSave} className="flex-1 py-2.5 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors">{t('characterPanel.save')}</button>
             </div>
             {/* 숨겨진 파일 입력: 어디서든 아바타 업로드 버튼이 동작하도록 전역 배치 */}
             <input type="file" accept="image/png,image/jpeg" ref={avatarInputRef} onChange={handleAvatarChange} className="hidden" />

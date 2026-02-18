@@ -17,19 +17,32 @@ import {
 import characterReducer from '../entities/character/slice';
 import roomReducer from '../entities/room/slice';
 import messageReducer from '../entities/message/slice';
-import settingsReducer, { initialSyncSettings, initialState as settingsInitialState, initialApiConfigs as settingsInitialApiConfigs } from '../entities/setting/slice';
+import settingsReducer, { initialSyncSettings, initialState as settingsInitialState, initialApiConfigs as settingsInitialApiConfigs, initialProactiveSettings, initialState } from '../entities/setting/slice';
 import { initialState as imageSettingsInitialState } from '../entities/setting/image/slice';
 import { applyRules } from '../utils/migration';
 import uiReducer from '../entities/ui/slice';
 import lastSavedReducer from '../entities/lastSaved/slice';
+import { dataUrlToBlob, makeAvatarBinaryKey, makeMessageBinaryKey, makeStickerBinaryKey, saveBlob } from '../services/binaryStore';
+import syncReducer from '../entities/sync/slice';
 
-localforage.config({
-    name: 'yejingram',
-    storeName: 'persist',
-});
+// Enable localforage only in browser environments
+export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+if (isBrowser) {
+    localforage.config({
+        name: 'yejingram',
+        storeName: 'persist',
+    });
+}
+
+const memoryStore = new Map<string, string>();
 
 const blobStorage = {
     async getItem(key: string): Promise<string | null> {
+        if (!isBrowser) {
+            return memoryStore.has(key) ? memoryStore.get(key)! : null;
+        }
+
         const data = await localforage.getItem(key);
         if (data == null) return null;
 
@@ -53,10 +66,18 @@ const blobStorage = {
         }
     },
     async setItem(key: string, value: string): Promise<void> {
+        if (!isBrowser) {
+            memoryStore.set(key, value);
+            return;
+        }
         const blob = new Blob([value], { type: 'application/json' });
         await localforage.setItem(key, blob);
     },
     removeItem(key: string): Promise<void> {
+        if (!isBrowser) {
+            memoryStore.delete(key);
+            return Promise.resolve();
+        }
         return localforage.removeItem(key);
     },
 } as const;
@@ -205,6 +226,158 @@ export const migrations = {
         }
 
         return state;
+    },
+    5: (state: any) => {
+        state = applyRules(state, {
+            add: [
+                {
+                    path: 'settings.apiConfigs.custom',
+                    keys: ['maxRetries'],
+                    defaults: { maxRetries: settingsInitialApiConfigs.custom.maxRetries }
+                },
+            ]
+        });
+        return state;
+    },
+    6: (state: any) => {
+        state = applyRules(state, {
+            add: [
+                {
+                    path: 'settings',
+                    keys: ['proactiveSettings'],
+                    defaults: { proactiveSettings: initialProactiveSettings }
+                },
+            ]
+        });
+        return state;
+    },
+    7: (state: any) => {
+        if (!state) return state;
+        if (!isBrowser) return state;
+
+        const runWithConcurrency = async (jobs: Array<() => Promise<void>>, limit: number) => {
+            const pending = new Set<Promise<void>>();
+            for (const job of jobs) {
+                const p = (async () => {
+                    try {
+                        await job();
+                    } catch (e) {
+                        console.warn('Binary migration job failed (continuing):', e);
+                    }
+                })().finally(() => pending.delete(p));
+                pending.add(p);
+                if (pending.size >= limit) {
+                    await Promise.race(pending);
+                }
+            }
+            await Promise.all(pending);
+        };
+
+        const isDataUrlString = (value: unknown): value is string => {
+            return typeof value === 'string' && value.startsWith('data:') && value.includes(',');
+        };
+
+        const mimeTypeFromDataUrl = (dataUrl: string): string => {
+            try {
+                return dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+            } catch {
+                return 'application/octet-stream';
+            }
+        };
+
+        return (async () => {
+            const jobs: Array<() => Promise<void>> = [];
+
+            // Messages: attachments + sticker messages
+            const msgEntities: Record<string, any> | undefined = state?.messages?.entities;
+            if (msgEntities) {
+                for (const [id, msg] of Object.entries(msgEntities)) {
+                    if (!msg) continue;
+
+                    if (msg.file?.dataUrl && isDataUrlString(msg.file.dataUrl)) {
+                        const dataUrl = msg.file.dataUrl;
+                        const storageKey = makeMessageBinaryKey(id);
+                        const mimeType = msg.file.mimeType;
+                        const name = msg.file.name;
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            msg.file = { storageKey, mimeType, name };
+                        });
+                    }
+
+                    if (msg.type === 'STICKER' && msg.sticker && !msg.sticker.storageKey && isDataUrlString(msg.sticker.data)) {
+                        const dataUrl = msg.sticker.data;
+                        const stickerId = msg.sticker.id;
+                        if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
+                        const storageKey = makeStickerBinaryKey(stickerId);
+                        const mimeType = mimeTypeFromDataUrl(dataUrl);
+                        const name = typeof msg.sticker.name === 'string' ? msg.sticker.name : '';
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            msg.sticker = { id: stickerId, name, storageKey, mimeType };
+                        });
+                    }
+                }
+            }
+
+            // Characters: avatar + stickers
+            const charEntities: Record<string, any> | undefined = state?.characters?.entities;
+            if (charEntities) {
+                for (const [id, ch] of Object.entries(charEntities)) {
+                    if (!ch) continue;
+
+                    if (isDataUrlString(ch.avatar)) {
+                        const dataUrl = ch.avatar;
+                        const storageKey = makeAvatarBinaryKey(id);
+                        const mimeType = dataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream';
+                        jobs.push(async () => {
+                            await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                            ch.avatar = { storageKey, mimeType };
+                        });
+                    }
+
+                    if (Array.isArray(ch.stickers)) {
+                        for (const st of ch.stickers) {
+                            if (!st || st.storageKey) continue;
+                            if (!isDataUrlString(st.data)) continue;
+                            const dataUrl = st.data;
+                            const stickerId = st.id;
+                            if (typeof stickerId !== 'string' || stickerId.length === 0) continue;
+                            const storageKey = makeStickerBinaryKey(stickerId);
+                            const mimeType = mimeTypeFromDataUrl(dataUrl);
+                            jobs.push(async () => {
+                                await saveBlob(storageKey, await dataUrlToBlob(dataUrl));
+                                const name = typeof st.name === 'string' ? st.name : '';
+                                st.id = stickerId;
+                                st.name = name;
+                                st.storageKey = storageKey;
+                                st.mimeType = mimeType;
+                                delete st.data;
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Limit concurrency to avoid spiking memory during migration.
+            await runWithConcurrency(jobs, 4);
+            return state;
+        })();
+    },
+    8: (state: any) => {
+        state = applyRules(state, {
+            delete: [{
+                path: 'settings.apiConfigs.custom',
+                keys: ['includeImagesDescription']
+            }],
+            add: [{
+                path: 'settings',
+                keys: ['useThoughtSignature', 'usePayloadImage'],
+                defaults: { useThoughtSignature: initialState.useThoughtSignature, usePayloadImage: initialState.usePayloadImage }
+            }]
+        });
+
+        return state;
     }
 } as MigrationManifest;
 
@@ -212,8 +385,8 @@ export const migrations = {
 export const persistConfig = {
     key: 'yejingram',
     storage: blobStorage as any,
-    version: 4,
-    whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved'],
+    version: 8,
+    whitelist: ['characters', 'rooms', 'messages', 'settings', 'lastSaved', 'sync'],
     migrate: createMigrate(migrations, { debug: true }),
 };
 
@@ -224,6 +397,7 @@ const appReducer = combineReducers({
     messages: messageReducer,
     ui: uiReducer,
     lastSaved: lastSavedReducer,
+    sync: syncReducer
 });
 
 export const RESET_ALL = 'app/resetAll' as const;

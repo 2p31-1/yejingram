@@ -1,13 +1,19 @@
+import { isBrowser } from "../../app/store";
 import type { Character } from "../../entities/character/types";
 import type { NAIConfig } from "../../entities/setting/image/types";
 import { loadImage } from "../../utils/imageStego";
+import { resolveDataUrlFromRef } from "../binaryStore";
 
-export function buildGeminiImagePayload(positivePrompt: string, isIncludingChar: boolean, char: Character) {
+export async function buildGeminiImagePayload(positivePrompt: string, isIncludingChar: boolean, char: Character) {
+    const avatarDataUrl = isIncludingChar ? await resolveDataUrlFromRef(char.avatar) : null;
+    const mimeType = avatarDataUrl ? (avatarDataUrl.split(',')[0].split(':')[1].split(';')[0] || 'application/octet-stream') : null;
+    const base64 = avatarDataUrl ? avatarDataUrl.split(',')[1] : null;
+
     return {
         contents: [{
             parts: [
-                { "text": `${positivePrompt}${isIncludingChar && char.avatar ? `IMPORTANT: PROVIDED PICTURE IS THE TOP PRIORITY. 1) IF THE APPEARANCE OF PROMPT IS NOT MATCHING WITH THE PICTURE, IGNORE ALL OF THE PROMPT RELATED TO ${char.name}'S APPEARANCE FEATURES. 2) FOLLOW THE STYLE OF PROVIDED PICTURE STRICTLY.` : ''}` },
-                ...(isIncludingChar && char.avatar ? [{ "inline_data": { "mime_type": char.avatar.split(',')[0].split(':')[1].split(';')[0], "data": char.avatar.split(',')[1] } }] : []),
+                { "text": `${positivePrompt}${isIncludingChar && avatarDataUrl ? `IMPORTANT: PROVIDED PICTURE IS THE TOP PRIORITY. 1) IF THE APPEARANCE OF PROMPT IS NOT MATCHING WITH THE PICTURE, IGNORE ALL OF THE PROMPT RELATED TO ${char.name}'S APPEARANCE FEATURES. 2) FOLLOW THE STYLE OF PROVIDED PICTURE STRICTLY.` : ''}` },
+                ...(isIncludingChar && avatarDataUrl && mimeType && base64 ? [{ "inline_data": { "mime_type": mimeType, "data": base64 } }] : []),
             ]
         }],
         safetySettings: [
@@ -85,8 +91,9 @@ export async function buildNovelAIImagePayload(positivePrompt: string, negativeP
             "skip_cfg_above_sigma": skipCfgAboveSigma,
         }
     }
-    if (model.startsWith("nai-diffusion-4-5") && isIncludingChar && char.avatar) {
-        const resized = await resizeToNAI(char.avatar, "#ffffff");
+    const avatarDataUrl = isIncludingChar ? await resolveDataUrlFromRef(char.avatar) : null;
+    if (model.startsWith("nai-diffusion-4-5") && isIncludingChar && avatarDataUrl) {
+        const resized = await resizeToNAI(avatarDataUrl, "#ffffff");
         payload.parameters['director_reference_descriptions'] = [
             {
                 caption: {
@@ -145,29 +152,65 @@ export async function resizeToNAI(
     imageURL: string,
     background: string
 ): Promise<string> {
-    const img = await loadImage(imageURL);
+    const loaded = await loadImage(imageURL);
 
-    const fit = chooseBestFit(img.naturalWidth || img.width, img.naturalHeight || img.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = fit.targetW;
-    canvas.height = fit.targetH;
+    if (isBrowser) {
+        const img = loaded as HTMLImageElement;
 
-    const ctx = canvas.getContext("2d")!;
+        const fit = chooseBestFit(img.naturalWidth || img.width, img.naturalHeight || img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = fit.targetW;
+        canvas.height = fit.targetH;
 
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext("2d")!;
+
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 
-    // 이미지 그리기
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(
-        img,
-        fit.offsetX,
-        fit.offsetY,
-        fit.drawW,
-        fit.drawH
-    );
+        // 이미지 그리기
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(
+            img,
+            fit.offsetX,
+            fit.offsetY,
+            fit.drawW,
+            fit.drawH
+        );
 
-    return canvas.toDataURL('image/png');
+        return canvas.toDataURL('image/png');
+    } else {
+        const sharp = (await import("sharp")).default;
+        const { width, height, buffer } = loaded as { width: number; height: number; buffer: Uint8Array };
+
+        const fit = chooseBestFit(width, height);
+
+        // Create background
+        const backgroundBuffer = await sharp({
+            create: {
+                width: fit.targetW,
+                height: fit.targetH,
+                channels: 4,
+                background: background
+            }
+        }).png().toBuffer();
+
+        // Resize image
+        const resizedImageBuffer = await sharp(buffer)
+            .resize(fit.drawW, fit.drawH)
+            .toBuffer();
+
+        // Composite
+        const finalBuffer = await sharp(backgroundBuffer)
+            .composite([{
+                input: resizedImageBuffer,
+                top: fit.offsetY,
+                left: fit.offsetX
+            }])
+            .png()
+            .toBuffer();
+
+        return `data:image/png;base64,${finalBuffer.toString('base64')}`;
+    }
 }

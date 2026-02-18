@@ -2,6 +2,7 @@ import { store } from "../../app/store";
 import type { Character } from "../../entities/character/types";
 import { selectCurrentArtStyle, selectCurrentImageApiConfig, selectNAIConfig, selectStyleAware } from "../../entities/setting/image/selectors";
 import { unzipToDataUrls } from "../../utils/zip2png";
+import { blobToBase64 } from "../binaryStore";
 import { GEMINI_API_BASE_URL, NAI_DIFFUSION_API_BASE_URL } from "../URLs";
 import { buildGeminiImagePayload, buildNovelAIImagePayload } from "./ImagePromptBuilder";
 
@@ -47,7 +48,7 @@ export async function callImageGeneration(imageGenerationSetting: { prompt: stri
     } else if (provider === 'gemini') {
         if (!imageConfig.apiKey) throw new Error('Gemini API Key가 설정되지 않았습니다.');
         url = `${GEMINI_API_BASE_URL}${model}:generateContent?key=${imageConfig.apiKey}`;
-        payload = buildGeminiImagePayload(positivePrompt, imageGenerationSetting.isIncludingChar, char);
+        payload = await buildGeminiImagePayload(positivePrompt, imageGenerationSetting.isIncludingChar, char);
     } else if (provider === 'comfy') {
         const customCfg = imageConfig.custom;
         if (!customCfg?.baseUrl) {
@@ -149,26 +150,13 @@ export async function callImageGeneration(imageGenerationSetting: { prompt: stri
                 method: 'GET',
             });
 
-            async function imageUrlToBase64(blob: Blob): Promise<string> {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const result = reader.result as string;
-                        const base64 = result.split(',')[1];
-                        resolve(base64);
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-            }
-
             return {
                 candidates: [{
                     content: {
                         parts: [{
                             inlineData: {
                                 mimeType: imageResponse.headers.get('Content-Type')!,
-                                data: await imageUrlToBase64(await imageResponse.blob())
+                                data: await blobToBase64(await imageResponse.blob())
                             }
                         }]
                     },

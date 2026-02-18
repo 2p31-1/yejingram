@@ -1,9 +1,9 @@
 import type { Room } from '../../entities/room/types';
-import { Menu, MoreHorizontal, MessageCircle, Smile, X, Plus, Paperclip, Edit2, Check, XCircle, StickyNote, Brain, BookOpen, ChevronDown, Zap } from 'lucide-react';
+import { Menu, MoreHorizontal, Smile, X, Plus, Paperclip, Edit2, Check, XCircle, StickyNote, Brain, BookOpen, ChevronDown, Zap, BellRing } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectCharacterById } from '../../entities/character/selectors';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, type RefObject } from 'react';
 import { type AppDispatch, type RootState } from '../../app/store';
 import { selectMessagesByRoomId } from '../../entities/message/selectors';
 import MessageList from './Message';
@@ -13,7 +13,7 @@ import { Avatar, GroupChatAvatar } from '../../utils/Avatar';
 import { SendMessage, SendGroupChatMessage } from '../../services/llm/LLMcaller';
 import type { Sticker } from '../../entities/character/types';
 import { StickerPanel } from './StickerPanel';
-import type { FileToSend, Message } from '../../entities/message/types';
+import type { Message } from '../../entities/message/types';
 import { selectAllSettings } from '../../entities/setting/selectors';
 import { replacePlaceholders } from '../../utils/placeholder';
 import { nanoid } from '@reduxjs/toolkit';
@@ -22,10 +22,13 @@ import { LorebookEditor } from '../character/LorebookEditor';
 import { settingsActions } from '../../entities/setting/slice';
 import { charactersActions } from '../../entities/character/slice';
 import { MemoryManager } from '../character/MemoryManager';
-import { renderFile } from './FilePreview';
 import { useTranslation } from 'react-i18next';
 import type { Character } from '../../entities/character/types';
 import type { Lore } from '../../entities/lorebook/types';
+import { type VirtuosoHandle } from 'react-virtuoso';
+import type { StoredFileRef } from '../../entities/message/types';
+import { getBlob, makeBinaryUrl, saveBlob } from '../../services/binaryStore';
+import { FilePreview } from './FilePreview';
 
 interface MainChatProps {
   room: Room | null;
@@ -36,22 +39,38 @@ interface MainChatProps {
 }
 
 function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCharacterPanel, onToggleGroupchatSettings }: MainChatProps) {
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<VirtuosoHandle>(null);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [typingCharacterId, setTypingCharacterId] = useState<number | null>(null);
   const [showStickerPanel, setShowStickerPanel] = useState(false);
   const [stickerToSend, setStickerToSend] = useState<Sticker | null>(null);
   const [isEditingRoomName, setIsEditingRoomName] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
-  const [fileToSend, setFileToSend] = useState<FileToSend | null>(null);
+  const [fileToSend, setFileToSend] = useState<{ previewSrc: string; mimeType: string; name: string; storageKey: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAuthorNoteOpen, setIsAuthorNoteOpen] = useState(false);
   const [tempAuthorNote, setTempAuthorNote] = useState('');
   const [isRoomMemoryOpen, setIsRoomMemoryOpen] = useState(false);
   const [isLoreBookOpen, setIsLoreBookOpen] = useState(false);
 
+  const filePreviewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const next = fileToSend?.previewSrc ?? null;
+    const prev = filePreviewUrlRef.current;
+    if (prev && prev !== next && prev.startsWith('blob:')) {
+      URL.revokeObjectURL(prev);
+    }
+    filePreviewUrlRef.current = next;
+    return () => {
+      const current = filePreviewUrlRef.current;
+      if (current && current.startsWith('blob:')) URL.revokeObjectURL(current);
+      filePreviewUrlRef.current = null;
+    };
+  }, [fileToSend?.previewSrc]);
+
   const dispatch = useDispatch<AppDispatch>();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Pending LLM request management: store last pending room/message and debounce timer
   const pendingRequestRef = useRef<{ room: Room; } | null>(null);
@@ -71,46 +90,6 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     room?.memberIds.map(id => selectCharacterById(state, id))
   );
   const settings = useSelector(selectAllSettings);
-
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      // DOM 업데이트 후 스크롤이 정확하게 되도록 setTimeout 사용
-      setTimeout(() => {
-        scrollToBottom(container);
-      }, 0);
-    }
-  }, [room, messages]);
-
-  const scrollToBottom = (container: HTMLDivElement | null) => {
-    // rAF보다 직접 할당이 모바일에서 더 안정적일 때가 많습니다
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
-  };
-
-
-  const handleInputFocus = () => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    // 모바일 키보드가 열리면 visualViewport가 resize됩니다 (특히 iOS)
-    if (typeof window !== 'undefined' && 'visualViewport' in window) {
-      const vv = window.visualViewport!;
-      const onResize = () => {
-        // 키보드가 완전히 열린 뒤 한 번 더 스크롤
-        scrollToBottom(container);
-        vv.removeEventListener('resize', onResize);
-      };
-      vv.addEventListener('resize', onResize, { once: true });
-
-      // 혹시 resize 이벤트가 안 오더라도 대비용 딜레이
-      setTimeout(scrollToBottom, 350);
-    } else {
-      // 안드로이드/기타 브라우저 대비: 짧은 딜레이만으로도 충분한 경우가 많음
-      setTimeout(scrollToBottom, 120);
-    }
-  };
 
   const handleEditRoomName = () => {
     if (!room) return;
@@ -176,11 +155,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
@@ -188,16 +166,24 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const file = Array.from(event.clipboardData.items).find(item => item.kind === 'file')?.getAsFile();
     if (file) {
       event.preventDefault();
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFileToSend({ dataUrl: reader.result as string, mimeType: file.type, name: file.name });
-      };
-      reader.readAsDataURL(file);
+      const storageKey = `draftfile:${nanoid()}`;
+      void saveBlob(storageKey, file);
+      const previewSrc = URL.createObjectURL(file);
+      setFileToSend({ previewSrc, mimeType: file.type, name: file.name, storageKey });
     }
   };
 
+  const scroll = (virtuosoRef: RefObject<VirtuosoHandle | null>) => {
+    if (!virtuosoRef?.current) return;
+
+    virtuosoRef.current.scrollToIndex({
+      index: "LAST",
+      behavior: "smooth"
+    });
+  };
+
   // Add message immediately to UI and schedule LLM request after 1s of no further typing
-  const sendPendingRequest = () => {
+  const sendPendingRequest = async () => {
     // clear timer
     if (debounceTimerRef.current) {
       window.clearTimeout(debounceTimerRef.current);
@@ -213,16 +199,18 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     const targetRoom = pending.room;
     pendingRequestRef.current = null;
 
-    let responsePromise;
-    if (targetRoom.type === 'Group') {
-      responsePromise = SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
-    } else {
-      responsePromise = SendMessage(targetRoom, setTypingCharacterId, t);
-    }
-
-    responsePromise.then(() => {
+    try {
+      if (targetRoom.type === 'Group') {
+        await SendGroupChatMessage(targetRoom, setTypingCharacterId, t);
+      } else {
+        await SendMessage(targetRoom, setTypingCharacterId, t);
+      }
+    } catch (error) {
+      console.error('Error sending message to LLM:', error);
+    } finally {
+      scroll(messagesContainerRef);
       setIsWaitingForResponse(false);
-    });
+    }
   };
 
   const handleSendMessage = (text: string) => {
@@ -258,7 +246,9 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     } else if (['IMAGE', 'AUDIO', 'VIDEO', 'FILE'].includes(messageType)) {
       userMessage.push(userMessage[0]);
-      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: fileToSend! } as Message;
+      // Persisted at selection time; keep only a reference in Redux
+      const storedFile: StoredFileRef = { storageKey: fileToSend!.storageKey, mimeType: fileToSend!.mimeType, name: fileToSend!.name };
+      userMessage[0] = { ...userMessage[0], type: messageType as Message['type'], file: storedFile } as Message;
       userMessage[1] = { ...userMessage[1], id: nanoid(), type: 'TEXT', content: processedText || '' } as Message;
     }
 
@@ -286,17 +276,21 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     }, DEBOUNCE_DELAY) as unknown as number;
   };
 
-  const handleRequestProactiveChat = () => {
+  const handleRequestProactiveChat = async () => {
     if (!room) return;
     if (isWaitingForResponse) {
       toast.error(t('main.toast.waitForResponse'));
       return;
     }
     setIsWaitingForResponse(true);
-    SendMessage(room, setTypingCharacterId, t, 'proactive')
-      .finally(() => {
-        setIsWaitingForResponse(false);
-      });
+    try {
+      await SendMessage(room, setTypingCharacterId, t, 'proactive');
+    } catch (error) {
+      console.error('Error requesting proactive chat:', error);
+    } finally {
+      setIsWaitingForResponse(false);
+      scroll(messagesContainerRef);
+    }
   };
 
   // Called when user types or interacts with input to postpone/send LLM request
@@ -322,33 +316,90 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
     };
   }, [room?.id]);
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Pass CSS :root variables to iframe
+  useEffect(() => {
+    const sendCssVariables = () => {
+      if (!iframeRef.current?.contentWindow) return;
+
+      const rootStyles = getComputedStyle(document.documentElement);
+      const cssVariables: Record<string, string> = {};
+      const isDark = document.documentElement.classList.contains('dark');
+      const theme = isDark ? 'dark' : 'light';
+      const locale = i18n.resolvedLanguage || 'en';
+
+      // Extract all CSS variables from :root
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) {
+            if (rule instanceof CSSStyleRule && rule.selectorText === ':root') {
+              for (const prop of rule.style) {
+                if (prop.startsWith('--')) {
+                  cssVariables[prop] = rootStyles.getPropertyValue(prop).trim();
+                }
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      iframeRef.current.contentWindow.postMessage(
+        { type: 'CSS_VARIABLES', variables: cssVariables, theme, locale },
+        '*'
+      );
+    };
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', sendCssVariables);
+      // If the iframe is already loaded (e.g. from service worker cache),
+      // the load event has already fired before the listener was registered.
+      // Send CSS variables immediately as a fallback.
+      sendCssVariables();
+    }
+
+    // Detect theme changes
+    const observer = new MutationObserver(() => {
+      sendCssVariables();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'data-theme']
+    });
+
+    return () => {
+      if (iframe) {
+        iframe.removeEventListener('load', sendCssVariables);
+      }
+      observer.disconnect();
+    };
+  }, []);
+
   if (!room || (!character && room?.type !== 'Group')) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--color-bg-secondary)]">
+      <div className="flex-1 flex items-center justify-center bg-(--color-bg-secondary)">
         <button
           id="mobile-sidebar-toggle"
-          className="absolute top-4 left-4 p-2 rounded-full hover:bg-[var(--color-bg-hover)] md:hidden"
+          className="absolute top-4 left-4 p-2 rounded-full hover:bg-(--color-bg-hover) md:hidden"
           onClick={onToggleMobileSidebar}
         >
-          <Menu className="h-5 w-5 text-[var(--color-icon-primary)]" />
+          <Menu className="h-5 w-5 text-(--color-icon-primary)" />
         </button>
-        <div className="text-center">
-          <div className="w-24 h-24 bg-[var(--color-button-secondary-accent)] rounded-full flex items-center justify-center mx-auto mb-6">
-            <MessageCircle className="w-12 h-12 text-[var(--color-icon-secondary)]" />
-          </div>
-          <h3 className="text-xl md:text-2xl font-semibold text-[var(--color-text-primary)] mb-3">
-            {t('main.empty.title')}
-          </h3>
-          <p className="text-sm md:text-base text-[var(--color-text-secondary)] leading-relaxed">
-            {t('main.empty.description')}
-          </p>
-        </div>
+        <iframe
+          ref={iframeRef}
+          src={`${import.meta.env.DEV ? `http://localhost:5174` : import.meta.env.VITE_REALM_URL}`}
+          className="w-full h-full"
+        ></iframe>
       </div>
     );
   }
   else {
     return (
-      <div className={`flex-1 flex flex-col bg-[var(--color-bg-main)] ${isMobileSidebarOpen ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col bg-(--color-bg-main) ${isMobileSidebarOpen ? 'hidden md:flex' : 'flex'}`}>
         <AuthorNoteModal
           open={isAuthorNoteOpen}
           onClose={() => setIsAuthorNoteOpen(false)}
@@ -389,8 +440,9 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
         />
 
         {/* Messages Container*/}
-        <div id="messages-container" className="flex-1 overflow-y-auto w-full bg-[var(--color-bg-main)]" ref={messagesContainerRef}>
+        <div id="messages-container" className="flex-1 w-full bg-(--color-bg-main)">
           <MessageList
+            ref={messagesContainerRef}
             messages={messages}
             room={room}
             isWaitingForResponse={isWaitingForResponse}
@@ -399,11 +451,10 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
             setTypingCharacterId={setTypingCharacterId}
             setIsWaitingForResponse={setIsWaitingForResponse}
           />
-          <div id="messages-end-ref"></div>
         </div>
 
         {/* Input Area*/}
-        <div className="px-6 py-4 bg-[var(--color-bg-main)] border-t border-[var(--color-border)]">
+        <div className="px-6 py-4 bg-(--color-bg-main) border-t border-(--color-border)">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="*/*" className="hidden" />
           <InputArea
             room={room}
@@ -416,7 +467,6 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
             onStickerClear={handleCancelSticker}
             onSendMessage={handleSendMessage}
             onPaste={handlePaste}
-            onFocus={handleInputFocus}
             onUserActivity={handleUserActivity}
             renderUserStickerPanel={() =>
               showStickerPanel && character && (
@@ -429,6 +479,8 @@ function MainChat({ room, isMobileSidebarOpen, onToggleMobileSidebar, onToggleCh
               )
             }
             handleRequestProactiveChat={handleRequestProactiveChat}
+            onToggleProactive={(enabled) => dispatch(roomsActions.toggleProactive({ roomId: room.id, enabled }))}
+            virtuosoRef={messagesContainerRef}
           />
         </div>
       </div>
@@ -492,7 +544,7 @@ function ChatHeader({
       return (
         <>
           <Avatar char={character} size="md" />
-          <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${onlineStatus ? 'bg-[var(--color-indicator-online)]' : 'bg-[var(--color-indicator-offline)]'} border-2 border-[var(--color-bg-main)] rounded-full`}></div>
+          <div className={`absolute -bottom-1 -right-1 w-4 h-4 ${onlineStatus ? 'bg-(--color-indicator-online)' : 'bg-(--color-indicator-offline)'} border-2 border-(--color-bg-main) rounded-full`}></div>
         </>
       );
     }
@@ -552,9 +604,9 @@ function ChatHeader({
 
   const getRoomNameEditSize = () => {
     if (room.type === 'Direct') {
-      return "bg-[var(--color-bg-input-primary)] text-[var(--color-text-primary)] text-sm rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]";
+      return "bg-(--color-bg-input-primary) text-(--color-text-primary) text-sm rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)";
     }
-    return "bg-[var(--color-bg-input-primary)] text-[var(--color-text-primary)] text-lg font-semibold rounded-lg px-3 py-1 w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]";
+    return "bg-(--color-bg-input-primary) text-(--color-text-primary) text-lg font-semibold rounded-lg px-3 py-1 w-full focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)";
   };
 
   const getEditButtonSize = () => {
@@ -572,14 +624,14 @@ function ChatHeader({
   };
 
   return (
-    <header ref={headerRef} className="px-6 py-4 bg-[var(--color-bg-main)] border-b border-[var(--color-border)] flex items-center justify-between">
+    <header ref={headerRef} className="px-6 py-4 bg-(--color-bg-main) border-b border-(--color-border) flex items-center justify-between">
       <div className="flex items-center space-x-4">
         <button
           id="mobile-sidebar-toggle"
-          className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-hover)] md:hidden"
+          className="p-2 -ml-2 rounded-full hover:bg-(--color-bg-hover) md:hidden"
           onClick={onToggleMobileSidebar}
         >
-          <Menu className="h-5 w-5 text-[var(--color-icon-primary)]" />
+          <Menu className="h-5 w-5 text-(--color-icon-primary)" />
         </button>
         <div ref={avatarDivRef} className="relative">
           {getHeaderAvatar()}
@@ -601,10 +653,10 @@ function ChatHeader({
                   if (e.key === 'Escape') onCancelEditRoomName();
                 }}
               />
-              <button onClick={onSaveRoomName} className="p-1 text-[var(--color-button-positive)] hover:text-[var(--color-button-positive-accent)]">
+              <button onClick={onSaveRoomName} className="p-1 text-(--color-button-positive) hover:text-(--color-button-positive-accent)">
                 <Check className={getEditButtonSize()} />
               </button>
-              <button onClick={onCancelEditRoomName} className="p-1 text-[var(--color-textual-button-negative)] hover:text-[var(--color-textual-button-negative-accent)]">
+              <button onClick={onCancelEditRoomName} className="p-1 text-(--color-textual-button-negative) hover:text-(--color-textual-button-negative-accent)">
                 <XCircle className={getEditButtonSize()} />
               </button>
             </div>
@@ -612,12 +664,12 @@ function ChatHeader({
             <>
               {room.type === 'Direct' ? (
                 <>
-                  <h2 className="font-bold text-[var(--color-text-primary)] text-lg">{getHeaderTitle()}</h2>
+                  <h2 className="font-bold text-(--color-text-primary) text-lg">{getHeaderTitle()}</h2>
                   <div className={`group flex items-center space-x-2 ${getEditPosition()}`}>
-                    <p className="text-sm text-[var(--color-icon-tertiary)]">{getHeaderSubtitle()}</p>
+                    <p className="text-sm text-(--color-icon-tertiary)">{getHeaderSubtitle()}</p>
                     <button
                       onClick={onEditRoomName}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
                     >
                       <Edit2 className={getEditButtonSize()} />
                     </button>
@@ -626,16 +678,16 @@ function ChatHeader({
               ) : (
                 <>
                   <div className="group flex items-center space-x-2">
-                    <h2 className="font-bold text-[var(--color-text-primary)] text-lg">{getHeaderTitle()}</h2>
+                    <h2 className="font-bold text-(--color-text-primary) text-lg">{getHeaderTitle()}</h2>
                     <button
                       onClick={onEditRoomName}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
                     >
                       <Edit2 className={getEditButtonSize()} />
                     </button>
                   </div>
                   <span ref={textSampleSpanRef} className="text-sm opacity-0 absolute">{t('main.hiddenRefText')}</span>
-                  <p className="text-sm text-[var(--color-text-secondary)] flex items-center mt-1">
+                  <p className="text-sm text-(--color-text-secondary) flex items-center mt-1">
                     {getHeaderSubtitle()}
                   </p>
                 </>
@@ -645,16 +697,16 @@ function ChatHeader({
         </div>
       </div>
       <div ref={buttonsDivRef} className="flex items-center space-x-2">
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.authorNote')} onClick={onOpenAuthorNote}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.authorNote')} onClick={onOpenAuthorNote}>
           <StickyNote className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.roomMemory')} onClick={onOpenRoomMemory}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.roomMemory')} onClick={onOpenRoomMemory}>
           <Brain className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={t('main.tooltips.activeLorebook')} onClick={onOpenLoreBook}>
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={t('main.tooltips.activeLorebook')} onClick={onOpenLoreBook}>
           <BookOpen className="w-5 h-5" />
         </button>
-        <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-primary)]" title={room.type === 'Direct' ? t('main.tooltips.characterSettings') : t('main.tooltips.roomSettings')} onClick={() => {
+        <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-primary)" title={room.type === 'Direct' ? t('main.tooltips.characterSettings') : t('main.tooltips.roomSettings')} onClick={() => {
           if (room.type === 'Group') {
             dispatch(settingsActions.setEditingRoomId(room.id));
             onOpenGroupchatSettings();
@@ -674,8 +726,9 @@ function ChatHeader({
 interface InputAreaProps {
   room: Room;
   isWaitingForResponse: boolean;
-  fileToSend?: FileToSend | null;
+  fileToSend?: { previewSrc: string; mimeType: string; name: string; storageKey: string } | null;
   stickerToSend?: Sticker | null;
+  virtuosoRef?: RefObject<VirtuosoHandle | null>;
 
   // 이벤트 핸들러들
   onOpenFileUpload?: () => void;
@@ -684,12 +737,12 @@ interface InputAreaProps {
   onSendMessage: (text: string) => void;
   onStickerClear?: () => void;
   onPaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
-  onFocus?: () => void;
   onUserActivity?: () => void;
 
   // (선택) 커스텀 스티커 패널 렌더링
   renderUserStickerPanel?: () => React.ReactNode;
   handleRequestProactiveChat: () => void;
+  onToggleProactive?: (enabled: boolean) => void;
 }
 
 function InputArea({
@@ -697,26 +750,54 @@ function InputArea({
   isWaitingForResponse,
   fileToSend,
   stickerToSend,
+  virtuosoRef,
   onOpenFileUpload,
   onCancelFilePreview,
   onToggleUserStickerPanel,
   onSendMessage,
   onStickerClear,
   onPaste,
-  onFocus,
   onUserActivity,
   renderUserStickerPanel,
-  handleRequestProactiveChat
+  handleRequestProactiveChat,
+  onToggleProactive
 }: InputAreaProps) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
   const [showInputOptions, setInputOptions] = useState(false);
   const hasFile = !!fileToSend;
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [stickerPreviewUrl, setStickerPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isWaitingForResponse && inputRef.current) {
+    let cancelled = false;
+
+    void (async () => {
+      const storageKey = stickerToSend?.storageKey;
+      if (!storageKey) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      const blob = await getBlob(storageKey);
+      if (!blob || cancelled) {
+        setStickerPreviewUrl(null);
+        return;
+      }
+      setStickerPreviewUrl(makeBinaryUrl(storageKey));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stickerToSend?.storageKey]);
+
+  useEffect(() => {
+    if (!isWaitingForResponse && inputRef.current && virtuosoRef?.current) {
       inputRef.current.focus();
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        behavior: "smooth"
+      });
     }
   }, [isWaitingForResponse]);
 
@@ -730,24 +811,33 @@ function InputArea({
     onSendMessage(text.trim());
     setText("");
     // 전송 후 입력 필드에 포커스를 유지하여 키보드가 내려가지 않도록 함
-    if (inputRef.current) {
+    if (inputRef.current && virtuosoRef?.current) {
       inputRef.current.focus();
+      virtuosoRef.current.scrollToIndex({
+        index: "LAST",
+        behavior: "smooth"
+      });
     }
   };
 
   return (
     <div className="input-area-container relative">
       {/* File Preview*/}
-      {hasFile && fileToSend?.dataUrl && (
-        <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl">
+      {hasFile && fileToSend?.previewSrc && (
+        <div className="mb-3 p-3 bg-(--color-bg-secondary) rounded-xl">
           <div className="relative inline-block">
             <div className="rounded-lg overflow-hidden">
-              {renderFile(fileToSend, true, t)}
+              <FilePreview
+                file={{ storageKey: fileToSend.storageKey, mimeType: fileToSend.mimeType, name: fileToSend.name }}
+                preview={true}
+                t={t}
+                previewSrc={fileToSend.previewSrc}
+              />
             </div>
             <button
               type="button"
               onClick={onCancelFilePreview}
-              className="absolute -top-2 -right-2 p-1 bg-[var(--color-button-tertiary)] rounded-full text-[var(--color-text-accent)] hover:bg-[var(--color-button-negative)] transition-colors"
+              className="absolute -top-2 -right-2 p-1 bg-(--color-button-tertiary) rounded-full text-(--color-text-accent) hover:bg-(--color-button-negative) transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
@@ -757,9 +847,9 @@ function InputArea({
 
       {/* Selected Sticker Display*/}
       {stickerToSend && (
-        <div className="mb-3 p-3 bg-[var(--color-bg-secondary)] rounded-xl flex items-center gap-3 text-sm text-[var(--color-icon-primary)]">
+        <div className="mb-3 p-3 bg-(--color-bg-secondary) rounded-xl flex items-center gap-3 text-sm text-(--color-icon-primary)">
           <img
-            src={stickerToSend.data}
+            src={stickerPreviewUrl ?? ''}
             alt={stickerToSend.name}
             className="w-8 h-8 rounded-lg object-cover"
           />
@@ -767,7 +857,7 @@ function InputArea({
           <button
             type="button"
             onClick={onStickerClear}
-            className="text-[var(--color-icon-secondary)] hover:text-[var(--color-icon-primary)]"
+            className="text-(--color-icon-secondary) hover:text-(--color-icon-primary)"
           >
             <X className="w-4 h-4" />
           </button>
@@ -776,14 +866,14 @@ function InputArea({
 
       {/* Input Options Popover*/}
       {showInputOptions && (
-        <div className="absolute bottom-full left-4 mb-2 w-48 bg-[var(--color-bg-main)] rounded-2xl shadow-lg border border-[var(--color-border)] p-2 animate-fadeIn">
+        <div className="absolute bottom-full left-4 mb-2 w-48 bg-(--color-bg-main) rounded-2xl shadow-lg border border-(--color-border) p-2 animate-fadeIn">
           <button
             type="button"
             onClick={() => {
               onOpenFileUpload?.();
               setInputOptions((prev) => !prev);
             }}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]"
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) text-(--color-text-secondary)"
           >
             <Paperclip className="w-4 h-4" /> {t('main.input.file')}
           </button>
@@ -794,9 +884,21 @@ function InputArea({
                 handleRequestProactiveChat();
                 setInputOptions((prev) => !prev);
               }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]"
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) text-(--color-text-secondary)"
             >
               <Zap className="w-4 h-4" /> {t('main.input.proactiveChat')}
+            </button>
+          )}
+          {room.type === 'Direct' && (
+            <button
+              type="button"
+              onClick={() => {
+                onToggleProactive?.(!room.proactiveEnabled);
+                setInputOptions((prev) => !prev);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left rounded-xl hover:bg-(--color-bg-secondary) ${room.proactiveEnabled ? 'text-(--color-button-primary)' : 'text-(--color-text-secondary)'}`}
+            >
+              <BellRing className="w-4 h-4" /> {room.proactiveEnabled ? t('main.input.proactiveEnabled') : t('main.input.proactiveDisabled')}
             </button>
           )}
         </div>
@@ -810,7 +912,7 @@ function InputArea({
             id="open-input-options-btn"
             type="button"
             onClick={() => setInputOptions((prev) => !prev)}
-            className="p-2 text-[var(--color-icon-tertiary)] hover:[var(--color-text-secondary)] rounded-full hover:bg-[var(--color-bg-hover)] transition-all duration-200 flex-shrink-0"
+            className="p-2 text-(--color-icon-tertiary) hover:[var(--color-text-secondary)] rounded-full hover:bg-(--color-bg-hover) transition-all duration-200 shrink-0"
             disabled={isWaitingForResponse}
           >
             <Plus className="w-5 h-5" />
@@ -819,12 +921,12 @@ function InputArea({
 
         {/* Input Field Container */}
         <div className="flex-1 relative">
-          <div className="flex items-end bg-[var(--color-bg-input-primary)] rounded-3xl px-4 py-2">
+          <div className="flex items-end bg-(--color-bg-input-primary) rounded-3xl px-4 py-2">
             <textarea
               id="new-message-input"
               ref={inputRef}
               placeholder={placeholder}
-              className="flex-1 bg-transparent text-[var(--color-text-primary)] resize-none border-none outline-none text-sm placeholder-[var(--color-text-secondary)] max-h-20"
+              className="flex-1 bg-transparent text-(--color-text-primary) resize-none border-none outline-none text-sm placeholder-(--color-text-secondary) max-h-20"
               rows={1}
               disabled={isWaitingForResponse}
               value={text}
@@ -843,7 +945,6 @@ function InputArea({
                 onUserActivity?.();
               }}
               onPaste={onPaste}
-              onFocus={onFocus}
               style={{ minHeight: '20px' }}
             />
 
@@ -853,7 +954,7 @@ function InputArea({
                 id="sticker-btn"
                 type="button"
                 onClick={onToggleUserStickerPanel}
-                className="p-1 text-[var(--color-icon-tertiary)] hover:[var(--color-button-primary-accent)] transition-all duration-200"
+                className="p-1 text-(--color-icon-tertiary) hover:[var(--color-button-primary-accent)] transition-all duration-200"
                 disabled={isWaitingForResponse}
               >
                 <Smile className="w-5 h-5" />
@@ -864,7 +965,7 @@ function InputArea({
                   id="send-message-btn"
                   type="button"
                   onClick={handleSend}
-                  className="p-1 text-[var(--color-button-primary)] hover:text-[var(--color-button-primary-accent)] transition-all duration-200 font-semibold text-sm"
+                  className="p-1 text-(--color-button-primary) hover:text-(--color-button-primary-accent) transition-all duration-200 font-semibold text-sm"
                   disabled={isWaitingForResponse}
                   title={t('main.input.send')}
                 >
@@ -886,25 +987,25 @@ function AuthorNoteModal({ open, onClose, value, onChange, onSave }: { open: boo
   const { t } = useTranslation();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-lg mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-lg mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <StickyNote className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.authorNoteModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <StickyNote className="w-5 h-5 text-(--color-button-primary)" /> {t('main.authorNoteModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
         <textarea
-          className="w-full h-48 p-4 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] resize-none"
+          className="w-full h-48 p-4 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:outline-none focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) resize-none"
           placeholder={t('main.authorNoteModal.placeholder')}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
         <div className="mt-4 flex justify-end gap-3">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-button-secondary-accent)] transition-colors font-medium" onClick={onClose}>{t('common.cancel')}</button>
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onSave}>{t('common.save')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-secondary) text-(--color-text-secondary) hover:bg-(--color-button-secondary-accent) transition-colors font-medium" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onSave}>{t('common.save')}</button>
         </div>
       </div>
     </div>
@@ -915,20 +1016,20 @@ function RoomMemoryModal({ open, onClose, roomId }: { open: boolean; onClose: ()
   const { t } = useTranslation();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-2xl mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-2xl mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <Brain className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.roomMemoryModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <Brain className="w-5 h-5 text-(--color-button-primary)" /> {t('main.roomMemoryModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-3">{t('main.roomMemoryModal.description')}</p>
+        <p className="text-sm text-(--color-text-secondary) mb-3">{t('main.roomMemoryModal.description')}</p>
         <MemoryManager roomId={roomId} />
         <div className="mt-4 flex justify-end">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onClose}>{t('main.roomMemoryModal.close')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onClose}>{t('main.roomMemoryModal.close')}</button>
         </div>
       </div>
     </div>
@@ -940,22 +1041,22 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-bg-shadow)]/50">
-      <div className="w-full max-w-4xl mx-4 bg-[var(--color-bg-main)] rounded-2xl border border-[var(--color-border)] shadow-xl p-6 max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-(--color-bg-shadow)/50">
+      <div className="w-full max-w-4xl mx-4 bg-(--color-bg-main) rounded-2xl border border-(--color-border) shadow-xl p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
-            <BookOpen className="w-5 h-5 text-[var(--color-button-primary)]" /> {t('main.lorebookModal.title')}
+          <div className="flex items-center gap-2 text-(--color-text-primary) font-semibold">
+            <BookOpen className="w-5 h-5 text-(--color-button-primary)" /> {t('main.lorebookModal.title')}
           </div>
-          <button className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] text-[var(--color-icon-tertiary)] transition-colors" onClick={onClose}>
+          <button className="p-2 rounded-full hover:bg-(--color-bg-hover) text-(--color-icon-tertiary) transition-colors" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-[var(--color-text-secondary)] mb-3">{t('main.lorebookModal.description')}</p>
+        <p className="text-sm text-(--color-text-secondary) mb-3">{t('main.lorebookModal.description')}</p>
         {(roomType === 'Group') && roomLorebook && (
           <details className="mb-6">
-            <summary className="flex items-center justify-between text-lg font-semibold text-[var(--color-text-primary)] mb-2 cursor-pointer hover:text-[var(--color-icon-primary)] transition-colors">
+            <summary className="flex items-center justify-between text-lg font-semibold text-(--color-text-primary) mb-2 cursor-pointer hover:text-(--color-icon-primary) transition-colors">
               <span>{t('main.lorebookModal.groupSection')}</span>
-              <ChevronDown className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+              <ChevronDown className="w-5 h-5 text-(--color-icon-tertiary)" />
             </summary>
             <LorebookEditor roomId={roomId} roomLorebook={roomLorebook} />
           </details>
@@ -963,9 +1064,9 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
         {memberChars && memberChars.length > 0 ? (
           memberChars.map(char => (
             <details key={char.id} className="mb-6">
-              <summary className="flex items-center justify-between text-lg font-semibold text-[var(--color-text-primary)] mb-2 cursor-pointer hover:text-[var(--color-icon-primary)] transition-colors">
+              <summary className="flex items-center justify-between text-lg font-semibold text-(--color-text-primary) mb-2 cursor-pointer hover:text-(--color-icon-primary) transition-colors">
                 <span>{t('main.lorebookModal.charSection', { name: char.name })}</span>
-                <ChevronDown className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                <ChevronDown className="w-5 h-5 text-(--color-icon-tertiary)" />
               </summary>
               <LorebookEditor characterId={char.id} />
             </details>
@@ -976,7 +1077,7 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
           )
         )}
         <div className="mt-4 flex justify-end">
-          <button className="px-4 py-2 rounded-xl bg-[var(--color-button-primary)] text-[var(--color-text-accent)] hover:bg-[var(--color-button-primary-accent)] transition-colors font-medium" onClick={onClose}>{t('main.lorebookModal.close')}</button>
+          <button className="px-4 py-2 rounded-xl bg-(--color-button-primary) text-(--color-text-accent) hover:bg-(--color-button-primary-accent) transition-colors font-medium" onClick={onClose}>{t('main.lorebookModal.close')}</button>
         </div>
       </div>
     </div>
@@ -984,4 +1085,3 @@ function LoreBookModal({ open, onClose, characterId, memberChars, roomLorebook, 
 }
 
 export default MainChat;
-

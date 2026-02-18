@@ -45,20 +45,20 @@ function PersonaModal({ isOpen, editingPersona, onClose, onSave }: PersonaModalP
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-[var(--color-bg-shadow)]/50">
-            <div className="bg-[var(--color-bg-main)] rounded-lg p-6 w-full max-w-md mx-4 shadow-xl border border-[var(--color-border)]">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-(--color-bg-shadow)/50">
+            <div className="bg-(--color-bg-main) rounded-lg p-6 w-full max-w-md mx-4 shadow-xl border border-(--color-border)">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                    <h3 className="text-lg font-semibold text-(--color-text-primary)">
                         {editingPersona?.id ? t('settings.persona.editTitle') : t('settings.persona.addTitle')}
                     </h3>
-                    <button onClick={handleClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-full">
-                        <X className="w-5 h-5 text-[var(--color-icon-tertiary)]" />
+                    <button onClick={handleClose} className="p-1 hover:bg-(--color-bg-hover) rounded-full">
+                        <X className="w-5 h-5 text-(--color-icon-tertiary)" />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2">
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2">
                             <User className="w-4 h-4 mr-2" />
                             {t('settings.persona.nameLabel')}
                         </label>
@@ -67,13 +67,13 @@ function PersonaModal({ isOpen, editingPersona, onClose, onSave }: PersonaModalP
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder={t('settings.persona.namePlaceholder')}
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2">
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2">
                             <BrainCircuit className="w-4 h-4 mr-2" />
                             {t('settings.persona.descLabel')}
                         </label>
@@ -82,7 +82,7 @@ function PersonaModal({ isOpen, editingPersona, onClose, onSave }: PersonaModalP
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder={t('settings.persona.descPlaceholder')}
                             rows={4}
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                         />
                     </div>
 
@@ -90,13 +90,13 @@ function PersonaModal({ isOpen, editingPersona, onClose, onSave }: PersonaModalP
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="flex-1 py-2.5 px-4 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-secondary-accent)] text-[var(--color-text-interface)] rounded-lg transition-colors"
+                            className="flex-1 py-2.5 px-4 bg-(--color-button-secondary) hover:bg-(--color-button-secondary-accent) text-(--color-text-interface) rounded-lg transition-colors"
                         >
                             {t('settings.persona.cancelButton')}
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 py-2.5 px-4 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg transition-colors"
+                            className="flex-1 py-2.5 px-4 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg transition-colors"
                         >
                             {editingPersona?.id ? t('settings.persona.editButton') : t('settings.persona.addButton')}
                         </button>
@@ -164,16 +164,16 @@ function PersonaManager() {
             />
             <div className="space-y-4">
                 {selectedPersonaId == null && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--color-alert-border)] bg-[var(--color-alert-bg)] text-[var(--color-alert-text)]">
-                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start gap-3 p-3 rounded-lg border border-(--color-alert-border) bg-(--color-alert-bg) text-(--color-alert-text)">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                         <p className="text-xs">{t('settings.persona.alertNoPersona')}</p>
                     </div>
                 )}
                 <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium text-[var(--color-text-interface)]">{t('settings.persona.manageTitle')}</h4>
+                    <h4 className="text-sm font-medium text-(--color-text-interface)">{t('settings.persona.manageTitle')}</h4>
                     <button
                         onClick={handleAddPersona}
-                        className="px-3 py-1.5 bg-[var(--color-button-primary)] hover:bg-[var(--color-button-primary-accent)] text-[var(--color-text-accent)] rounded-lg text-xs flex items-center gap-1 transition-colors"
+                        className="px-3 py-1.5 bg-(--color-button-primary) hover:bg-(--color-button-primary-accent) text-(--color-text-accent) rounded-lg text-xs flex items-center gap-1 transition-colors"
                     >
                         <Plus className="w-3 h-3" /> {t('settings.persona.addButton')}
                     </button>
@@ -184,23 +184,23 @@ function PersonaManager() {
                         <div
                             key={persona.id}
                             className={`p-3 rounded-lg border transition-colors cursor-pointer ${selectedPersonaId === persona.id
-                                ? 'border-[var(--color-focus-border)] bg-[var(--color-focus-border)]/10'
-                                : 'border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
+                                ? 'border-(--color-focus-border) bg-(--color-focus-border)/10'
+                                : 'border-(--color-border) hover:bg-(--color-bg-secondary)'
                                 }`}
                             onClick={() => handleSelectPersona(persona.id)}
                         >
                             <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                        <h5 className="font-medium text-sm text-[var(--color-text-primary)]">{persona.name || t('settings.persona.untitled')}</h5>
+                                        <h5 className="font-medium text-sm text-(--color-text-primary)">{persona.name || t('settings.persona.untitled')}</h5>
                                         {selectedPersonaId === persona.id && (
-                                            <span className="px-2 py-0.5 bg-[var(--color-persona-selected)]/20 text-[var(--color-persona-selected)] text-xs rounded-full">
+                                            <span className="px-2 py-0.5 bg-(--color-persona-selected)/20 text-(--color-persona-selected) text-xs rounded-full">
                                                 {t('settings.persona.selected')}
                                             </span>
                                         )}
                                     </div>
                                     {persona.description && (
-                                        <p className="text-xs text-[var(--color-text-secondary)] mt-1 line-clamp-2">
+                                        <p className="text-xs text-(--color-text-secondary) mt-1 line-clamp-2">
                                             {persona.description}
                                         </p>
                                     )}
@@ -211,24 +211,24 @@ function PersonaManager() {
                                             e.stopPropagation();
                                             handleEditPersona(persona);
                                         }}
-                                        className="p-1 hover:bg-[var(--color-button-secondary-accent)] rounded transition-colors"
+                                        className="p-1 hover:bg-(--color-button-secondary-accent) rounded transition-colors"
                                     >
-                                        <Edit3 className="w-3 h-3 text-[var(--color-icon-tertiary)]" />
+                                        <Edit3 className="w-3 h-3 text-(--color-icon-tertiary)" />
                                     </button>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleDeletePersona(persona.id);
                                         }}
-                                        className="p-1 hover:bg-[var(--color-button-negative)]/20 rounded transition-colors"
+                                        className="p-1 hover:bg-(--color-button-negative)/20 rounded transition-colors"
                                     >
-                                        <Trash2 className="w-3 h-3 text-[var(--color-button-negative)]" />
+                                        <Trash2 className="w-3 h-3 text-(--color-button-negative)" />
                                     </button>
                                 </div>
                             </div>
                         </div>
                     )) : (
-                        <div className="text-center py-8 text-[var(--color-icon-tertiary)]">
+                        <div className="text-center py-8 text-(--color-icon-tertiary)">
                             <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">{t('settings.persona.emptyList')}</p>
                         </div>

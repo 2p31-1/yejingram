@@ -20,6 +20,8 @@ export interface ApiConfig {
     providerAllowFallbacks?: boolean;
     // Custom endpoint payload template (for 'custom' provider)
     payloadTemplate?: string;
+    // Maximum number of retry attempts (for 'custom' provider)
+    maxRetries?: number;
 }
 
 export type PromptRole = 'system' | 'assistant' | 'user';
@@ -78,12 +80,15 @@ export interface SettingsState {
     randomMessageFrequencyMax: number;
     prompts: Prompts;
     useStructuredOutput: boolean;
-    useResponseFormat?: boolean;
-    useImageResponse?: boolean | undefined;
+    useResponseFormat: boolean;
+    useImageResponse: boolean;
+    useThoughtSignature: boolean;
+    usePayloadImage: boolean;
     speedup: number;
     personas: Persona[];
     selectedPersonaId: string | null;
     syncSettings: Sync;
+    proactiveSettings: Proactive;
 }
 
 export interface Persona {
@@ -101,4 +106,33 @@ export interface Sync {
     syncEnabled: boolean;
     syncClientId: string;
     syncBaseUrl: string;
+}
+
+export interface ProactiveTimeRestriction {
+    enabled: boolean;
+    startHour: number | ""; // 0-23
+    startMinute: number | ""; // 0-59
+    endHour: number | ""; // 0-23
+    endMinute: number | ""; // 0-59
+}
+
+export interface ProactivePeriodicSettings {
+    enabled: boolean;
+    intervalMinutes: number | ""; // 주기 간격 (분)
+}
+
+export interface ProactiveProbabilisticSettings {
+    enabled: boolean;
+    probability: number | ""; // 0-100 (퍼센트)
+    maxTriggersPerDay: number | ""; // 하루 최대 트리거 횟수
+    triggeredCountToday: number | ""; // 오늘 트리거된 횟수
+    lastTriggeredDate: string | null; // YYYY-MM-DD 형식
+}
+
+export interface Proactive {
+    proactiveChatEnabled: boolean;
+    proactiveServerBaseUrl: string;
+    timeRestriction: ProactiveTimeRestriction;
+    periodicSettings: ProactivePeriodicSettings;
+    probabilisticSettings: ProactiveProbabilisticSettings;
 }

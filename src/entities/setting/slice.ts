@@ -1,6 +1,6 @@
-import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { SettingsState, ApiProvider, ApiConfig, Prompts, Persona, ThemeOverrides, Sync } from './types';
+import type { SettingsState, ApiProvider, ApiConfig, Prompts, Persona, ThemeOverrides, Sync, Proactive } from './types';
 import type { ImageApiConfig, ImageApiProvider, ArtStyle } from './image/types';
 import { initialState as imageSettingsInitialState, initialImageApiConfigs } from './image/slice';
 import { nanoid } from '@reduxjs/toolkit';
@@ -9,18 +9,41 @@ import defaultPrompts from './defaultPrompts.json';
 export const initialApiConfigs: Record<ApiProvider, ApiConfig> = {
     gemini: { apiKey: '', model: 'gemini-2.5-pro', customModels: [] },
     vertexai: { apiKey: '', model: 'gemini-2.5-pro', customModels: [], projectId: '', location: 'global', accessToken: '' },
-    claude: { apiKey: '', model: 'claude-opus-4-1-20250805', customModels: [] },
+    claude: { apiKey: '', model: 'claude-opus-4-5-20251101', customModels: [] },
     openai: { apiKey: '', model: 'gpt-5', customModels: [] },
     grok: { apiKey: '', model: 'grok-4-0709', customModels: [] },
     deepseek: { apiKey: '', model: 'deepseek-chat', customModels: [] },
     openrouter: { apiKey: '', model: '', customModels: [], tokenizer: '', providers: [], providerAllowFallbacks: true },
-    custom: { apiKey: '', baseUrl: '', model: '', customModels: [], tokenizer: '', payloadTemplate: '' },
+    custom: { apiKey: '', baseUrl: '', model: '', customModels: [], tokenizer: '', payloadTemplate: '', maxRetries: 3 },
 };
 
 export const initialSyncSettings: Sync = {
     syncEnabled: false,
     syncClientId: '',
     syncBaseUrl: '',
+};
+
+export const initialProactiveSettings: Proactive = {
+    proactiveChatEnabled: false,
+    proactiveServerBaseUrl: '',
+    timeRestriction: {
+        enabled: false,
+        startHour: 23,
+        startMinute: 0,
+        endHour: 7,
+        endMinute: 0,
+    },
+    periodicSettings: {
+        enabled: false,
+        intervalMinutes: 60,
+    },
+    probabilisticSettings: {
+        enabled: false,
+        probability: 5,
+        maxTriggersPerDay: 1,
+        triggeredCountToday: 0,
+        lastTriggeredDate: null,
+    },
 };
 
 
@@ -48,15 +71,15 @@ export const initialState: SettingsState = {
     randomMessageFrequencyMax: 60,
     useStructuredOutput: true,
     useResponseFormat: true,
+    useThoughtSignature: false,
+    useImageResponse: false,
+    usePayloadImage: false,
     speedup: 2,
     personas: [],
     selectedPersonaId: null,
-    syncSettings: initialSyncSettings
+    syncSettings: initialSyncSettings,
+    proactiveSettings: initialProactiveSettings
 };
-
-export const settingsAdapter = createEntityAdapter<SettingsState, string>({
-    selectId: () => 'settings', // There will only be one settings object
-})
 
 const settingsSlice = createSlice({
     name: 'settings',
@@ -98,6 +121,12 @@ const settingsSlice = createSlice({
         },
         setUseResponseFormat: (state, action: PayloadAction<boolean>) => {
             state.useResponseFormat = action.payload;
+        },
+        setUseThoughtSignature: (state, action: PayloadAction<boolean>) => {
+            state.useThoughtSignature = action.payload;
+        },
+        setUsePayloadImage: (state, action: PayloadAction<boolean>) => {
+            state.usePayloadImage = action.payload;
         },
         setPrompts: (state, action: PayloadAction<Prompts>) => {
             state.prompts = action.payload;

@@ -65,7 +65,7 @@ function CharacterList({
             {/* Instagram DM Style Character Item */}
             <div
                 onClick={() => setIsExpanded(prev => !prev)}
-                className="character-header group px-4 py-3 cursor-pointer transition-all duration-200 relative hover:bg-[var(--color-bg-secondary)] select-none"
+                className="character-header group px-4 py-3 cursor-pointer transition-all duration-200 relative hover:bg-(--color-bg-secondary) select-none"
             >
                 <div className="absolute top-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-1 z-10">
                     <button
@@ -80,7 +80,7 @@ function CharacterList({
                                 unreadCount: 0,
                             }));
                         }}
-                        className="p-1 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-primary)] rounded-full text-[var(--color-icon-primary)] hover:text-[var(--color-text-accent)] transition-colors"
+                        className="p-1 bg-(--color-button-secondary) hover:bg-(--color-button-primary) rounded-full text-(--color-icon-primary) hover:text-(--color-text-accent) transition-colors"
                         title={t('sidebar.characters.newChatTitle')}
                     >
                         <Plus className="w-3 h-3" />
@@ -91,7 +91,7 @@ function CharacterList({
                             toggleCharacterPanel(character.id);
                             dispatch(charactersActions.setEditingCharacterId(character.id));
                         }}
-                        className="p-1 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-tertiary)]/50 rounded-full text-[var(--color-icon-primary)] hover:text-[var(--color-text-accent)] transition-colors"
+                        className="p-1 bg-(--color-button-secondary) hover:bg-(--color-button-tertiary)/50 rounded-full text-(--color-icon-primary) hover:text-(--color-text-accent) transition-colors"
                         title={t('sidebar.characters.editTitle')}
                     >
                         <Edit3 className="w-3 h-3" />
@@ -122,7 +122,7 @@ function CharacterList({
                                 dispatch(charactersActions.removeOne(character.id));
                             }
                         }}
-                        className="p-1 bg-[var(--color-button-secondary)] hover:bg-[var(--color-button-negative)] rounded-full text-[var(--color-icon-primary)] hover:text-[var(--color-text-accent)] transition-colors"
+                        className="p-1 bg-(--color-button-secondary) hover:bg-(--color-button-negative) rounded-full text-(--color-icon-primary) hover:text-(--color-text-accent) transition-colors"
                         title={t('sidebar.characters.deleteTitle')}
                     >
                         <Trash2 className="w-3 h-3" />
@@ -133,43 +133,43 @@ function CharacterList({
                     <div className="relative">
                         <Avatar char={character} size="md" />
                         {/* Online indicator */}
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${useCharacterOnlineStatus(character.id) ? 'bg-[var(--color-indicator-online)]' : 'bg-[var(--color-indicator-offline)]'} border-2 border-[var(--color-bg-main)] rounded-full`}></div>
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${useCharacterOnlineStatus(character.id) ? 'bg-(--color-indicator-online)' : 'bg-(--color-indicator-offline)'} border-2 border-(--color-bg-main) rounded-full`}></div>
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2">
-                                    <h3 className="font-semibold text-[var(--color-text-primary)] text-sm truncate">{character.name}</h3>
+                                    <h3 className="font-semibold text-(--color-text-primary) text-sm truncate">{character.name}</h3>
                                     {totalUnreadCount > 0 && (
-                                        <span className="bg-[var(--color-button-primary)] text-[var(--color-text-accent)] text-xs px-1.5 py-0.5 rounded-full font-medium min-w-[18px] text-center">
+                                        <span className="bg-(--color-button-primary) text-(--color-text-accent) text-xs px-1.5 py-0.5 rounded-full font-medium min-w-4.5 text-center">
                                             {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex items-center justify-between mt-1">
                                     <div className="flex items-center flex-1 mr-2 min-w-0 space-x-1">
-                                        <span className="text-[var(--color-text-secondary)] text-sm truncate block min-w-0">
+                                        <span className="text-(--color-text-secondary) text-sm truncate block min-w-0">
                                             {getMessageDisplayText(lastMessage, t)}
                                         </span>
                                         {chatRooms.length > 1 && (
-                                            <span className="text-[var(--color-text-informative-secondary)] text-sm flex-shrink-0">· {t('sidebar.characters.numOfRoom', { count: chatRooms.length })}</span>
+                                            <span className="text-(--color-text-informative-secondary) text-sm shrink-0">· {t('sidebar.characters.numOfRoom', { count: chatRooms.length })}</span>
                                         )}
                                     </div>
-                                    {/* <p className="text-[var(--color-text-secondary)] text-sm truncate flex-1 mr-2">
+                                    {/* <p className="text-(--color-text-secondary) text-sm truncate flex-1 mr-2">
                                         {getMessageDisplayText(lastMessage, t)}
                                         {chatRooms.length > 1 && (
-                                            <span className="text-[var(--color-text-informative-secondary)]"> · {t('sidebar.characters.numOfRoom', { count: chatRooms.length })}</span>
+                                            <span className="text-(--color-text-informative-secondary)"> · {t('sidebar.characters.numOfRoom', { count: chatRooms.length })}</span>
                                         )}
                                     </p> */}
-                                    <div className="flex items-center space-x-1 flex-shrink-0">
+                                    <div className="flex items-center space-x-1 shrink-0">
                                         {lastMessage && typeof lastMessage === 'object' && 'createdAt' in lastMessage && (lastMessage as Message).createdAt && (
-                                            <span className="text-xs text-[var(--color-text-informative-secondary)]">
+                                            <span className="text-xs text-(--color-text-informative-secondary)">
                                                 {formatTime((lastMessage as Message).createdAt)}
                                             </span>
                                         )}
                                         {isExpanded ?
-                                            <ChevronDown className="w-4 h-4 text-[var(--color-icon-secondary)]" /> :
-                                            <ChevronRight className="w-4 h-4 text-[var(--color-icon-secondary)]" />
+                                            <ChevronDown className="w-4 h-4 text-(--color-icon-secondary)" /> :
+                                            <ChevronRight className="w-4 h-4 text-(--color-icon-secondary)" />
                                         }
                                     </div>
                                 </div>
@@ -181,11 +181,11 @@ function CharacterList({
 
             {/* Chat Rooms List - Instagram DM Style */}
             {isExpanded && (
-                <div className="bg-[var(--color-bg-secondary)] border-t border-[var(--color-border-secondary)]">
+                <div className="bg-(--color-bg-secondary) border-t border-(--color-border-secondary)">
                     {chatRooms.map((room, index) => (
                         <div
                             key={room.id}
-                            className={`pl-16 pr-4 py-2 hover:bg-[var(--color-bg-hover)] cursor-pointer select-none ${index !== chatRooms.length - 1 ? 'border-b border-[var(--color-border-secondary)]' : ''
+                            className={`pl-16 pr-4 py-2 hover:bg-(--color-bg-hover) cursor-pointer select-none ${index !== chatRooms.length - 1 ? 'border-b border-(--color-border-secondary)' : ''
                                 }`}
                         >
                             <RoomList

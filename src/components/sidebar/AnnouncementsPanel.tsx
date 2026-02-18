@@ -211,25 +211,25 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
 
     return (
         <>
-            <div className="fixed md:relative top-0 bottom-0 z-40 w-full md:max-w-2xl left-0 md:left-auto bg-[var(--color-bg-main)] h-full flex flex-col border-r border-[var(--color-border)]">
-                <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] shrink-0">
-                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('announcements.title')}</h3>
+            <div className="fixed md:relative top-0 bottom-0 z-40 w-full md:max-w-2xl left-0 md:left-auto bg-(--color-bg-main) h-full flex flex-col border-r border-(--color-border)">
+                <div className="flex items-center justify-between p-6 border-b border-(--color-border) shrink-0">
+                    <h3 className="text-lg font-semibold text-(--color-text-primary)">{t('announcements.title')}</h3>
                     <div className="flex items-center space-x-2">
                         <a href="https://github.com/YEJIN-DEV/yejingram" target="_blank" rel="noopener noreferrer"><img src={GitHubLogo} alt="GitHub" className="w-6 h-6" style={{ filter: 'var(--invert-filter)' }} /></a>
-                        <button onClick={onClose} className="p-1 hover:bg-[var(--color-bg-hover)] rounded-full transition-colors"><X className="w-5 h-5 text-[var(--color-icon-tertiary)]" /></button>
+                        <button onClick={onClose} className="p-1 hover:bg-(--color-bg-hover) rounded-full transition-colors"><X className="w-5 h-5 text-(--color-icon-tertiary)" /></button>
                     </div>
                 </div>
                 <div className="p-6 space-y-4 overflow-y-auto flex-1" ref={scrollRef}>
                     {/* Tab Navigation */}
                     <div
                         ref={tabContainerRef}
-                        className="flex justify-center border-b border-[var(--color-border)] -mx-6 whitespace-nowrap overflow-x-scroll scrollbar-hide touch-pan-x select-none"
+                        className="flex justify-center border-b border-(--color-border) -mx-6 whitespace-nowrap overflow-x-scroll scrollbar-hide touch-pan-x select-none"
                     >
                         <button
                             onClick={() => handleTabChange('all')}
-                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${activeTab === 'all'
-                                ? 'border-[var(--color-focus-border)] text-[var(--color-button-primary-accent)]'
-                                : 'border-transparent text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'
+                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors shrink-0 ${activeTab === 'all'
+                                ? 'border-(--color-focus-border) text-(--color-button-primary-accent)'
+                                : 'border-transparent text-(--color-icon-tertiary) hover:text-(--color-text-interface)'
                                 }`}
                         >
                             <Megaphone className="w-4 h-4 inline mr-2" />
@@ -237,9 +237,9 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                         </button>
                         <button
                             onClick={() => handleTabChange('servicenotes')}
-                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${activeTab === 'servicenotes'
-                                ? 'border-[var(--color-focus-border)] text-[var(--color-button-primary-accent)]'
-                                : 'border-transparent text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'
+                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors shrink-0 ${activeTab === 'servicenotes'
+                                ? 'border-(--color-focus-border) text-(--color-button-primary-accent)'
+                                : 'border-transparent text-(--color-icon-tertiary) hover:text-(--color-text-interface)'
                                 }`}
                         >
                             <MessageCircleWarning className="w-4 h-4 inline mr-2" />
@@ -247,9 +247,9 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                         </button>
                         <button
                             onClick={() => handleTabChange('patchnotes')}
-                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${activeTab === 'patchnotes'
-                                ? 'border-[var(--color-focus-border)] text-[var(--color-button-primary-accent)]'
-                                : 'border-transparent text-[var(--color-icon-tertiary)] hover:text-[var(--color-text-interface)]'
+                            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors shrink-0 ${activeTab === 'patchnotes'
+                                ? 'border-(--color-focus-border) text-(--color-button-primary-accent)'
+                                : 'border-transparent text-(--color-icon-tertiary) hover:text-(--color-text-interface)'
                                 }`}
                         >
                             <BadgePlus className="w-4 h-4 inline mr-2" />
@@ -262,7 +262,7 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                         {loadingList ? (
                             AnnouncementPanelStatusText(t('announcements.loading'), true)
                         ) : error ? (
-                            <div className="text-[var(--color-text-interface)]">{error}</div>
+                            <div className="text-(--color-text-interface)">{error}</div>
                         ) : (
                             <div className="space-y-3">
                                 {visibleItems.map(item => {
@@ -272,26 +272,26 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                                         <button
                                             key={item.id}
                                             onClick={() => openModal(item)}
-                                            className="w-full text-left p-4 rounded-xl border border-[var(--color-border-secondary)] bg-[var(--color-bg-input-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                                            className="w-full text-left p-4 rounded-xl border border-(--color-border-secondary) bg-(--color-bg-input-secondary) hover:bg-(--color-bg-hover) transition-colors"
                                         >
                                             <div className="flex gap-4">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="text-base font-semibold text-[var(--color-text-primary)] truncate">{item.title}</div>
-                                                        <div className="text-xs text-[var(--color-text-interface)] ml-3 whitespace-nowrap">{formatDate(item.date)}</div>
+                                                        <div className="text-base font-semibold text-(--color-text-primary) truncate">{item.title}</div>
+                                                        <div className="text-xs text-(--color-text-interface) ml-3 whitespace-nowrap">{formatDate(item.date)}</div>
                                                     </div>
-                                                    <div className="mt-2 text-sm text-[var(--color-text-interface)] line-clamp-3">
+                                                    <div className="mt-2 text-sm text-(--color-text-interface) line-clamp-3">
                                                         {preview ? getPreviewText(preview) : (
-                                                            <span className="inline-flex items-center gap-2 text-[var(--color-icon-tertiary)]"><Loader2 className="w-3 h-3 animate-spin" /> {t('announcements.loadingPreview')}</span>
+                                                            <span className="inline-flex items-center gap-2 text-(--color-icon-tertiary)"><Loader2 className="w-3 h-3 animate-spin" /> {t('announcements.loadingPreview')}</span>
                                                         )}
                                                     </div>
                                                 </div>
                                                 {firstImage && (
-                                                    <div className="flex-shrink-0">
+                                                    <div className="shrink-0">
                                                         <img
                                                             src={firstImage.src}
                                                             alt={firstImage.alt || 'preview'}
-                                                            className="w-24 h-24 object-cover rounded-lg border border-[var(--color-border-secondary)]"
+                                                            className="w-24 h-24 object-cover rounded-lg border border-(--color-border-secondary)"
                                                             loading="lazy"
                                                             referrerPolicy="no-referrer"
                                                         />
@@ -302,14 +302,14 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
                                     );
                                 })}
                                 {canLoadMore && (
-                                    <div className="flex justify-center py-4 text-[var(--color-text-interface)]">
+                                    <div className="flex justify-center py-4 text-(--color-text-interface)">
                                         <button
                                             onClick={() => {
                                                 if (activeTab === 'all') setPageAll(p => p + 1);
                                                 else if (activeTab === 'servicenotes') setPageService(p => p + 1);
                                                 else setPagePatch(p => p + 1);
                                             }}
-                                            className="px-4 py-2 rounded-full border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+                                            className="px-4 py-2 rounded-full border border-(--color-border) hover:bg-(--color-bg-hover)"
                                         >
                                             {t('announcements.loadMore')}
                                         </button>
@@ -340,11 +340,11 @@ function AnnouncementsPanel({ onClose }: AnnouncementsPanelProps) {
 const AnnouncementPanelStatusText = (content: string, isLoading: boolean) => {
     return (
         <div className="flex items-center justify-center py-6">
-            <div className="flex items-center gap-3 text-[var(--color-text-tertiary)]">
-                <span className="h-px w-10 bg-[var(--color-border-secondary)]" />
+            <div className="flex items-center gap-3 text-(--color-text-tertiary)">
+                <span className="h-px w-10 bg-(--color-border-secondary)" />
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 <span>{content}</span>
-                <span className="h-px w-10 bg-[var(--color-border-secondary)]" />
+                <span className="h-px w-10 bg-(--color-border-secondary)" />
             </div>
         </div>
     );

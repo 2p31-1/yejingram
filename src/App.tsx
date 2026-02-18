@@ -9,27 +9,42 @@ import CharacterPanel from './components/character/CharacterPanel'
 import CreateGroupChatModal from './components/modals/CreateGroupChatModal'
 import EditGroupChatModal from './components/modals/EditGroupChatModal'
 import SyncModal from './components/modals/SyncModal'
+import SyncConflictModal from './components/modals/SyncConflictModal'
 import SyncCornerIndicator from './components/modals/SyncCornerIndicator'
+import RealmImportModal, { type RealmImportParams } from './components/modals/RealmImportModal'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectRoomById } from './entities/room/selectors'
 import { selectEditingCharacterId } from './entities/character/selectors'
 import { selectAllSettings, selectColorTheme, selectUILanguage } from './entities/setting/selectors'
 import { type RootState } from './app/store'
 import { setActiveRoomId } from './utils/activeRoomTracker'
-import { restoreStateFromServer } from './utils/backup'
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'react-hot-toast';
-import { selectForceShowSyncModal, selectUI } from './entities/ui/selectors';
+import { selectForceShowSyncModal } from './entities/ui/selectors';
 import i18n from './i18n/i18n'
 import { settingsActions } from './entities/setting/slice'
 import { charactersActions } from './entities/character/slice'
+import { syncService } from './services/syncService'
+import { selectIsSyncConflict, selectIsSyncing } from './entities/sync/selectors'
+import { roomsActions } from './entities/room/slice'
+import type { Character } from './entities/character/types'
+import { useTranslation } from 'react-i18next';
 
 function App() {
   const dispatch = useDispatch();
-  const [roomId, setRoomId] = useState<string | null>(null)
-  const room = useSelector((state: RootState) => roomId ? selectRoomById(state, roomId) : null)
+  const { t } = useTranslation();
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setIsMobileSidebarOpen(false);
+      return params.get('roomId')?.trim() || null;
+    }
+    return null;
+  })
+  const room = useSelector((state: RootState) => roomId ? selectRoomById(state, roomId) : null)
   const [isAnnouncementsPanelOpen, setIsAnnouncementsPanelOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
@@ -38,13 +53,48 @@ function App() {
   const [isEditGroupChatModalOpen, setIsEditGroupChatModalOpen] = useState(false);
   const colorTheme = useSelector(selectColorTheme);
   const settings = useSelector(selectAllSettings);
-  const { syncEnabled, syncClientId, syncBaseUrl } = settings.syncSettings;
-  const ui = useSelector(selectUI);
-  const isSyncing = (ui.syncProgress ?? 0) > 0;
+  const { syncEnabled } = settings.syncSettings;
   const forceShowSyncModal = useSelector(selectForceShowSyncModal);
   const uiLanguage = useSelector(selectUILanguage);
-
   const editingCharacterId = useSelector(selectEditingCharacterId);
+  const isConflict = useSelector(selectIsSyncConflict);
+  const isSyncing = useSelector(selectIsSyncing);
+
+  const [realmImport, setRealmImport] = useState<RealmImportParams | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const realmId = params.get('realmId')?.trim();
+      if (realmId) {
+        const charname = params.get('charname')?.trim() || undefined;
+        return { realmId, charname };
+      }
+    }
+    return null;
+  });
+
+  // realmId 처리 후 URL에서 파라미터 제거
+  const handleRealmImportClose = (character: Character | null) => {
+    setRealmImport(null);
+    // URL에서 realmId, charname 파라미터 제거
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('realmId');
+      url.searchParams.delete('charname');
+      window.history.replaceState({}, '', url.toString());
+    }
+
+    if (character) {
+      const roomResult = dispatch(roomsActions.upsertOne({
+        id: `${character.id}-${Date.now()}`,
+        name: t('sidebar.tooltipNewChat'),
+        memberIds: [character.id],
+        lastMessageId: null,
+        type: "Direct",
+        unreadCount: 0,
+      }));
+      setRoomId(roomResult.payload.id);
+    }
+  };
 
   const [prefersDark, setPrefersDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && 'matchMedia' in window) {
@@ -74,6 +124,50 @@ function App() {
       dispatch(charactersActions.updateDefaultCharacterNameToLocale(lang));
     }
   }, [uiLanguage, dispatch]);
+
+  const syncCheckedRef = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (syncEnabled) {
+      if (!syncCheckedRef.current && !isSyncing) {
+        syncCheckedRef.current = true;
+        syncService.checkConflict();
+      }
+
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(() => {
+          if (!isSyncing) {
+            syncService.checkConflict();
+          }
+        }, 60000);
+      }
+    } else {
+      // syncEnabled가 false일 때 interval 제거
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [syncEnabled, isSyncing]);
+
+
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'open_in_yejingram' && event.data?.realmId) {
+        setRealmImport({
+          realmId: String(event.data.realmId),
+          charname: event.data.charname
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark', 'custom-theme');
@@ -120,16 +214,6 @@ function App() {
     setActiveRoomId(roomId);
   }, [roomId]);
 
-  const hasRequestedInitialRestoreRef = useRef(false);
-  useEffect(() => {
-    if (syncEnabled && syncClientId && syncBaseUrl && !hasRequestedInitialRestoreRef.current) {
-      hasRequestedInitialRestoreRef.current = true;
-      restoreStateFromServer(syncClientId, syncBaseUrl);
-    } else if (!syncEnabled) {
-      hasRequestedInitialRestoreRef.current = false;
-    }
-  }, []);
-
   // 패널 자동 닫힘: "편집 중이었다가" editingCharacterId가 null이 될 때만 닫기
   const prevEditingIdRef = useRef<number | null>(editingCharacterId);
   useEffect(() => {
@@ -166,13 +250,13 @@ function App() {
   );
 
   // Show global sync modal ONLY on initial state: no room selected and no modal/panel open
-  const shouldShowGlobalSyncModal = (forceShowSyncModal || (isSyncing && !roomId &&
+  const shouldShowGlobalSyncModal = (forceShowSyncModal || (!roomId &&
     !isAnnouncementsPanelOpen && !isSettingsPanelOpen && !isPromptModalOpen && !isCharacterPanelOpen &&
     !isCreateGroupChatModalOpen && !isEditGroupChatModalOpen));
 
   return (
     <>
-      <div id="app" className="relative flex overflow-hidden bg-[var(--color-bg-main)] w-full h-dvh">
+      <div id="app" className="relative flex overflow-hidden bg-(--color-bg-main) w-full h-dvh">
 
         <Sidebar
           roomId={roomId}
@@ -199,7 +283,7 @@ function App() {
               onClose={() => setIsAnnouncementsPanelOpen(false)}
             />
             {/* Announcements Panel Backdrop (mobile only) */}
-            <Backdrop onClick={() => setIsAnnouncementsPanelOpen(false)} className="z-30 bg-[var(--color-bg-shadow)]/20 backdrop-blur-sm md:hidden" />
+            <Backdrop onClick={() => setIsAnnouncementsPanelOpen(false)} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
           </>
         )}
 
@@ -211,7 +295,7 @@ function App() {
               onClose={() => setIsSettingsPanelOpen(false)}
             />
             {/* Settings Panel Backdrop (mobile only) */}
-            <Backdrop onClick={() => setIsSettingsPanelOpen(false)} className="z-30 bg-[var(--color-bg-shadow)]/20 backdrop-blur-sm md:hidden" />
+            <Backdrop onClick={() => setIsSettingsPanelOpen(false)} className="z-30 bg-(--color-bg-shadow)/20 backdrop-blur-sm md:hidden" />
           </>
         )}
 
@@ -238,11 +322,25 @@ function App() {
         />
 
         {/* Sync indicators: show modal only for pristine initial state, else corner indicator */}
-        {shouldShowGlobalSyncModal ? <SyncModal /> : <SyncCornerIndicator />}
+        {
+          shouldShowGlobalSyncModal ? (
+            <SyncModal />
+          ) : isConflict ? (
+            <SyncConflictModal />
+          ) : (
+            <SyncCornerIndicator />
+          )
+        }
+
+
+        {/* Realm Import Modal */}
+        {realmImport && (
+          <RealmImportModal realmId={realmImport.realmId} charname={realmImport.charname} onClose={(character: Character | null) => handleRealmImportClose(character)} />
+        )}
 
         {/* Mobile Sidebar Backdrop */}
         {isMobileSidebarOpen && (
-          <Backdrop onClick={() => setIsMobileSidebarOpen(false)} className="z-20 bg-[var(--color-bg-shadow)]/50 md:hidden" />
+          <Backdrop onClick={() => setIsMobileSidebarOpen(false)} className="z-20 bg-(--color-bg-shadow)/50 md:hidden" />
         )}
       </div>
       <Toaster

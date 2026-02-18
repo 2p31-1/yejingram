@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { SettingsState, ApiConfig } from '../../entities/setting/types';
-import { Key, Cpu, Link, Plus, X, Briefcase, Globe, LayoutTemplate, Braces } from 'lucide-react';
+import { Key, Cpu, Link, Plus, X, Briefcase, Globe, LayoutTemplate, Braces, RefreshCw } from 'lucide-react';
 import { initialApiConfigs } from '../../entities/setting/slice';
 import { Toggle } from '../Toggle';
 
@@ -18,10 +18,12 @@ const providerModels: Record<string, string[]> = {
         'gemini-2.5-flash'
     ],
     vertexai: [
+        'gemini-3-pro-preview',
         'gemini-2.5-pro',
         'gemini-2.5-flash'
     ],
     claude: [
+        'claude-opus-4-5-20251101',
         'claude-sonnet-4-5',
         'claude-opus-4-1-20250805',
         'claude-opus-4-20250514',
@@ -240,7 +242,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                 onChange={checked => setSettings(prev => ({ ...prev, useStructuredOutput: checked, useImageResponse: checked ? prev.useImageResponse : false }))}
                 additionalDescription={
                     provider === 'claude' && (
-                        <p className="text-xs text-[var(--color-text-secondary)] mt-1">{t('settings.ai.structuredOutput.warnClaude')}</p>
+                        <p className="text-xs text-(--color-text-secondary) mt-1">{t('settings.ai.structuredOutput.warnClaude')}</p>
                     )
                 }
             />
@@ -262,15 +264,31 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                     onChange={checked => setSettings(prev => ({ ...prev, useImageResponse: checked }))}
                 />
             )}
+            <Toggle
+                id="include-images-toggle"
+                label={t('settings.ai.usePayloadImage.label')}
+                description={t('settings.ai.usePayloadImage.help')}
+                checked={settings.usePayloadImage ?? true}
+                onChange={checked => setSettings(prev => ({ ...prev, usePayloadImage: checked }))}
+            />
+            {config.model.startsWith('gemini-3') && (
+                <Toggle
+                    id="thought-signature-toggle"
+                    label={t('settings.ai.thoughtSignature.label')}
+                    description={t('settings.ai.thoughtSignature.help')}
+                    checked={settings.useThoughtSignature || false}
+                    onChange={checked => setSettings(prev => ({ ...prev, useThoughtSignature: checked }))}
+                />
+            )}
             {provider !== 'vertexai' && (
                 <div>
-                    <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Key className="w-4 h-4 mr-2" />{t('settings.ai.apiKeyLabel')}</label>
+                    <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Key className="w-4 h-4 mr-2" />{t('settings.ai.apiKeyLabel')}</label>
                     <input
                         type="password"
                         value={config.apiKey}
                         onChange={e => handleConfigChange('apiKey', e.target.value)}
                         placeholder={t('settings.ai.apiKeyPlaceholder')}
-                        className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                        className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                     />
                 </div>
             )}
@@ -278,33 +296,33 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
             {provider === 'vertexai' && (
                 <>
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Briefcase className="w-4 h-4 mr-2" />{t('settings.ai.vertex.projectIdLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Briefcase className="w-4 h-4 mr-2" />{t('settings.ai.vertex.projectIdLabel')}</label>
                         <input
                             type="text"
                             value={config.projectId || ''}
                             onChange={e => handleConfigChange('projectId', e.target.value)}
                             placeholder={t('settings.ai.vertex.projectIdPlaceholder')}
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                         />
                     </div>
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Globe className="w-4 h-4 mr-2" />{t('settings.ai.vertex.locationLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Globe className="w-4 h-4 mr-2" />{t('settings.ai.vertex.locationLabel')}</label>
                         <input
                             type="text"
                             value={config.location || ''}
                             onChange={e => handleConfigChange('location', e.target.value)}
                             placeholder="global"
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                         />
                     </div>
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Key className="w-4 h-4 mr-2" />{t('settings.ai.vertex.accessTokenLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Key className="w-4 h-4 mr-2" />{t('settings.ai.vertex.accessTokenLabel')}</label>
                         <input
                             type="password"
                             value={config.accessToken || ''}
                             onChange={e => handleConfigChange('accessToken', e.target.value)}
                             placeholder="gcloud auth print-access-token"
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                         />
                     </div>
                 </>
@@ -313,38 +331,38 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
             {provider === 'openrouter' && (
                 <div className="space-y-2">
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Cpu className="w-4 h-4 mr-2" />{t('settings.ai.openrouter.modelLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Cpu className="w-4 h-4 mr-2" />{t('settings.ai.openrouter.modelLabel')}</label>
                         <div className="flex gap-2 items-center mb-2">
                             <input
                                 type="text"
                                 value={openRouterSearch}
                                 onChange={e => setOpenRouterSearch(e.target.value)}
                                 placeholder={t('settings.ai.openrouter.searchPlaceholder')}
-                                className="flex-1 px-3 py-2 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm"
+                                className="flex-1 px-3 py-2 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={refreshOpenRouterModels}
-                                className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-interface)] text-sm"
+                                className="px-3 py-2 rounded-lg border border-(--color-border) bg-(--color-bg-secondary) hover:bg-(--color-bg-hover) text-(--color-text-interface) text-sm"
                             >
                                 {t('settings.ai.openrouter.refresh')}
                             </button>
                         </div>
                         {openRouterLoading && (
-                            <p className="text-xs text-[var(--color-text-secondary)]">{t('settings.ai.openrouter.loading')}</p>
+                            <p className="text-xs text-(--color-text-secondary)">{t('settings.ai.openrouter.loading')}</p>
                         )}
                         {openRouterError && (
-                            <p className="text-xs text-[var(--color-button-negative)]">{openRouterError}</p>
+                            <p className="text-xs text-(--color-button-negative)">{openRouterError}</p>
                         )}
                         {!openRouterLoading && !openRouterError && (
                             <div>
                                 {openRouterModels.length === 0 ? (
-                                    <p className="text-xs text-[var(--color-text-secondary)]">{t('settings.ai.openrouter.noModels')}</p>
+                                    <p className="text-xs text-(--color-text-secondary)">{t('settings.ai.openrouter.noModels')}</p>
                                 ) : (
                                     <select
                                         value={config.model || ''}
                                         onChange={(e) => handleModelSelect(e.target.value)}
-                                        className="w-full px-3 py-2 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm"
+                                        className="w-full px-3 py-2 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm"
                                     >
                                         <option value="" disabled>{config.model ? t('settings.ai.openrouter.selectAnotherModel') : t('settings.ai.openrouter.selectModel')}</option>
                                         {openRouterModels
@@ -367,13 +385,13 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                     {/* Provider endpoints for the selected model */}
                     {config.model && (
                         <div className="mt-3">
-                            <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Link className="w-4 h-4 mr-2" />{t('settings.ai.openrouter.providerPriority')}</label>
-                            {endpointLoading && <p className="text-xs text-[var(--color-text-secondary)]">{t('settings.ai.openrouter.endpointsLoading')}</p>}
-                            {endpointError && <p className="text-xs text-[var(--color-button-negative)]">{endpointError}</p>}
+                            <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Link className="w-4 h-4 mr-2" />{t('settings.ai.openrouter.providerPriority')}</label>
+                            {endpointLoading && <p className="text-xs text-(--color-text-secondary)">{t('settings.ai.openrouter.endpointsLoading')}</p>}
+                            {endpointError && <p className="text-xs text-(--color-button-negative)">{endpointError}</p>}
                             {!endpointLoading && !endpointError && (
                                 endpointOptions.length > 0 ? (
                                     <div className="space-y-2">
-                                        <p className="text-xs text-[var(--color-text-secondary)]">{t('settings.ai.openrouter.priorityHelp')}</p>
+                                        <p className="text-xs text-(--color-text-secondary)">{t('settings.ai.openrouter.priorityHelp')}</p>
                                         <div className="flex flex-wrap gap-2">
                                             {endpointOptions.map(tag => {
                                                 const orderList = (config.providers || []).map((p: any) => p.tag);
@@ -392,7 +410,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                                                 handleConfigChange('providers', [...current, { tag, supportsResponseFormat: false }] as any);
                                                             }
                                                         }}
-                                                        className={`px-3 py-1 rounded-full border text-xs ${active ? 'bg-[var(--color-button-primary)] text-[var(--color-text-accent)] border-[var(--color-focus-border)]' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-interface)] hover:bg-[var(--color-bg-hover)] border-[var(--color-border)]'}`}
+                                                        className={`px-3 py-1 rounded-full border text-xs ${active ? 'bg-(--color-button-primary) text-(--color-text-accent) border-(--color-focus-border)' : 'bg-(--color-bg-secondary) text-(--color-text-interface) hover:bg-(--color-bg-hover) border-(--color-border)'}`}
                                                         title={active ? t('settings.ai.openrouter.selectedWithOrder', { order: orderIndex + 1 }) : t('settings.ai.openrouter.clickToAdd')}
                                                     >
                                                         {tag}{active ? ` · ${orderIndex + 1}` : ''}
@@ -402,10 +420,10 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                         </div>
                                         {(config.providers || []).length > 0 && (
                                             <div className="mt-2">
-                                                <label className="text-xs text-[var(--color-icon-tertiary)]">{t('settings.ai.openrouter.currentPriority')}</label>
+                                                <label className="text-xs text-(--color-icon-tertiary)">{t('settings.ai.openrouter.currentPriority')}</label>
                                                 <div className="flex flex-wrap gap-2 mt-1">
                                                     {(config.providers || []).map((p: any, idx: number) => (
-                                                        <span key={p.tag} className="px-2 py-1 rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text-interface)] border border-[var(--color-border)] text-xs">
+                                                        <span key={p.tag} className="px-2 py-1 rounded-md bg-(--color-bg-secondary) text-(--color-text-interface) border border-(--color-border) text-xs">
                                                             {idx + 1}. {p.tag}{p.supportsResponseFormat ? ' · JSON' : ''}
                                                         </span>
                                                     ))}
@@ -421,7 +439,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                         />
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-[var(--color-text-secondary)]">{t('settings.ai.openrouter.noEndpoints')}</p>
+                                    <p className="text-xs text-(--color-text-secondary)">{t('settings.ai.openrouter.noEndpoints')}</p>
                                 )
                             )}
                         </div>
@@ -432,19 +450,19 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
             {provider === 'custom' && (
                 <div className="space-y-3">
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Link className="w-4 h-4 mr-2" />{t('settings.ai.custom.baseUrlLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Link className="w-4 h-4 mr-2" />{t('settings.ai.custom.baseUrlLabel')}</label>
                         <input
                             type="text"
                             value={config.baseUrl || ''}
                             onChange={e => handleConfigChange('baseUrl', e.target.value)}
                             placeholder="https://api.openai.com/v1"
-                            className="w-full px-4 py-3 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-xl border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] transition-transform duration-200 text-sm"
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
                         />
                     </div>
 
                     {/* Tokenizer selection for custom (used by web-tokenizers in countTokens) */}
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Braces className="w-4 h-4 mr-2" />{t('settings.ai.custom.tokenizerLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Braces className="w-4 h-4 mr-2" />{t('settings.ai.custom.tokenizerLabel')}</label>
                         {(() => {
                             // Display labels while saving normalized values. OpenAI variants should store bare algorithm ids.
                             const tokenizerOptions = [
@@ -468,7 +486,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                 <select
                                     value={normalizedValue}
                                     onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
-                                    className="w-full px-3 py-2 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm"
+                                    className="w-full px-3 py-2 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm"
                                 >
                                     <option value="" disabled>{t('settings.ai.custom.selectTokenizer')}</option>
                                     {/* Keep this list in sync with CustomTokenizer and supported algorithms in src/utils/token.ts */}
@@ -482,7 +500,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
 
                     {/* Payload template selection for custom */}
                     <div>
-                        <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><LayoutTemplate className="w-4 h-4 mr-2" />{t('settings.ai.custom.payloadTemplateLabel')}</label>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><LayoutTemplate className="w-4 h-4 mr-2" />{t('settings.ai.custom.payloadTemplateLabel')}</label>
                         {(() => {
                             // Display labels while saving normalized values. OpenAI variants should store bare algorithm ids.
                             const payloadTemplateOptions = [
@@ -494,7 +512,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                 <select
                                     value={config.payloadTemplate}
                                     onChange={(e) => handleConfigChange('payloadTemplate', e.target.value)}
-                                    className="w-full px-3 py-2 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm"
+                                    className="w-full px-3 py-2 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm"
                                 >
                                     <option value="" disabled>{t('settings.ai.custom.selectPayloadTemplate')}</option>
                                     {payloadTemplateOptions.map(opt => (
@@ -504,11 +522,29 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                             );
                         })()}
                     </div>
+
+                    {/* Max retries for custom provider */}
+                    <div>
+                        <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><RefreshCw className="w-4 h-4 mr-2" />{t('settings.ai.custom.maxRetriesLabel')}</label>
+                        <input
+                            type="number"
+                            min={1}
+                            value={config.maxRetries ?? 3}
+                            onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                if (!isNaN(val) && val >= 1) {
+                                    handleConfigChange('maxRetries', val);
+                                }
+                            }}
+                            className="w-full px-4 py-3 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-xl border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) transition-transform duration-200 text-sm"
+                        />
+                        <p className="text-xs text-(--color-text-secondary) mt-1">{t('settings.ai.custom.maxRetriesDescription')}</p>
+                    </div>
                 </div>
             )}
 
             {provider !== 'openrouter' && (<div>
-                <label className="flex items-center text-sm font-medium text-[var(--color-text-interface)] mb-2"><Cpu className="w-4 h-4 mr-2" />{t('settings.ai.modelLabel')}</label>
+                <label className="flex items-center text-sm font-medium text-(--color-text-interface) mb-2"><Cpu className="w-4 h-4 mr-2" />{t('settings.ai.modelLabel')}</label>
 
                 {models.length > 0 && (
                     <div className="grid grid-cols-1 gap-2 mb-3">
@@ -517,7 +553,7 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                                 key={model}
                                 type="button"
                                 onClick={() => handleModelSelect(model)}
-                                className={`model-select-btn px-3 py-2 text-left text-sm rounded-lg transition-colors border ${config.model === model ? 'bg-[var(--color-button-primary)] text-[var(--color-text-accent)] border-[var(--color-focus-border)]' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-interface)] hover:bg-[var(--color-bg-hover)] border-[var(--color-border)]'}`}>
+                                className={`model-select-btn px-3 py-2 text-left text-sm rounded-lg transition-colors border ${config.model === model ? 'bg-(--color-button-primary) text-(--color-text-accent) border-(--color-focus-border)' : 'bg-(--color-bg-secondary) text-(--color-text-interface) hover:bg-(--color-bg-hover) border-(--color-border)'}`}>
                                 {model}
                             </button>
                         ))}
@@ -529,31 +565,31 @@ export function ProviderSettings({ settings, setSettings }: ProviderSettingsProp
                         value={customModelInput}
                         onChange={e => setCustomModelInput(e.target.value)}
                         placeholder={t('settings.ai.customModelPlaceholder')}
-                        className="flex-1 px-3 py-2 bg-[var(--color-bg-input-secondary)] text-[var(--color-text-primary)] rounded-lg border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-focus-border)]/50 focus:border-[var(--color-focus-border)] text-sm"
+                        className="flex-1 px-3 py-2 bg-(--color-bg-input-secondary) text-(--color-text-primary) rounded-lg border border-(--color-border) focus:ring-2 focus:ring-(--color-focus-border)/50 focus:border-(--color-focus-border) text-sm"
                     />
                     <button
                         type="button"
                         onClick={handleAddCustomModel}
-                        className="px-4 py-2 bg-[var(--color-button-positive)] hover:bg-[var(--color-button-positive)] text-[var(--color-text-accent)] rounded-lg text-sm flex items-center gap-1">
+                        className="px-4 py-2 bg-(--color-button-positive) hover:bg-(--color-button-positive) text-(--color-text-accent) rounded-lg text-sm flex items-center gap-1">
                         <Plus className="w-4 h-4" />{t('settings.ai.add')}
                     </button>
                 </div>
 
                 {config.customModels.length > 0 && (
                     <div className="mt-3 space-y-1">
-                        <label className="text-xs text-[var(--color-icon-tertiary)]">{t('settings.ai.customModelsLabel')}</label>
+                        <label className="text-xs text-(--color-icon-tertiary)">{t('settings.ai.customModelsLabel')}</label>
                         {config.customModels.map((model, index) => (
                             <div key={index} className="flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => handleModelSelect(model)}
-                                    className={`model-select-btn flex-1 px-3 py-2 text-left text-sm rounded-lg transition-colors border ${config.model === model ? 'bg-[var(--color-button-primary)] text-[var(--color-text-accent)] border-[var(--color-focus-border)]' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-interface)] hover:bg-[var(--color-bg-hover)] border-[var(--color-border)]'}`}>
+                                    className={`model-select-btn flex-1 px-3 py-2 text-left text-sm rounded-lg transition-colors border ${config.model === model ? 'bg-(--color-button-primary) text-(--color-text-accent) border-(--color-focus-border)' : 'bg-(--color-bg-secondary) text-(--color-text-interface) hover:bg-(--color-bg-hover) border-(--color-border)'}`}>
                                     {model}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveCustomModel(index)}
-                                    className="remove-custom-model-btn px-2 py-2 bg-[var(--color-button-negative)] hover:bg-[var(--color-button-negative)] text-[var(--color-text-accent)] rounded-lg text-sm">
+                                    className="remove-custom-model-btn px-2 py-2 bg-(--color-button-negative) hover:bg-(--color-button-negative) text-(--color-text-accent) rounded-lg text-sm">
                                     <X className="w-3 h-3" />
                                 </button>
                             </div>
