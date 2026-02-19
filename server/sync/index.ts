@@ -85,13 +85,8 @@ async function deleteBinary(clientId: string, storageKey: string): Promise<void>
 
 async function clearAllClientBinaries(clientId: string): Promise<void> {
     const dir = path.join(BIN_DIR, clientId);
-    try {
-        // Node 14+: rm exists in fs.promises
-        await (fsp as any).rm(dir, { recursive: true, force: true });
-    } catch {
-        // fallback for older
-        try { await fsp.rmdir(dir, { recursive: true } as any); } catch { }
-    }
+
+    await fsp.rm(dir, { recursive: true, force: true });
     await ensureBinaryDir(clientId);
 }
 
@@ -231,7 +226,7 @@ app.get('/api/health', (_req, res) => {
 /* ---------- sync check ---------- */
 app.post('/api/:clientId/sync/check', async (req, res, next) => {
     try {
-        const clientId = sanitizeClientId(req.params.clientId);
+        const clientId = sanitizeClientId(String(req.params.clientId));
         const state = await readServerState(clientId);
         if (!state) return res.status(404).json({ error: 'State not found' });
 
@@ -293,6 +288,10 @@ app.get('/api/:clientId/snapshot', async (req, res, next) => {
 /* ---------- snapshot upload ---------- */
 app.post('/api/:clientId/snapshot', upload.none(), async (req, res, next) => {
     try {
+        if (typeof req.params.clientId !== 'string') {
+            return res.status(400).json({ error: 'Invalid clientId' });
+        }
+
         const clientId = sanitizeClientId(req.params.clientId);
 
         const metadata = {
